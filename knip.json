@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "ignoreDependencies": ["pnpm"],
+      "ignore": ["fixtures/**"]
+    },
+    "apps/docs": {
+      "ignore": ["app/components/QueryWeaveMark.vue", "content.config.ts"],
+      "ignoreDependencies": [
+        "@iconify-json/lucide",
+        "@nuxt/fonts",
+        "@nuxt/icon",
+        "@nuxtjs/color-mode",
+        "@nuxtjs/mdc"
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@queryweave/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "*.json"
+  ],
+  "type": "module",
+  "exports": {
+    "./application": "./application.json",
+    "./browser-library": "./browser-library.json",
+    "./node-library": "./node-library.json",
+    "./nuxt": "./nuxt.json",
+    "./server-library": "./server-library.json",
+    "./tests": "./tests.json",
+    "./universal-library": "./universal-library.json",
+    "./vue-library": "./vue-library.json"
+  }
+}

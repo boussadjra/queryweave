@@ -1,0 +1,106 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigests"],
+  "dependencyDashboard": true,
+  "rangeStrategy": "pin",
+  "schedule": ["before 6am on monday"],
+  "timezone": "Etc/UTC",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "postUpdateOptions": ["pnpmDedupe"],
+  "packageRules": [
+    {
+      "description": "Never merge a major on its own schedule; each one needs a human and usually a changeset.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "addLabels": ["major"]
+    },
+    {
+      "description": "pnpm is pinned by packageManager and engines; changing it is a deliberate migration.",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["pnpm"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["toolchain"]
+    },
+    {
+      "description": "Keep the active Node LTS line explicit rather than pinned to a range.",
+      "matchPackageNames": ["node", "@types/node"],
+      "rangeStrategy": "replace",
+      "groupName": "node runtime"
+    },
+    {
+      "description": "GitHub Actions stay pinned to immutable digests.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true
+    },
+    {
+      "description": "The Oxc toolchain moves together; a formatter and linter mismatch is noisy.",
+      "matchPackageNames": ["oxlint", "oxlint-tsgolint", "oxfmt", "oxc-parser"],
+      "groupName": "oxc toolchain"
+    },
+    {
+      "description": "Build and repository tooling.",
+      "matchPackageNames": [
+        "turbo",
+        "tsdown",
+        "typescript",
+        "knip",
+        "publint",
+        "@arethetypeswrong/cli",
+        "@changesets/cli",
+        "vite"
+      ],
+      "groupName": "build tooling"
+    },
+    {
+      "description": "Test runners and browser automation must stay in lockstep.",
+      "matchPackageNames": [
+        "vitest",
+        "@vitest/browser",
+        "@vitest/browser-playwright",
+        "@vitest/coverage-v8",
+        "playwright",
+        "@playwright/test"
+      ],
+      "groupName": "test tooling"
+    },
+    {
+      "description": "Vue and its ecosystem.",
+      "matchPackageNames": ["vue", "vue-router", "vue-tsc", "@vitejs/plugin-vue"],
+      "groupName": "vue"
+    },
+    {
+      "description": "Nuxt and its first-party modules.",
+      "matchPackageNames": [
+        "nuxt",
+        "@nuxt/kit",
+        "@nuxt/schema",
+        "@nuxt/content",
+        "@nuxt/fonts",
+        "@nuxt/icon",
+        "@nuxt/ui",
+        "@nuxtjs/color-mode",
+        "@nuxtjs/mdc"
+      ],
+      "groupName": "nuxt"
+    },
+    {
+      "description": "Validation libraries are development-only; grouping them keeps the compatibility contract on one matrix.",
+      "matchPackageNames": ["zod", "valibot", "arktype", "@standard-schema/spec"],
+      "groupName": "validation libraries"
+    },
+    {
+      "description": "Documentation-only dependencies never affect a published package.",
+      "matchFileNames": ["apps/docs/package.json"],
+      "groupName": "documentation site",
+      "semanticCommitScope": "docs"
+    }
+  ]
+}

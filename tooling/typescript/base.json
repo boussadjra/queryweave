@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "moduleResolution": "Bundler",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "paths": {
+      "@queryweave/browser": ["../../packages/browser/src/index.ts"],
+      "@queryweave/core": ["../../packages/core/src/index.ts"],
+      "@queryweave/node": ["../../packages/node/src/index.ts"],
+      "@queryweave/nuxt": ["../../packages/nuxt/src/index.ts"],
+      "@queryweave/nuxt/runtime": ["../../packages/nuxt/src/runtime/index.ts"],
+      "@queryweave/server": ["../../packages/server/src/index.ts"],
+      "@queryweave/standard-schema": ["../../packages/standard-schema/src/index.ts"],
+      "@queryweave/testing": ["../../packages/testing/src/index.ts"],
+      "@queryweave/vue": ["../../packages/vue/src/index.ts"],
+      "@queryweave/vue-router": ["../../packages/vue-router/src/index.ts"]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": false,
+    "strict": true,
+    "target": "ES2023",
+    "useDefineForClassFields": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true
+  }
+}

@@ -1,0 +1,112 @@
+packages:
+  - apps/*
+  - packages/*
+  - tooling/*
+
+catalogs:
+  tooling:
+    "@arethetypeswrong/cli": 0.18.5
+    "@changesets/cli": 2.31.1
+    knip: 6.29.0
+    oxfmt: 0.60.0
+    oxlint: 1.75.0
+    oxlint-tsgolint: 7.0.2001
+    pnpm: 11.17.0
+    publint: 0.3.22
+    tsdown: 0.22.14
+    turbo: 2.10.7
+    typescript: 6.0.3
+  testing:
+    "@playwright/test": 1.62.0
+    "@vitest/browser": 4.1.10
+    "@vitest/browser-playwright": 4.1.10
+    "@vitest/coverage-v8": 4.1.10
+    playwright: 1.62.0
+    vitest: 4.1.10
+  browser:
+    vite: 8.1.5
+  node:
+    "@types/node": 26.1.1
+  vue:
+    "@vitejs/plugin-vue": 6.0.8
+    vue: 3.5.40
+    vue-router: 5.2.0
+    vue-tsc: 3.3.8
+  nuxt:
+    "@nuxt/kit": 4.5.0
+    "@nuxt/schema": 4.5.0
+    nuxt: 4.5.0
+  validation:
+    "@standard-schema/spec": 1.1.0
+    arktype: 2.2.3
+    valibot: 1.4.2
+    zod: 4.4.3
+  documentation:
+    "@iconify-json/lucide": 1.2.118
+    "@nuxt/content": 3.15.1
+    "@nuxt/fonts": 0.14.0
+    "@nuxt/icon": 2.3.1
+    "@nuxt/ui": 4.10.0
+    "@nuxtjs/color-mode": 4.0.1
+    "@nuxtjs/mdc": 0.22.2
+    tailwindcss: 4.3.3
+
+autoInstallPeers: false
+catalogMode: strict
+cleanupUnusedCatalogs: false
+dedupePeerDependents: true
+engineStrict: true
+hoist: false
+injectWorkspacePackages: false
+linkWorkspacePackages: false
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+preferWorkspacePackages: true
+publicHoistPattern: []
+resolvePeersFromWorkspaceRoot: false
+saveWorkspaceProtocol: true
+sharedWorkspaceLockfile: true
+strictPeerDependencies: true
+minimumReleaseAgeExclude:
+  - "@playwright/test@1.62.0"
+  - "@turbo/darwin-64@2.10.7"
+  - "@turbo/darwin-arm64@2.10.7"
+  - "@turbo/linux-64@2.10.7"
+  - "@turbo/linux-arm64@2.10.7"
+  - "@turbo/windows-64@2.10.7"
+  - "@turbo/windows-arm64@2.10.7"
+  - playwright-core@1.62.0
+  - playwright@1.62.0
+  - turbo@2.10.7
+allowBuilds:
+  esbuild: true
+  vue-demi: true
+packageExtensions:
+  "@nuxt/kit@4.5.0":
+    dependencies:
+      oxc-parser: 0.140.0
+      unplugin: 3.3.0
+  "@nuxt/vite-builder@4.5.0":
+    dependencies:
+      unplugin: 3.3.0
+  "@nuxtjs/mdc@0.22.2":
+    dependencies:
+      hast-util-to-html: 9.0.5
+  "@nuxt/content@3.15.1":
+    dependencies:
+      remark-emoji: 5.0.2
+  "@tiptap/extension-collaboration@3.29.0":
+    peerDependenciesMeta:
+      "@tiptap/y-tiptap":
+        optional: true
+      yjs:
+        optional: true
+  "@tiptap/extension-drag-handle@3.29.0":
+    peerDependenciesMeta:
+      "@tiptap/y-tiptap":
+        optional: true
+  "@vue/compiler-core@3.5.40":
+    dependencies:
+      "@babel/types": 7.29.7
+patchedDependencies:
+  vue-router@5.2.0: patches/vue-router@5.2.0.patch
