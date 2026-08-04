@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+  DO_NOT_TRACK: "1"
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.17.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Runs every Vitest project: unit, integration, browser, Nuxt, and type tests, with
+      # coverage thresholds enforced.
+      - name: Test with coverage
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 7
+
+      - name: Build packages and applications
+        run: pnpm build
+
+      - name: Check dependency boundaries
+        run: pnpm boundary:check
+
+      - name: Check package publishability
+        run: pnpm package:check
+
+      - name: Check build artifacts and archives
+        run: pnpm artifacts:check
+
+      - name: End-to-end test the browser playground
+        run: pnpm test:e2e
+
+      - name: Build documentation
+        run: pnpm docs:build
+
+      - name: Check unused and undeclared dependencies
+        run: pnpm knip
+
+  consumers:
+    name: Consumer fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.17.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The fixtures need real archives, so the packages are built first and packed by the runner.
+      - name: Build packages
+        run: pnpm build --filter=!@queryweave/docs
+
+      # Installs each packed archive into a clean project outside the workspace, then builds,
+      # server-renders, and hydrates the Nuxt consumer.
+      - name: Verify consumer fixtures
+        run: pnpm consumers:check
