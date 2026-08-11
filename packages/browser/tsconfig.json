@@ -1,0 +1,4 @@
+{
+  "extends": "@queryweave/typescript-config/browser-library",
+  "include": ["src/**/*.ts"]
+}
