@@ -1,0 +1,17 @@
+{
+  "name": "queryweave-fixture-browser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "tsc -p tsconfig.json && vite build && node index.ts"
+  },
+  "dependencies": {
+    "@queryweave/browser": "file:./queryweave-browser.tgz",
+    "@queryweave/core": "file:./queryweave-core.tgz"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vite": "8.1.5"
+  }
+}

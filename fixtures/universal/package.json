@@ -1,0 +1,15 @@
+{
+  "name": "queryweave-fixture-universal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "tsc -p tsconfig.json && node index.ts"
+  },
+  "dependencies": {
+    "@queryweave/core": "file:./queryweave-core.tgz"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "queryweave-fixture-nuxt",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "nuxt build && node verify.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "file:./queryweave-core.tgz",
+    "@queryweave/nuxt": "file:./queryweave-nuxt.tgz",
+    "@queryweave/vue": "file:./queryweave-vue.tgz",
+    "@queryweave/vue-router": "file:./queryweave-vue-router.tgz",
+    "nuxt": "4.5.0"
+  }
+}

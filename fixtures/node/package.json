@@ -1,0 +1,18 @@
+{
+  "name": "queryweave-fixture-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "tsc -p tsconfig.json && node index.ts"
+  },
+  "dependencies": {
+    "@queryweave/core": "file:./queryweave-core.tgz",
+    "@queryweave/node": "file:./queryweave-node.tgz",
+    "@queryweave/server": "file:./queryweave-server.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "typescript": "6.0.3"
+  }
+}
