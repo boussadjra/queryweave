@@ -1,0 +1,4 @@
+{
+  "extends": "@queryweave/typescript-config/vue-library",
+  "include": ["src/**/*.ts"]
+}

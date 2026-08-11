@@ -1,0 +1,62 @@
+{
+  "name": "@queryweave/vue-router",
+  "version": "0.0.0",
+  "description": "Vue Router adapter contracts for QueryWeave.",
+  "keywords": [
+    "query",
+    "state",
+    "url",
+    "vue",
+    "vue-router"
+  ],
+  "homepage": "https://github.com/queryweave/queryweave#readme",
+  "bugs": {
+    "url": "https://github.com/queryweave/queryweave/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/queryweave/queryweave.git",
+    "directory": "packages/vue-router"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:types": "tsc -p tsconfig.json",
+    "package:check": "publint --strict && attw --pack . --profile esm-only",
+    "clean": "node ../../scripts/clean-package.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@queryweave/typescript-config": "workspace:*",
+    "vue": "catalog:vue",
+    "vue-router": "catalog:vue"
+  },
+  "peerDependencies": {
+    "vue": ">=3.5.0 <4",
+    "vue-router": ">=5.2.0 <6"
+  },
+  "engines": {
+    "node": ">=24.18.0"
+  }
+}
