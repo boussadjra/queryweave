@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check)",
+      "Bash(pnpm build)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test:browser)",
+      "Bash(pnpm test:types)",
+      "Bash(pnpm test:e2e)",
+      "Bash(pnpm docs:build)",
+      "Bash(pnpm package:check)",
+      "Bash(pnpm boundary:check)",
+      "Bash(pnpm knip)",
+      "Bash(pnpm install)",
+      "Bash(node scripts/check-boundaries.mjs)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git ls-files:*)",
+      "PowerShell(pnpm check)",
+      "PowerShell(pnpm build)",
+      "PowerShell(pnpm lint)",
+      "PowerShell(pnpm format:check)",
+      "PowerShell(pnpm typecheck)",
+      "PowerShell(pnpm test)",
+      "PowerShell(pnpm test:browser)",
+      "PowerShell(pnpm test:types)",
+      "PowerShell(pnpm test:e2e)",
+      "PowerShell(pnpm docs:build)",
+      "PowerShell(pnpm package:check)",
+      "PowerShell(pnpm knip)",
+      "PowerShell(pnpm install)",
+      "PowerShell(npx oxfmt .)",
+      "PowerShell(npx oxlint .)",
+      "PowerShell(npx tsc -p tsconfig.json)",
+      "PowerShell(npx vitest run:*)"
+    ],
+    "deny": [
+      "Bash(pnpm publish:*)",
+      "Bash(npm publish:*)",
+      "Bash(changeset publish:*)",
+      "Bash(git push --force:*)",
+      "PowerShell(pnpm publish:*)",
+      "PowerShell(changeset publish:*)"
+    ]
+  }
+}
