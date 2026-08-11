@@ -1,0 +1,4 @@
+{
+  "extends": "@queryweave/typescript-config/nuxt",
+  "include": ["src/**/*.ts"]
+}
