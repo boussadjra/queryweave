@@ -1,0 +1,21 @@
+{
+  "name": "@queryweave/playground-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "clean": "node ../../scripts/clean-package.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "workspace:*",
+    "@queryweave/node": "workspace:*",
+    "@queryweave/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@queryweave/typescript-config": "workspace:*",
+    "@types/node": "catalog:node"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@queryweave/playground-nuxt",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "typecheck": "nuxt prepare && vue-tsc -b --noEmit",
+    "clean": "node ../../scripts/clean-package.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "workspace:*",
+    "@queryweave/nuxt": "workspace:*",
+    "@queryweave/vue": "workspace:*",
+    "nuxt": "catalog:nuxt"
+  },
+  "devDependencies": {
+    "vue-tsc": "catalog:vue"
+  }
+}

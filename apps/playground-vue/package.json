@@ -1,0 +1,26 @@
+{
+  "name": "@queryweave/playground-vue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vue-tsc --noEmit && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "clean": "node ../../scripts/clean-package.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "workspace:*",
+    "@queryweave/vue": "workspace:*",
+    "@queryweave/vue-router": "workspace:*",
+    "vue": "catalog:vue",
+    "vue-router": "catalog:vue"
+  },
+  "devDependencies": {
+    "@queryweave/typescript-config": "workspace:*",
+    "@vitejs/plugin-vue": "catalog:vue",
+    "vite": "catalog:browser",
+    "vue-tsc": "catalog:vue"
+  }
+}
