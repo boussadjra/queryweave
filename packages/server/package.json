@@ -1,0 +1,56 @@
+{
+  "name": "@queryweave/server",
+  "version": "0.0.0",
+  "description": "Web-standard server contracts for QueryWeave.",
+  "keywords": [
+    "query",
+    "server",
+    "state",
+    "url",
+    "web-standard"
+  ],
+  "homepage": "https://github.com/queryweave/queryweave#readme",
+  "bugs": {
+    "url": "https://github.com/queryweave/queryweave/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/queryweave/queryweave.git",
+    "directory": "packages/server"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:types": "tsc -p tsconfig.json",
+    "package:check": "publint --strict && attw --pack . --profile esm-only",
+    "clean": "node ../../scripts/clean-package.mjs"
+  },
+  "dependencies": {
+    "@queryweave/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@queryweave/typescript-config": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.18.0"
+  }
+}
