@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,59 +15,62 @@ import sharp from "sharp";
  */
 
 const docsRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const target = join(docsRoot, "public", "og.png");
+const logoSource = join(docsRoot, "public", "queryweavelogo.svg");
+const ogTarget = join(docsRoot, "public", "og.png");
+const faviconTarget = join(docsRoot, "public", "favicon.png");
 
 const width = 1200;
 const height = 630;
 
-const fontStack = "Segoe UI, Inter, DejaVu Sans, Helvetica, Arial, sans-serif";
+const fontStack = "Segoe UI, DejaVu Sans, Helvetica, Arial, sans-serif";
 const monoStack = "Cascadia Mono, Consolas, DejaVu Sans Mono, Menlo, monospace";
 
+const logoData = (await readFile(logoSource)).toString("base64");
+
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${String(width)}" height="${String(height)}" viewBox="0 0 ${String(width)} ${String(height)}">
-  <rect width="${String(width)}" height="${String(height)}" fill="#0d4f3a" />
+  <rect width="${String(width)}" height="${String(height)}" fill="#f1f1e4" />
+  <image href="data:image/svg+xml;base64,${logoData}" x="84" y="72" width="650" height="260" preserveAspectRatio="xMinYMid meet" />
 
-  <!-- The weave: two paths crossing at a single decoded point. -->
-  <g fill="none" stroke-linecap="round" stroke-width="10" opacity="0.9">
-    <path d="M0 470c220 0 300-190 520-190s300 190 680 190" stroke="#509319" />
-    <path d="M0 250c260 0 300 30 520 30s320-140 680-140" stroke="#80b3c3" opacity="0.75" />
-  </g>
-  <circle cx="520" cy="280" r="16" fill="#e3d31e" />
+  <text x="84" y="406" font-family="${fontStack}" font-size="56" font-weight="600" fill="#0d4f3a">Type-safe URL state,</text>
+  <text x="84" y="474" font-family="${fontStack}" font-size="56" font-weight="600" fill="#3d7014">woven together.</text>
 
-  <g transform="translate(84 150)">
-    <g stroke-linecap="round" stroke-linejoin="round" stroke-width="7" fill="none">
-      <path d="M0 62c14 0 19-26 31-26s17 26 36 26" stroke="#f1f1e4" />
-      <path d="M0 10c19 0 24 26 36 26S67 10 67 10" stroke="#509319" />
-    </g>
-    <circle cx="34.5" cy="36" r="8" fill="#e3d31e" />
-  </g>
+  <text x="84" y="540" font-family="${fontStack}" font-size="27" fill="#283730">A framework-independent URL state engine for browsers, servers,</text>
+  <text x="84" y="578" font-family="${fontStack}" font-size="27" fill="#283730">Node.js, and modern frontend frameworks.</text>
 
-  <text x="180" y="205" font-family="${fontStack}" font-size="64" font-weight="600" fill="#f1f1e4">QueryWeave</text>
-
-  <text x="84" y="330" font-family="${fontStack}" font-size="52" font-weight="600" fill="#f1f1e4">Type-safe URL state,</text>
-  <text x="84" y="396" font-family="${fontStack}" font-size="52" font-weight="600" fill="#e3d31e">woven together.</text>
-
-  <text x="84" y="470" font-family="${fontStack}" font-size="27" fill="#aebab4">A framework-independent URL state engine for browsers,</text>
-  <text x="84" y="508" font-family="${fontStack}" font-size="27" fill="#aebab4">servers, Node.js, and modern frontend frameworks.</text>
-
-  <text x="84" y="576" font-family="${monoStack}" font-size="23" fill="#80b3c3">?search=vue&#38;page=2  →  { search: "vue", page: 2 }</text>
+  <text x="84" y="615" font-family="${monoStack}" font-size="21" fill="#2f6c7e">?search=vue&#38;page=2  →  { search: "vue", page: 2 }</text>
 </svg>`;
 
 const png = await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toBuffer();
-await writeFile(target, png);
+await writeFile(ogTarget, png);
+
+const faviconIcon = await sharp(logoSource)
+  .extract({ left: 64, top: 102, width: 520, height: 520 })
+  .resize({ width: 414, height: 414, fit: "contain" })
+  .png()
+  .toBuffer();
+
+const favicon = await sharp(
+  Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+    <rect x="0" y="0" width="512" height="512" rx="108" fill="#f1f1e4" />
+  </svg>`),
+)
+  .composite([{ input: faviconIcon, left: 49, top: 49 }])
+  .png({ compressionLevel: 9 })
+  .toBuffer();
+await writeFile(faviconTarget, favicon);
 
 /**
  * Guard against a silent failure.
  *
- * If the host has no usable font, librsvg renders the shapes and drops every glyph. The image would
- * still be a valid PNG, so the only honest check is whether the rows where the headline belongs
- * actually contain ink.
+ * If librsvg cannot embed the supplied wordmark, it leaves the social image with a large empty
+ * region. The PNG would still be valid, so verify that the logo region actually contains ink.
  */
 const { data, info } = await sharp(png)
-  .extract({ left: 84, top: 290, width: 700, height: 120 })
+  .extract({ left: 84, top: 72, width: 650, height: 260 })
   .raw()
   .toBuffer({ resolveWithObject: true });
 
-const background = [0x0d, 0x4f, 0x3a];
+const background = [0xf1, 0xf1, 0xe4];
 let inked = 0;
 for (let offset = 0; offset < data.length; offset += info.channels) {
   const differs =
@@ -80,13 +83,13 @@ for (let offset = 0; offset < data.length; offset += info.channels) {
 }
 
 const coverage = inked / (info.width * info.height);
-if (coverage < 0.02) {
+if (coverage < 0.03) {
   console.error(
-    `generate-og-image: the headline area is ${(coverage * 100).toFixed(2)}% inked, so the text did not render. Install a sans-serif font and re-run.`,
+    `generate-og-image: the logo area is ${(coverage * 100).toFixed(2)}% inked, so the supplied SVG did not render.`,
   );
   process.exit(1);
 }
 
 console.log(
-  `generate-og-image: wrote public/og.png (${String(width)}x${String(height)}, headline ${(coverage * 100).toFixed(1)}% inked).`,
+  `generate-og-image: wrote public/og.png and public/favicon.png (${String(width)}x${String(height)}, logo ${(coverage * 100).toFixed(1)}% inked).`,
 );
