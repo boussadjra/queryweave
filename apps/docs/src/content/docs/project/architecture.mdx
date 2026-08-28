@@ -1,0 +1,164 @@
+---
+title: Architecture
+description: QueryWeave separates query semantics from runtime integration, and enforces the separation.
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import ArchitectureMap from "../../../components/ArchitectureMap.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+QueryWeave separates query semantics from runtime integration. Everything else on this page follows
+from that sentence.
+
+## The layers
+
+<ArchitectureMap caption="Definition, transformation, transitions, environment. Each layer knows only the one below it." />
+
+Written as a dependency direction:
+
+```text
+Definition layer          param, QueryCodec, QueryModel
+        ↓
+Transformation            decode, encode, normalize
+        ↓
+Runtime transitions       QueryRuntime
+        ↓
+Environment               QueryAdapter / QuerySource
+```
+
+A layer may depend on the one above it. Nothing depends downwards: the model cannot see the
+runtime, and the runtime cannot see which environment it is talking to beyond the four-method
+contract.
+
+## Two environment shapes
+
+<AdapterDiagram mode="adapter" environment="Browser, router, memory" />
+
+<AdapterDiagram mode="source" environment="Request" />
+
+A request-scoped environment implements `QuerySource` — one method. A mutable environment implements
+`QueryAdapter`, which extends it with `push`, `replace`, and `subscribe`.
+
+This distinction is in the type system rather than in documentation, so server code physically
+cannot call `push`. A capability that does not exist is absent, not present and throwing.
+
+## Package dependency direction
+
+```text
+@queryweave/core
+    ↑
+    ├── @queryweave/browser
+    ├── @queryweave/server
+    │       ↑
+    │       └── @queryweave/node
+    ├── @queryweave/standard-schema
+    ├── @queryweave/testing
+    ├── @queryweave/vue
+    │       ↑
+    │       └── @queryweave/nuxt
+    └── @queryweave/vue-router
+            ↑
+            └── @queryweave/nuxt
+```
+
+Two consequences worth naming:
+
+- `@queryweave/vue-router` depends on **core alone**, not on `@queryweave/vue`. The adapter is
+  useful without the binding, so coupling them would force an unnecessary dependency on anyone who
+  wants router synchronization with their own binding.
+- `@queryweave/node` depends on `@queryweave/server` rather than duplicating it. Node's
+  contribution is resolving an absolute URL; decoding stays in one place.
+
+## Constraints the compiler enforces
+
+`@queryweave/core` compiles with `lib: ["ES2023"]` and `types: []`. There is no DOM library and no
+Node library, so:
+
+- `window`, `document`, `history`, `location`, and `process` do not exist as names,
+- `URLSearchParams` does not exist either — it is accepted structurally as `Iterable<QueryEntry>`,
+- and the urlencoded codec is hand-written, because there is no `URLSearchParams` to delegate to.
+
+That last point comes with an obligation: `formatQueryString` must stay byte-identical to
+`URLSearchParams.prototype.toString`, and a test compares them.
+
+`isolatedDeclarations` is on for every publishable package except `@queryweave/nuxt`, whose module
+type cannot be expressed under it. Exported functions and constants therefore carry explicit type
+annotations.
+
+## Constraints a script enforces
+
+Compiler settings cannot express "this package must never import Vue". Three repository checks do,
+each reading something the previous one cannot see:
+
+| Check                  | Reads                     | Catches                                                                                         |
+| ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `pnpm boundary:check`  | sources and manifests     | Dependency direction, forbidden imports, forbidden globals, workspace protocols, publishability |
+| `pnpm artifacts:check` | built output and archives | Externalization, phantom dependencies, CommonJS emits, export-map targets, type resolution      |
+| `pnpm consumers:check` | installed packed archives | Anything only a real consumer sees                                                              |
+
+The globals check matches whole words in source text, comments included. That is blunt on purpose:
+a comment mentioning `window` in `@queryweave/core` is a signal that someone is thinking about the
+wrong layer.
+
+<Aside type="note" title="Why not just review it">
+  Every rule here is one a reviewer could enforce by reading. Reviewers are inconsistent and get
+  tired; the build is neither. Rules that matter architecturally are worth the script that keeps
+  them.
+</Aside>
+
+## The identity check
+
+`tests/api-identity.test.ts` fails the build if `useQueryState`, `useQueryStates`, `parseAs*`,
+`createParser`, `createLoader`, `createSerializer`, or `withDefault` appears in any package or
+application source, or if `react` appears in any manifest.
+
+This is not hostility toward other libraries. It is a guard against a specific failure mode: a
+model-first API accreting hook-shaped conveniences one pull request at a time until it is a worse
+copy of something else.
+
+## Validation strategy
+
+Core codecs decode and encode without choosing a validation vendor.
+`@queryweave/standard-schema` is the only interoperability boundary, and it depends on the
+specification's types alone. No published package may take a validator as a runtime dependency, and
+the boundary checker enforces that by name for Zod, Valibot, ArkType, Yup, Joi, Superstruct, and
+io-ts.
+
+## Testing strategy
+
+Twelve Vitest projects, one per boundary: `core`, `runtime`, `testing`, `browser`, `server`, `node`,
+`standard-schema`, `vue`, `vue-router`, `nuxt`, `types`, and `repository`. The browser project runs
+in real Chromium through Vitest Browser Mode. The `types` project asserts both what the inferred
+types accept and what they reject.
+
+Beyond the unit suite: a Playwright suite drives the browser playground, and seven consumer fixtures
+install packed archives into clean projects outside the workspace — including a Nuxt fixture that
+builds, server-renders two concurrent requests with different queries to prove they do not share
+state, and hydrates.
+
+## Deferred decisions
+
+These are open, and their absence is deliberate:
+
+- Transition scheduling, throttling, coalescing, and concurrency control.
+- Codec composition for date, JSON, object, tuple, and nested representations.
+- Per-parameter configurability of default omission and recovery policy.
+- Model-level refinements that change the model's output type.
+- Server response contribution, such as canonical-URL redirects.
+- Freezing the public contracts for 1.0.
+
+See the [roadmap](/project/roadmap/) for sequencing.
+
+## The decision records
+
+Each major API decision has an ADR in the repository:
+
+| ADR                                                                                                            | Decides                                              |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [0001](https://github.com/queryweave/queryweave/blob/main/docs/adr/0001-public-api-model.md)                   | Model-first public API, and the identities rejected  |
+| [0002](https://github.com/queryweave/queryweave/blob/main/docs/adr/0002-query-input-and-canonical-encoding.md) | Query input, duplicate keys, canonical encoding      |
+| [0003](https://github.com/queryweave/queryweave/blob/main/docs/adr/0003-parameter-semantics-and-issues.md)     | Parameter semantics and the issue taxonomy           |
+| [0004](https://github.com/queryweave/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md)   | Runtime transitions and adapter contracts            |
+| [0005](https://github.com/queryweave/queryweave/blob/main/docs/adr/0005-validation-interoperability.md)        | Validation interoperability                          |
+| [0006](https://github.com/queryweave/queryweave/blob/main/docs/adr/0006-vue-binding-shape.md)                  | Vue binding shape and Nuxt request scoping           |
+| [0007](https://github.com/queryweave/queryweave/blob/main/docs/adr/0007-api-consistency-and-packaging.md)      | API consistency corrections and packaging uniformity |

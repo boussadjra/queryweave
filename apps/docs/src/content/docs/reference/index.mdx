@@ -1,0 +1,54 @@
+---
+title: Packages
+description: Every published QueryWeave package, its responsibility, and its dependencies.
+---
+
+import PackageGrid from "../../../components/PackageGrid.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+This reference documents **exported** API only. Internal modules are not part of the contract and
+are not listed.
+
+<Aside type="caution" title="Provisional">
+  The public API is provisional and may change in minor versions before 1.0. Every breaking change
+  is recorded in an architecture decision record and a changeset.
+</Aside>
+
+<PackageGrid />
+
+## Dependency direction
+
+```text
+@queryweave/core
+    ↑
+    ├── @queryweave/browser
+    ├── @queryweave/server
+    │       ↑
+    │       └── @queryweave/node
+    ├── @queryweave/standard-schema
+    ├── @queryweave/testing
+    ├── @queryweave/vue
+    │       ↑
+    │       └── @queryweave/nuxt
+    └── @queryweave/vue-router
+            ↑
+            └── @queryweave/nuxt
+```
+
+The direction is enforced by `scripts/check-boundaries.mjs`, which reads sources and manifests and
+fails the build if a package imports something it is not allowed to.
+
+## Guarantees that apply to every package
+
+- **ESM only.** No package ships CommonJS, and each declares `"type": "module"`.
+- **Side-effect free.** Every manifest declares `"sideEffects": false`.
+- **Public and MIT-licensed.**
+- **Declarations are explicit.** `isolatedDeclarations` is on everywhere except
+  `@queryweave/nuxt`, whose module type cannot be expressed under it.
+- **No React, ever.** A repository test fails if `react` or `react-dom` appears in any manifest.
+
+## Pages
+
+- [`@queryweave/core`](/reference/core/) — the engine
+- [Environment packages](/reference/environments/) — browser, server, node, testing
+- [Framework packages](/reference/frameworks/) — vue, vue-router, nuxt, standard-schema

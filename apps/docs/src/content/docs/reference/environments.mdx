@@ -1,0 +1,124 @@
+---
+title: Environment packages
+description: Exported API for the browser, server, Node.js, and testing packages.
+---
+
+## @queryweave/browser
+
+### `createBrowserAdapter(options?)`
+
+```ts
+function createBrowserAdapter(options?: BrowserAdapterOptions): BrowserQueryAdapter;
+```
+
+`BrowserAdapterOptions` is `{ target?: Window }`. The target is resolved when the adapter is
+created; without one, and without an ambient window, it throws with a message naming `target`.
+
+`BrowserQueryAdapter` is a `QueryAdapter` plus `dispose(): void`. After disposal, `push` and
+`replace` throw; `read` continues to work.
+
+Writes go through `history.pushState` and `history.replaceState`, preserving `location.pathname`,
+`location.hash`, and the existing `history.state`. Subscribers are notified directly after a write —
+the History API does not fire `popstate` for programmatic navigation — and on every `popstate`.
+
+## @queryweave/server
+
+### Reading
+
+```ts
+function readUrlQuery<TDefs>(url: string | URL, model: QueryModel<TDefs>): DecodeResult<Values>;
+function readUrlQueryAsync<TDefs>(
+  url: string | URL,
+  model: QueryModel<TDefs>,
+): Promise<DecodeResult<Values>>;
+function readRequestQuery<TDefs>(request: Request, model: QueryModel<TDefs>): DecodeResult<Values>;
+function readRequestQueryAsync<TDefs>(
+  request: Request,
+  model: QueryModel<TDefs>,
+): Promise<DecodeResult<Values>>;
+```
+
+A string that does not parse as absolute is resolved against `relativeUrlBase`. Only the query is
+read.
+
+### Sources
+
+```ts
+function createRequestQuerySource(request: Request): WebRequestQuerySource;
+```
+
+`WebRequestQuerySource` is a `QuerySource` plus `readonly request: Request`.
+
+### Writing
+
+```ts
+function encodeQuery<TDefs>(model: QueryModel<TDefs>, value: Values): string;
+function createQueryUrl<TDefs>(base: string | URL, model: QueryModel<TDefs>, value: Values): URL;
+```
+
+`encodeQuery` returns the canonical query string with no leading `?`. `createQueryUrl` returns a new
+`URL` — the base is copied, not mutated — with managed keys first and unmanaged keys preserved
+afterwards in their original order.
+
+### Constants
+
+```ts
+const relativeUrlBase = "http://queryweave.invalid";
+```
+
+## @queryweave/node
+
+### `resolveNodeRequestUrl(request, options?)`
+
+```ts
+function resolveNodeRequestUrl(
+  request: IncomingMessage,
+  options?: ResolveNodeRequestUrlOptions,
+): URL;
+```
+
+`ResolveNodeRequestUrlOptions` is `{ host?, protocol?, trustForwardedHeaders? }`.
+
+Precedence for the authority: explicit `host`, then `x-forwarded-host` **only if**
+`trustForwardedHeaders` is `true`, then the `host` header, then `queryweave.invalid`. The scheme
+follows the same pattern with `x-forwarded-proto`, defaulting to `http`. A comma-separated header
+uses its first entry, trimmed; an empty value is ignored.
+
+### Reading
+
+```ts
+function readNodeQuery<TDefs>(request, model, options?): DecodeResult<Values>;
+function readNodeQueryAsync<TDefs>(request, model, options?): Promise<DecodeResult<Values>>;
+function createNodeQuerySource(request, options?): NodeRequestQuerySource;
+```
+
+`NodeRequestQuerySource` is a `QuerySource` plus `readonly request: IncomingMessage`. All three
+delegate decoding to `@queryweave/server`.
+
+## @queryweave/testing
+
+### `createMemoryQueryAdapter(options?)`
+
+```ts
+function createMemoryQueryAdapter(options?: MemoryQueryAdapterOptions): MemoryQueryAdapter;
+```
+
+`MemoryQueryAdapterOptions` is `{ initial?: QueryInput }`.
+
+`MemoryQueryAdapter` is a `QueryAdapter` plus:
+
+| Member           | Returns       | Notes                                              |
+| ---------------- | ------------- | -------------------------------------------------- |
+| `current()`      | `string`      | The stored query, formatted, without a leading `?` |
+| `entries()`      | `QueryOutput` | The same entries `read()` returns                  |
+| `back()`         | `void`        | No-op at the start of the stack                    |
+| `forward()`      | `void`        | No-op at the end of the stack                      |
+| `canGoBack()`    | `boolean`     |                                                    |
+| `canGoForward()` | `boolean`     |                                                    |
+| `dispose()`      | `void`        | Mutating calls throw afterwards                    |
+
+`push` truncates any forward entries, exactly like a browser. `replace` rewrites the current entry
+without changing the stack length. Entries are copied on write.
+
+The adapter's index is intentionally not exposed; `canGoBack` and `canGoForward` are the supported
+way to reason about position.

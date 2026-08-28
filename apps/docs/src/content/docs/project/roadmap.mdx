@@ -1,0 +1,99 @@
+---
+title: Roadmap
+description: What is implemented, what is deliberately absent, and what comes next.
+---
+
+import PackageBadge from "../../../components/PackageBadge.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<Aside type="caution" title="Status">
+  QueryWeave is in **Phase 3: hardening, packaging, and release readiness**. The engine is
+  implemented, tested, and validated as published archives — but the API is provisional and nothing
+  has been published to npm. Do not treat it as production ready.
+</Aside>
+
+## Implemented
+
+Everything documented on this site, and nothing else:
+
+| Capability                      | Where                                                   |
+| ------------------------------- | ------------------------------------------------------- |
+| Query input and duplicate keys  | [Codecs](/concepts/codecs/)                             |
+| Codecs, both directions         | [Codecs](/concepts/codecs/)                             |
+| Seven parameter families        | [Parameters](/concepts/parameters/)                     |
+| Query models and composition    | [Query models](/concepts/query-models/)                 |
+| Decode results and issues       | [Issues](/concepts/issues/)                             |
+| Canonical encoding and omission | [Defaults and absence](/concepts/defaults-and-absence/) |
+| Runtime transitions             | [Transitions](/runtime/transitions/)                    |
+| Memory adapter                  | [Testing](/adapters/testing/)                           |
+| Browser adapter                 | [Browser](/adapters/browser/)                           |
+| Server and Node helpers         | [Server](/adapters/server/), [Node.js](/adapters/node/) |
+| Standard Schema validation      | [Validation](/validation/)                              |
+| Vue, Vue Router, Nuxt           | [Frameworks](/frameworks/)                              |
+| Package stabilization           | [Architecture](/project/architecture/)                  |
+
+## Deliberately absent
+
+These are not oversights. Each is an open decision recorded in an ADR, and shipping a guess would
+be worse than shipping nothing.
+
+### Transition scheduling <PackageBadge tone="planned">planned</PackageBadge>
+
+There is no throttling, coalescing, cancellation, or concurrency control. Every transition applies
+immediately, and two overlapping transitions are not reconciled — the second reads whatever state
+the first produced.
+
+**What to do today:** debounce at the call site, and use `navigation: "replace"` for fast-changing
+inputs. See [Search](/recipes/search/).
+
+**Why it waits:** a scheduling model that cannot express "supersede" and "cancel" honestly would
+have to be replaced later. When it lands, `QueryTransitionResult` gains an outcome describing what
+actually happened, which is why it does not carry a constant `committed: true` today
+([ADR 0007](https://github.com/queryweave/queryweave/blob/main/docs/adr/0007-api-consistency-and-packaging.md)).
+
+### Codec composition <PackageBadge tone="planned">planned</PackageBadge>
+
+There are no dedicated families for dates, JSON, objects, tuples, or nested structures.
+
+**What to do today:** `param.custom` with your own codec. See [Codecs](/concepts/codecs/).
+
+**Why it waits:** each of these has an encoding question with no obviously right answer — how a
+date carries a time zone, whether an object is JSON or bracketed keys, how a tuple escapes its
+separator. Choosing wrong is a breaking change to every URL already in the wild.
+
+### Per-parameter omission and recovery policy <PackageBadge tone="planned">planned</PackageBadge>
+
+Default omission is global: a value equal to its default is always omitted. Recovery is decided by
+presence and cannot be overridden per parameter.
+
+### Model refinements that change the output type <PackageBadge tone="planned">planned</PackageBadge>
+
+Per-parameter `.refine()` can transform a value's type today. Model-level `refine` is typed to
+return the same values it received.
+
+### Server response contribution <PackageBadge tone="planned">planned</PackageBadge>
+
+QueryWeave decodes a request but contributes nothing to the response — no canonical-URL redirect,
+no headers.
+
+**What to do today:** compare `encodeQuery(model, values)` with the incoming query and redirect
+yourself. See [Server parsing](/recipes/server-parsing/).
+
+## Next
+
+In order:
+
+1. **Transition scheduling** — throttling, coalescing, cancellation, and concurrency control.
+2. **Codec composition** — date, JSON, object, tuple, and nested representations.
+3. **First release** — the first published version, migration guidance, and supported matrices.
+4. **API stabilization** — freezing the public contracts for 1.0.
+5. **Additional framework adapters** — designed against the established core contracts.
+
+## How breaking changes ship
+
+Before 1.0, breaking changes ship in **minor** versions. Each one requires an architecture decision
+record explaining the reasoning and a changeset describing the migration. Nothing breaks silently,
+and nothing breaks in a patch.
+
+Every package shares one version through a fixed version group, so the matrix of compatible
+versions stays trivial.

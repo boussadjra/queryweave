@@ -1,0 +1,247 @@
+---
+title: "@queryweave/core"
+description: The complete exported surface of the QueryWeave engine.
+---
+
+Everything below is exported from `@queryweave/core`. Nothing else is.
+
+## Models
+
+### `defineQueryModel(definitions, options?)`
+
+```ts
+function defineQueryModel<TDefs extends QueryParamDefinitions>(
+  definitions: TDefs,
+  options?: QueryModelOptions<TDefs>,
+): QueryModel<TDefs>;
+```
+
+Composes named parameters into one model. Throws a `TypeError` if a key is the empty string.
+
+`options.name` labels the model for diagnostics. `options.refine` takes refinements that run after
+every parameter decodes, reporting under `modelIssueKey`.
+
+### `QueryModel`
+
+| Member               | Returns                         | Notes                                                     |
+| -------------------- | ------------------------------- | --------------------------------------------------------- |
+| `name`               | `string \| undefined`           | Diagnostics only                                          |
+| `params`             | `Readonly<TDefs>`               | The definitions, for introspection                        |
+| `keys()`             | `readonly string[]`             | Managed keys, in definition order                         |
+| `defaults()`         | `QueryModelDefaults<TDefs>`     | Only parameters that have a default; required keys absent |
+| `decode(input)`      | `DecodeResult<Values>`          | Never throws                                              |
+| `decodeAsync(input)` | `Promise<DecodeResult<Values>>` | Required when validation is asynchronous                  |
+| `encode(values)`     | `QueryOutput`                   | Canonical; omits defaults; managed keys only              |
+| `normalize(input)`   | `QueryOutput`                   | `decode` then `encode`, recovering on failure             |
+
+### `modelIssueKey`
+
+```ts
+const modelIssueKey = "$";
+```
+
+The `key` used for model-level issues.
+
+### Model types
+
+`QueryModelValues`, `QueryModelDefaults`, `QueryModelKey`, `QueryPatch`, `QueryParamDefinitions`,
+`QueryParamValue`, `QueryParamPresenceOf`, `QueryModelOptions`.
+
+## Parameters
+
+### `param`
+
+```ts
+param.boolean(options?: BooleanParamOptions): QueryParamBuilder<boolean, "required">;
+param.choice<const T extends string>(choices: readonly T[]): QueryParamBuilder<T, "required">;
+param.custom<T>(codec: QueryCodec<T>, options?: CustomParamOptions): QueryParamBuilder<T, "required">;
+param.integer(options?: IntegerParamOptions): QueryParamBuilder<number, "required">;
+param.list<T>(item: QueryParam<T>, options?: ListParamOptions): QueryParamBuilder<readonly T[], "required">;
+param.number(options?: NumberParamOptions): QueryParamBuilder<number, "required">;
+param.text(options?: TextParamOptions): QueryParamBuilder<string, "required">;
+```
+
+Options by family:
+
+| Family    | Options                                        |
+| --------- | ---------------------------------------------- |
+| `text`    | `allowEmpty`, `maxLength`, `minLength`, `trim` |
+| `integer` | `max`, `min`                                   |
+| `number`  | `max`, `min`                                   |
+| `boolean` | `truthy`, `falsy`                              |
+| `list`    | `maxItems`, `minItems`                         |
+| `custom`  | `consumesMultipleValues`, `kind`               |
+
+### `QueryParamBuilder`
+
+```ts
+default(value: Exclude<TValue, undefined>): QueryParam<Exclude<TValue, undefined>, "default">;
+describe(description: string): QueryParamBuilder<TValue, TPresence>;
+nullable(): QueryParamBuilder<TValue | null, TPresence>;
+optional(): QueryParamBuilder<TValue | undefined, "optional">;
+refine<TOutput>(refinement: QueryRefinement<TValue, TOutput>): QueryParamBuilder<TOutput, TPresence>;
+```
+
+`default()` returns a `QueryParam`, not a builder, so it must be last in a chain.
+
+### `QueryParam`
+
+`kind`, `presence`, `consumesMultipleValues`, `description`, `codec`, `defaultValue`.
+
+`QueryParamKind` is `"boolean" | "choice" | "custom" | "integer" | "list" | "number" | "text"`.
+`QueryParamPresence` is `"default" | "optional" | "required"`.
+
+## Codecs
+
+### `QueryCodec<TValue>`
+
+```ts
+interface QueryCodec<TValue> {
+  decode(input: readonly string[], context: QueryDecodeContext): QueryValueResult<TValue>;
+  decodeAsync?(
+    input: readonly string[],
+    context: QueryDecodeContext,
+  ): Promise<QueryValueResult<TValue>>;
+  encode(value: TValue, context: QueryEncodeContext): readonly string[];
+}
+```
+
+`QueryDecodeContext` and `QueryEncodeContext` both carry `key: string` and
+`path: readonly PropertyKey[]`.
+
+## Results
+
+```ts
+function okValue<T>(value: T, issues?: readonly QueryIssue[]): QueryValueResult<T>;
+function failValue<T>(issues: readonly QueryIssue[]): QueryValueResult<T>;
+```
+
+`QueryValueResult<T>` is one value's outcome; `DecodeResult<T>` is a whole model's, carrying
+`partial` instead of `value` when `ok` is `false`.
+
+## Issues
+
+```ts
+function createQueryIssue(init: QueryIssueInit): QueryIssue;
+function hasQueryIssueCode(issues: readonly QueryIssue[], code: QueryIssueCode): boolean;
+```
+
+`QueryIssue` carries `key`, `code`, optional `input`, `message`, and optional `path`, and is frozen.
+
+`QueryIssueCode` is `"missing" | "empty" | "invalid" | "out_of_range" | "unknown_choice" |
+"unexpected_multiple_values" | "validation_failed"`.
+
+## Refinements
+
+```ts
+interface QueryRefinement<TInput, TOutput = TInput> {
+  readonly name?: string | undefined;
+  refine(
+    value: TInput,
+    context: QueryRefineContext,
+  ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
+}
+```
+
+`QueryRefinementResult<T>` is `{ ok: true; value: T }` or `{ ok: false; issues: readonly QueryRefinementIssue[] }`,
+where an issue carries `message` and an optional `path`.
+
+## Query input
+
+```ts
+function parseQueryString(source: string): QueryOutput;
+function formatQueryString(entries: QueryOutput): string;
+function normalizeQueryEntries(input: QueryInput): QueryOutput;
+function selectQueryValues(entries: QueryOutput, key: string): readonly string[];
+function queryOutputEquals(left: QueryOutput, right: QueryOutput): boolean;
+```
+
+`QueryEntry` is `readonly [key: string, value: string]`, `QueryOutput` is `readonly QueryEntry[]`,
+and `QueryInput` is `string | Iterable<QueryEntry> | QueryRecordInput`. `URLSearchParams` satisfies
+the iterable form structurally, which is how it is accepted without a DOM library.
+
+## Runtime
+
+### `createQueryRuntime(options)`
+
+```ts
+function createQueryRuntime<TDefs extends QueryParamDefinitions>(
+  options: QueryRuntimeOptions<TDefs>,
+): QueryRuntime<TDefs>;
+```
+
+`options` is `{ model, adapter, navigation? }`. `navigation` defaults to `"push"`.
+
+### `QueryRuntime`
+
+| Member                          | Returns                          |
+| ------------------------------- | -------------------------------- |
+| `model`                         | the bound model                  |
+| `read()`                        | `QuerySnapshot<Values>`          |
+| `update(patch, options?)`       | `Promise<QueryTransitionResult>` |
+| `replace(values, options?)`     | `Promise<QueryTransitionResult>` |
+| `remove(keys, options?)`        | `Promise<QueryTransitionResult>` |
+| `reset(keys?, options?)`        | `Promise<QueryTransitionResult>` |
+| `transaction(mutate, options?)` | `Promise<QueryTransitionResult>` |
+| `subscribe(listener)`           | `() => void`                     |
+| `dispose()`                     | `void`                           |
+
+Every operation throws after `dispose()`. `QueryTransitionOptions` is `{ navigation? }`.
+
+### `QuerySnapshot`
+
+```ts
+interface QuerySnapshot<TValues> {
+  readonly status: "valid" | "invalid";
+  readonly values: TValues;
+  readonly issues: readonly QueryIssue[];
+  readonly result: DecodeResult<TValues>;
+}
+```
+
+`values` is always present. Use `result.ok` when you want narrowing.
+
+### `QueryTransitionResult`
+
+```ts
+interface QueryTransitionResult<TValues> {
+  readonly navigation: "push" | "replace";
+  readonly output: QueryOutput;
+  readonly snapshot: QuerySnapshot<TValues>;
+}
+```
+
+## Adapter contracts
+
+```ts
+interface QuerySource {
+  read(): QueryInput;
+}
+
+interface QueryAdapter extends QuerySource {
+  push(next: QueryOutput): void | Promise<void>;
+  replace(next: QueryOutput): void | Promise<void>;
+  subscribe(listener: QueryChangeListener): () => void;
+}
+```
+
+`QueryChangeListener` is `(input: QueryInput) => void`. `QueryNavigationMode` is
+`"push" | "replace"`.
+
+## Bindings
+
+```ts
+interface QueryBinding<TDefs, TView = QueryModelValues<TDefs>> {
+  readonly runtime: QueryRuntime<TDefs>;
+  readonly values: TView;
+}
+```
+
+The shape every framework binding shares. `@queryweave/vue` extends it.
+
+## Not exported
+
+There is no `useQueryState`, `useQueryStates`, `parseAs*`, `createParser`, `createLoader`,
+`createSerializer`, `withDefault`, or tuple setter. These identities are rejected by
+[ADR 0001](https://github.com/queryweave/queryweave/blob/main/docs/adr/0001-public-api-model.md) and
+a repository test fails the build if one appears.
