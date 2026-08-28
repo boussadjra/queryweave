@@ -1,0 +1,93 @@
+/**
+ * QueryWeave brand tokens.
+ *
+ * The five brand colors are fixed. Everything else is derived: neutrals warm enough to sit beside
+ * Warm Canvas, and text-safe variants of the three accent colors, because Signal Green, Signal
+ * Yellow, and Flow Blue all fail WCAG AA as body text on a light surface. Each derived value below
+ * records the contrast ratio it was chosen for.
+ */
+
+:root {
+  /* Brand, unmodified. */
+  --qw-deep-forest: #0d4f3a;
+  --qw-signal-green: #509319;
+  --qw-signal-yellow: #e3d31e;
+  --qw-warm-canvas: #f1f1e4;
+  --qw-flow-blue: #80b3c3;
+
+  /* Text-safe accents for light surfaces. */
+  --qw-green-text: #3d7014; /* 5.2:1 on Warm Canvas */
+  --qw-blue-text: #2f6c7e; /* 5.2:1 on Warm Canvas */
+  /* Yellow is intrinsically the lightest of the five, so its readable counterpart is an ochre
+     rather than a yellow. It clears 4.5:1 on every light surface the site uses, the tightest
+     being Surface Muted at 4.7:1. */
+  --qw-yellow-text: #726708; /* 5.0:1 on Warm Canvas */
+  --qw-forest-hover: #146349;
+
+  /* Light neutrals. */
+  --qw-text-strong: #12211c; /* 15.6:1 on Warm Canvas */
+  --qw-text: #283730; /* 11.7:1 on Warm Canvas */
+  --qw-text-muted: #5a655f; /* 5.3:1 on Warm Canvas */
+  --qw-canvas: #f1f1e4;
+  --qw-surface: #fafaf5;
+  --qw-surface-muted: #e9e9df;
+  --qw-border: #d7d8cd;
+  --qw-border-strong: #bfc1b3;
+
+  /* Dark neutrals.
+     Surfaces stay neutral grey rather than tinted, so the green accents sit on a quiet ground
+     instead of competing with it. */
+  --qw-dark-canvas: #131514;
+  --qw-dark-surface: #1b1d1c;
+  --qw-dark-elevated: #242725;
+  --qw-dark-text: #f5f6ef; /* 17.0:1 on Dark Canvas */
+  --qw-dark-muted: #aebab4; /* 9.2:1 on Dark Canvas */
+  --qw-dark-border: rgb(241 241 228 / 12%);
+  --qw-dark-border-strong: rgb(241 241 228 / 22%);
+
+  /* The dark green family. Deep Forest and Signal Green are both too dark to carry emphasis on the
+     Dark Canvas, so each has a lightened counterpart here and every one records its ratio. */
+  --qw-green-bright: #8fcb57; /* 9.2:1 on Dark Canvas */
+  --qw-green-mint: #4fb894; /* 7.5:1 on Dark Canvas — Deep Forest, read in the dark */
+  --qw-green-mid: #6aa832; /* 6.3:1 on Dark Canvas */
+  --qw-green-fill: #1c2c1b; /* low-emphasis green ground, not a text colour */
+
+  /* Typography. Nothing is downloaded: Geist is used when the reader has it, and the stack
+     degrades to the platform UI font otherwise. */
+  --qw-font-sans:
+    "Geist Sans", Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto,
+    "Helvetica Neue", arial, sans-serif;
+  --qw-font-mono:
+    "Geist Mono", ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono",
+    monospace;
+
+  /* Type scale. */
+  --qw-text-hero: clamp(2.5rem, 1.6rem + 3.4vw, 3.75rem);
+  --qw-text-h1: clamp(2rem, 1.6rem + 1.6vw, 2.625rem);
+  --qw-text-h2: clamp(1.5rem, 1.3rem + 0.8vw, 1.875rem);
+  --qw-text-h3: clamp(1.25rem, 1.15rem + 0.4vw, 1.4375rem);
+  --qw-text-body: 1rem;
+  --qw-text-small: 0.875rem;
+  --qw-text-label: 0.75rem;
+
+  /* Shape and motion. */
+  --qw-radius-sm: 6px;
+  --qw-radius: 10px;
+  --qw-radius-lg: 14px;
+  --qw-duration-control: 140ms;
+  --qw-duration-panel: 220ms;
+  --qw-ease: cubic-bezier(0.32, 0.72, 0.35, 1);
+
+  /* Diagram paths. Reassigned per theme in theme.css. */
+  --qw-path-core: var(--qw-deep-forest);
+  --qw-path-valid: var(--qw-signal-green);
+  --qw-path-active: var(--qw-signal-yellow);
+  --qw-path-runtime: var(--qw-blue-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --qw-duration-control: 1ms;
+    --qw-duration-panel: 1ms;
+  }
+}

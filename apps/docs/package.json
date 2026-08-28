@@ -1,0 +1,31 @@
+{
+  "name": "@queryweave/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "check:links": "node scripts/check-links.mjs",
+    "clean": "node ../../scripts/clean-package.mjs",
+    "dev": "astro dev",
+    "docs:build": "astro build && node scripts/check-links.mjs",
+    "preview": "astro preview",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "catalog:documentation",
+    "@astrojs/starlight": "catalog:documentation",
+    "@astrojs/vue": "catalog:documentation",
+    "@queryweave/core": "workspace:*",
+    "@queryweave/testing": "workspace:*",
+    "@vue-flow/core": "catalog:documentation",
+    "astro": "catalog:documentation",
+    "vue": "catalog:vue"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:documentation",
+    "@queryweave/typescript-config": "workspace:*",
+    "sharp": "catalog:documentation",
+    "typescript": "catalog:tooling"
+  }
+}

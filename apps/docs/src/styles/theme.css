@@ -1,0 +1,380 @@
+/**
+ * Starlight token mapping.
+ *
+ * Starlight's structure is kept exactly as it ships — search, sidebar, table of contents, mobile
+ * navigation, focus handling. Only its color, type, and spacing tokens are reassigned, so the site
+ * reads as QueryWeave without any of that behavior being reimplemented.
+ *
+ * Starlight styles dark mode on `:root` and light mode on `:root[data-theme='light']`.
+ */
+
+:root {
+  --sl-font: var(--qw-font-sans);
+  --sl-font-mono: var(--qw-font-mono);
+  --sl-content-width: 46rem;
+  --sl-sidebar-width: 18.5rem;
+  --sl-line-height: 1.7;
+  --sl-line-height-headings: 1.2;
+  --sl-text-h1: var(--qw-text-h1);
+  --sl-text-h2: var(--qw-text-h2);
+  --sl-text-h3: var(--qw-text-h3);
+
+  /* Dark theme (Starlight's default). Neutral surfaces; the brand arrives through green accents.
+     Deep Forest is unreadable on the Dark Canvas, so the emphasis colour here is the lightened
+     green family in tokens.css rather than Flow Blue. */
+  --sl-color-accent-low: #1e3a22;
+  --sl-color-accent: #4a8f28;
+  --sl-color-accent-high: var(--qw-green-bright);
+  --sl-color-white: var(--qw-dark-text);
+  --sl-color-gray-1: #e8eae7;
+  --sl-color-gray-2: #ced2cf;
+  --sl-color-gray-3: var(--qw-dark-muted);
+  --sl-color-gray-4: #757a77;
+  --sl-color-gray-5: #4a4f4c;
+  --sl-color-gray-6: var(--qw-dark-elevated);
+  --sl-color-gray-7: #1f2221;
+  --sl-color-black: var(--qw-dark-canvas);
+  --sl-color-bg: var(--qw-dark-canvas);
+  --sl-color-bg-nav: var(--qw-dark-surface);
+  --sl-color-bg-sidebar: var(--qw-dark-surface);
+  --sl-color-bg-inline-code: var(--qw-dark-elevated);
+  --sl-color-bg-accent: var(--qw-green-bright);
+  --sl-color-text: var(--qw-dark-text);
+  --sl-color-text-accent: var(--qw-green-bright);
+  --sl-color-text-invert: var(--qw-dark-canvas);
+  --sl-color-hairline: var(--qw-dark-border);
+  --sl-color-hairline-light: var(--qw-dark-border);
+  --sl-color-hairline-shade: var(--qw-dark-border-strong);
+
+  /* Roles the QueryWeave components read directly. */
+  --qw-page-bg: var(--qw-dark-canvas);
+  --qw-panel: var(--qw-dark-surface);
+  --qw-panel-raised: var(--qw-dark-elevated);
+  --qw-panel-border: var(--qw-dark-border);
+  --qw-panel-border-strong: var(--qw-dark-border-strong);
+  --qw-heading: var(--qw-dark-text);
+  --qw-heading-brand: var(--qw-green-bright);
+  --qw-body: var(--qw-dark-text);
+  --qw-muted: var(--qw-dark-muted);
+  --qw-accent: var(--qw-green-bright);
+  --qw-accent-soft: var(--qw-green-fill);
+  --qw-accent-contrast: var(--qw-dark-canvas);
+  --qw-valid: var(--qw-green-bright);
+  /**
+   * Two signal roles, because one value cannot do both jobs.
+   *
+   * `--qw-signal` is a mark meant to be seen: a rule, a dot, a number, an underline. It has to
+   * clear contrast against the page, which on a light surface means an ochre, not a yellow.
+   * `--qw-signal-surface` is the hue a signal *ground* is mixed from, at a low percentage, where
+   * the darkened value would only turn the tint muddy. On the dark canvas both are the brand
+   * yellow unmodified, which is where it reads best.
+   */
+  --qw-signal: var(--qw-signal-yellow);
+  --qw-signal-surface: var(--qw-signal-yellow);
+  --qw-signal-ink: var(--qw-dark-canvas);
+  --qw-technical: var(--qw-flow-blue);
+  --qw-code-surface: #191b1a;
+  --qw-code-chrome: var(--qw-dark-elevated);
+  --qw-code-border: var(--qw-dark-border);
+  --qw-focus: var(--qw-green-bright);
+
+  /* The path hues keep the light theme's relationships: the engine is the Deep Forest reading,
+     a valid result is the Signal Green reading, the environment stays blue, and the active
+     transformation stays yellow. */
+  --qw-path-core: var(--qw-green-mint);
+  --qw-path-valid: var(--qw-green-bright);
+  --qw-path-active: var(--qw-signal);
+  --qw-path-runtime: #9fc9d6;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d9e6dc;
+  --sl-color-accent: var(--qw-deep-forest);
+  --sl-color-accent-high: #06382a;
+  --sl-color-white: var(--qw-text-strong);
+  --sl-color-gray-1: var(--qw-text-strong);
+  --sl-color-gray-2: var(--qw-text);
+  --sl-color-gray-3: var(--qw-text-muted);
+  --sl-color-gray-4: #8b948e;
+  --sl-color-gray-5: var(--qw-border-strong);
+  --sl-color-gray-6: var(--qw-surface-muted);
+  --sl-color-gray-7: #f3f3e9;
+  --sl-color-black: var(--qw-surface);
+  --sl-color-bg: var(--qw-canvas);
+  --sl-color-bg-nav: var(--qw-surface);
+  --sl-color-bg-sidebar: var(--qw-canvas);
+  --sl-color-bg-inline-code: var(--qw-surface-muted);
+  --sl-color-bg-accent: var(--qw-deep-forest);
+  --sl-color-text: var(--qw-text);
+  --sl-color-text-accent: var(--qw-deep-forest);
+  --sl-color-text-invert: var(--qw-surface);
+  --sl-color-hairline: var(--qw-border);
+  --sl-color-hairline-light: var(--qw-border);
+  --sl-color-hairline-shade: var(--qw-border-strong);
+
+  --qw-page-bg: var(--qw-canvas);
+  --qw-panel: var(--qw-surface);
+  --qw-panel-raised: #fdfdfa;
+  --qw-panel-border: var(--qw-border);
+  --qw-panel-border-strong: var(--qw-border-strong);
+
+  /* Headings are ink, not brand. Deep Forest stays for the elements that are actually emphasised:
+     the hero, primary actions, active navigation, links, focus, and diagram paths. */
+  --qw-heading: var(--qw-text-strong);
+  --qw-heading-brand: var(--qw-deep-forest);
+  --qw-body: var(--qw-text);
+  --qw-muted: var(--qw-text-muted);
+  --qw-accent: var(--qw-deep-forest);
+  --qw-accent-soft: #dfeadf;
+  --qw-accent-contrast: var(--qw-surface);
+  --qw-valid: var(--qw-green-text);
+  --qw-signal: var(--qw-yellow-text);
+  --qw-signal-surface: var(--qw-signal-yellow);
+  --qw-signal-ink: var(--qw-text-strong);
+  --qw-technical: var(--qw-blue-text);
+  --qw-code-surface: #fbfbf6;
+  --qw-code-chrome: var(--qw-surface-muted);
+  --qw-code-border: var(--qw-border);
+  --qw-focus: var(--qw-deep-forest);
+  --qw-path-core: var(--qw-deep-forest);
+  --qw-path-valid: var(--qw-signal-green);
+  /* Was #a8990a, which measured 2.55:1 on the canvas — below the 3:1 a diagram stroke needs. The
+     active path is the same signal the rest of the site marks with, so it reads from the same
+     token now and there is one fewer number to keep in step. */
+  --qw-path-active: var(--qw-signal);
+  --qw-path-runtime: var(--qw-blue-text);
+}
+
+/* ---------------------------------------------------------------- page shell */
+
+body {
+  background: var(--qw-page-bg);
+  color: var(--qw-body);
+  font-feature-settings: "cv05" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page > header.header {
+  border-bottom: 1px solid var(--qw-panel-border);
+  background: var(--sl-color-bg-nav);
+}
+
+:root[data-theme="light"] .sidebar-pane {
+  border-inline-end: 1px solid var(--qw-panel-border);
+}
+
+/* ---------------------------------------------------------------- typography */
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  color: var(--qw-heading);
+  font-weight: 600;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2 {
+  letter-spacing: -0.02em;
+}
+
+.sl-markdown-content h3 {
+  letter-spacing: -0.01em;
+}
+
+.content-panel h1#_top {
+  color: var(--qw-heading);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sl-markdown-content :is(h2, h3, h4) {
+  margin-top: 2.2em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--qw-accent);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+.sl-markdown-content a:hover:not(:where(.not-content *)) {
+  color: var(--qw-accent);
+  text-decoration-thickness: 2px;
+}
+
+.sl-markdown-content strong {
+  color: var(--qw-heading);
+  font-weight: 600;
+}
+
+.sl-markdown-content code:not(:where(.not-content *)) {
+  border: 1px solid var(--qw-panel-border);
+  border-radius: var(--qw-radius-sm);
+  font-size: 0.875em;
+}
+
+/* ---------------------------------------------------------------- focus */
+
+:root {
+  --sl-color-accent-focus: var(--qw-focus);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--qw-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.sidebar-content .large {
+  color: var(--qw-heading);
+  font-size: var(--qw-text-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover {
+  background-color: transparent;
+  color: var(--qw-accent);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--qw-accent);
+  border-radius: 0 var(--qw-radius-sm) var(--qw-radius-sm) 0;
+}
+
+/* ---------------------------------------------------------------- search */
+
+/* The docs search must never be confused with the simulated product search inside the
+   BrowserQuerySimulator, so it keeps a distinct pill shape and a muted surface. */
+site-search button[data-open-modal] {
+  border: 1px solid var(--qw-panel-border);
+  border-radius: 999px;
+  background-color: var(--qw-panel);
+  color: var(--qw-muted);
+}
+
+site-search button[data-open-modal]:hover {
+  border-color: var(--qw-accent);
+  color: var(--qw-body);
+}
+
+/* ---------------------------------------------------------------- code blocks */
+
+.expressive-code .frame {
+  border-radius: var(--qw-radius);
+}
+
+.expressive-code .frame pre {
+  border: 1px solid var(--qw-code-border);
+}
+
+/* ---------------------------------------------------------------- asides */
+
+.starlight-aside {
+  border-inline-start-width: 3px;
+  border-radius: 0 var(--qw-radius) var(--qw-radius) 0;
+  background-color: var(--qw-panel);
+}
+
+.starlight-aside--note {
+  --sl-color-asides-text-accent: var(--qw-technical);
+  --sl-color-asides-border: var(--qw-flow-blue);
+}
+
+.starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--qw-valid);
+  --sl-color-asides-border: var(--qw-signal-green);
+}
+
+.starlight-aside--caution {
+  --sl-color-asides-text-accent: var(--qw-heading);
+  --sl-color-asides-border: var(--qw-signal);
+}
+
+/* ---------------------------------------------------------------- tables */
+
+.sl-markdown-content table:not(:where(.not-content *)) {
+  border: 1px solid var(--qw-panel-border);
+  border-radius: var(--qw-radius);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: var(--qw-text-small);
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border: 0;
+  border-bottom: 1px solid var(--qw-panel-border);
+  padding: 0.6rem 0.85rem;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  background: var(--qw-panel);
+  color: var(--qw-heading);
+  font-size: var(--qw-text-label);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sl-markdown-content tr:last-child td:not(:where(.not-content *)) {
+  border-bottom: 0;
+}
+
+/* Below the sidebar breakpoint a wide table is narrower than its content, and `overflow: hidden`
+   would silently cut the last columns off. Starlight does not wrap tables in a scroll container,
+   so the table becomes its own: `display: block` makes overflow apply, and the rows still lay out
+   as a table inside the anonymous table box. */
+@media (max-width: 50rem) {
+  .sl-markdown-content table:not(:where(.not-content *)) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* ---------------------------------------------------------------- Starlight cards */
+
+.card:not(:where(.not-content *)) {
+  border: 1px solid var(--qw-panel-border);
+  border-radius: var(--qw-radius-lg);
+  background: var(--qw-panel);
+  padding: 1.25rem;
+}
+
+.card .title:not(:where(.not-content *)) {
+  color: var(--qw-heading);
+  font-size: 1.0625rem;
+}
+
+/* ---------------------------------------------------------------- wide content */
+
+/**
+ * The content pane is the reference for anything wider than the reading column.
+ *
+ * Starlight reserves the sidebar and the table of contents as fixed panes, so the column sits in
+ * a window whose width has nothing to do with `100vw`. Measuring against the viewport put the
+ * architecture map 240px underneath the sidebar at 1280 and 131px past the right edge at 1024.
+ * Declaring the pane a container lets a figure ask the only question that matters: how much room
+ * is there here.
+ */
+.content-panel {
+  container: qw-pane / inline-size;
+}
+
+/* Diagrams and the simulator take the width the pane actually has and stop there; the prose stays
+   at the reading measure. `100cqw` is the pane inside its own gutters, so where the column already
+   fills the pane — every viewport below roughly 1376px — the margins resolve to zero and the
+   element simply does not break out. That is the honest answer: the room is not there to take. */
+.qw-breakout {
+  width: min(72rem, 100cqw);
+  margin-inline: calc(50% - min(36rem, 50cqw));
+}
+
+/* The splash page centres its column, so the slack above is shared and the rule holds. A
+   documentation page parks the column against the table of contents instead, which puts every
+   spare pixel on one side; expanding symmetrically there would reach 96px into the contents
+   column at 1920. The presence of that column is the difference, so it is what the rule asks. */
+.page:has(.right-sidebar-container) .qw-breakout {
+  margin-inline-start: min(0px, calc(100% - min(72rem, 100cqw)));
+  margin-inline-end: 0;
+}

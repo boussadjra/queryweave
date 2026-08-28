@@ -1,0 +1,13 @@
+{
+  "extends": ["@queryweave/typescript-config/application", "astro/tsconfigs/strict"],
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@queryweave/core": ["../../packages/core/src/index.ts"],
+      "@queryweave/testing": ["../../packages/testing/src/index.ts"]
+    },
+    "types": ["astro/client"]
+  },
+  "include": [".astro/types.d.ts", "src/**/*.ts", "src/**/*.astro", "astro.config.mjs"],
+  "exclude": ["dist"]
+}

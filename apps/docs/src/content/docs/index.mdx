@@ -1,0 +1,115 @@
+---
+title: QueryWeave
+description: QueryWeave is a framework-independent, type-safe URL state engine for browsers, servers, Node.js, and modern frontend frameworks.
+template: splash
+tableOfContents: false
+editUrl: false
+head:
+  - tag: title
+    content: "QueryWeave — type-safe URL state, woven together"
+---
+
+import ArchitectureMap from "../../components/ArchitectureMap.astro";
+import BrowserQuerySimulator from "../../components/BrowserQuerySimulator.astro";
+import FeatureStep from "../../components/FeatureStep.astro";
+import HomeHero from "../../components/HomeHero.astro";
+import PackageGrid from "../../components/PackageGrid.astro";
+
+<HomeHero />
+
+<BrowserQuerySimulator
+  preset="search"
+  adapter="browser"
+  caption="Type in the product search. The URL, the decoded state, and the canonical query below are produced by @queryweave/core and the memory adapter from @queryweave/testing — not by a script written for this page."
+/>
+
+<FeatureStep index="01" title="Model your URL state">
+
+A model names every parameter the URL is allowed to carry, and each parameter owns both directions
+of translation. There is no separate parser to keep in step with a separate serializer.
+
+```ts
+import { defineQueryModel, param } from "@queryweave/core";
+
+const products = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+  sort: param.choice(["name", "created_at", "price"]).default("created_at"),
+});
+```
+
+</FeatureStep>
+
+<FeatureStep index="02" title="Decode into real types">
+
+Decoding produces a result, not an exception. `page` is a number, an out-of-range value recovers to
+its declared default, and the problem is reported rather than hidden.
+
+```ts
+const result = products.decode("?search=vue&page=2");
+
+if (result.ok) {
+  result.value.page; // 2, typed as number
+} else {
+  result.partial; // the keys that did decode
+  result.issues; // why the rest did not
+}
+```
+
+</FeatureStep>
+
+<FeatureStep index="03" title="Synchronize through adapters">
+
+A runtime binds one model to one environment. The adapter moves canonical output into that
+environment and reports changes back; it never decodes, validates, or applies defaults.
+
+```ts
+import { createBrowserAdapter } from "@queryweave/browser";
+import { createQueryRuntime } from "@queryweave/core";
+
+const runtime = createQueryRuntime({
+  model: products,
+  adapter: createBrowserAdapter(),
+});
+
+await runtime.update({ search: "vue" });
+await runtime.update({ page: 2 }, { navigation: "replace" });
+```
+
+</FeatureStep>
+
+<FeatureStep index="04" title="Reuse it everywhere">
+
+The same model reads a server request, drives a browser history stack, and backs a Vue component.
+Nothing about it is framework-shaped, so nothing has to be rewritten at a runtime boundary.
+
+```ts
+// A request, on any web-standard runtime.
+import { readRequestQuery } from "@queryweave/server";
+
+const decoded = readRequestQuery(request, products);
+
+// The same model, bound to Vue reactivity.
+import { useQueryModel } from "@queryweave/vue";
+
+const filters = useQueryModel(products);
+```
+
+</FeatureStep>
+
+## One engine, many environments
+
+QueryWeave separates what a query _means_ from where it is _stored_. The engine decides parameters,
+defaults, validity, and canonical form. Adapters decide navigation. Neither reaches into the other.
+
+<ArchitectureMap caption="Deep Forest carries the engine, blue the environments, yellow the active transformation, and green a valid decoded state." />
+
+## The packages
+
+<PackageGrid />
+
+<p class="qw-home-footnote">
+  QueryWeave is experimental and pre-1.0. The public API is provisional, every breaking change is
+  recorded in an architecture decision record, and nothing has been published to npm yet. See the{" "}
+  <a href="/project/roadmap/">roadmap</a> for what is deliberately absent.
+</p>
