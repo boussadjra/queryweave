@@ -3,7 +3,7 @@
  * Lockstep semver updates for QueryWeave's publishable package group.
  *
  * Usage:
- *   pnpm version:set -- 0.1.0-alpha.0
+ *   pnpm version:set -- 0.1.0-alpha.1
  *   pnpm version:set -- prerelease --preid alpha
  *   pnpm version:set -- preminor --preid beta
  *   pnpm version:set -- minor --dry-run
@@ -29,7 +29,7 @@ function usage(message) {
   console.error(`
 Usage: pnpm version:set -- <version|release-type> [options]
 
-  <version>        Exact semver version, for example 0.1.0-alpha.0
+  <version>        Exact semver version, for example 0.1.0-alpha.1
   <release-type>   ${[...releaseTypes].join(", ")}
 
 Options:
@@ -38,7 +38,7 @@ Options:
   --help           Show this message
 
 Examples:
-  pnpm version:set -- 0.1.0-alpha.0
+  pnpm version:set -- 0.1.0-alpha.1
   pnpm version:set -- prerelease --preid alpha
   pnpm version:set -- preminor --preid beta
   pnpm version:set -- minor

@@ -1,6 +1,6 @@
 {
   "name": "@queryweave/server",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Web-standard server contracts for QueryWeave.",
   "keywords": [
     "query",
