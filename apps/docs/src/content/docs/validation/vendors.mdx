@@ -1,0 +1,187 @@
+---
+title: Zod, Valibot, ArkType
+description: The same QueryWeave contract, expressed with three validators.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+All three libraries implement Standard Schema v1, so all three work identically through
+`fromStandardSchema`. QueryWeave has no preference and no default: pick on the merits of the
+library, not on what this documentation happens to show first.
+
+## One rule, three spellings
+
+A search term of at least two characters:
+
+<Tabs>
+  <TabItem label="Zod">
+
+```ts
+import { fromStandardSchema } from "@queryweave/standard-schema";
+import { param } from "@queryweave/core";
+import { z } from "zod";
+
+const search = param
+  .text()
+  .refine(fromStandardSchema(z.string().min(2)))
+  .optional();
+```
+
+  </TabItem>
+  <TabItem label="Valibot">
+
+```ts
+import { fromStandardSchema } from "@queryweave/standard-schema";
+import { param } from "@queryweave/core";
+import * as v from "valibot";
+
+const search = param
+  .text()
+  .refine(fromStandardSchema(v.pipe(v.string(), v.minLength(2))))
+  .optional();
+```
+
+  </TabItem>
+  <TabItem label="ArkType">
+
+```ts
+import { fromStandardSchema } from "@queryweave/standard-schema";
+import { param } from "@queryweave/core";
+import { type } from "arktype";
+
+const search = param
+  .text()
+  .refine(fromStandardSchema(type("string >= 2")))
+  .optional();
+```
+
+  </TabItem>
+</Tabs>
+
+Whichever you choose, a rejected value produces the same thing:
+
+```ts
+result.issues[0]?.code; // "validation_failed"
+result.issues[0]?.key; // "search"
+```
+
+## A transform, three spellings
+
+<Tabs>
+  <TabItem label="Zod">
+
+```ts
+const length = param.text().refine(fromStandardSchema(z.string().transform((v) => v.length)));
+```
+
+  </TabItem>
+  <TabItem label="Valibot">
+
+```ts
+const length = param.text().refine(
+  fromStandardSchema(
+    v.pipe(
+      v.string(),
+      v.transform((value) => value.length),
+    ),
+  ),
+);
+```
+
+  </TabItem>
+  <TabItem label="ArkType">
+
+```ts
+const length = param
+  .text()
+  .refine(fromStandardSchema(type("string").pipe((value) => value.length)));
+```
+
+  </TabItem>
+</Tabs>
+
+In all three cases the parameter's value type becomes `number`, inferred from the schema's output.
+
+## A model-level rule
+
+<Tabs>
+  <TabItem label="Zod">
+
+```ts
+const range = defineQueryModel(
+  { from: param.integer(), to: param.integer() },
+  {
+    refine: [
+      fromStandardSchema(
+        z.object({ from: z.number(), to: z.number() }).refine((r) => r.from <= r.to),
+      ),
+    ],
+  },
+);
+```
+
+  </TabItem>
+  <TabItem label="Valibot">
+
+```ts
+const range = defineQueryModel(
+  { from: param.integer(), to: param.integer() },
+  {
+    refine: [
+      fromStandardSchema(
+        v.pipe(
+          v.object({ from: v.number(), to: v.number() }),
+          v.check((r) => r.from <= r.to),
+        ),
+      ),
+    ],
+  },
+);
+```
+
+  </TabItem>
+  <TabItem label="ArkType">
+
+```ts
+const range = defineQueryModel(
+  { from: param.integer(), to: param.integer() },
+  {
+    refine: [
+      fromStandardSchema(type({ from: "number", to: "number" }).narrow((r) => r.from <= r.to)),
+    ],
+  },
+);
+```
+
+  </TabItem>
+</Tabs>
+
+Model-level failures are reported under the key `$`, exported as `modelIssueKey`.
+
+## What is verified
+
+The repository's compatibility suite runs a single table of expectations across all three vendors:
+
+| Behavior                                      | Verified |
+| --------------------------------------------- | -------- |
+| A valid value passes through unchanged        | yes      |
+| A rejected value produces `validation_failed` | yes      |
+| Recovery follows the parameter's presence     | yes      |
+| A transform changes the inferred type         | yes      |
+| A model-level schema reports under `$`        | yes      |
+| The vendor's error type never escapes         | yes      |
+
+That is the contract. If a fourth Standard Schema library satisfies it, it works — nothing about
+these three is special-cased.
+
+<Aside type="note" title="Bundle cost is yours, not QueryWeave's">
+  A validator is a runtime dependency of *your* application, not of any QueryWeave package. If
+  bundle size matters, note that codec-level constraints — `min`, `max`, `minLength`, `choice` —
+  cover many cases without a validator at all.
+</Aside>
+
+## Choosing
+
+QueryWeave takes no position. The practical differences are the usual ones: Zod is the most widely
+known, Valibot is designed around tree-shaking, ArkType parses type-level syntax. All three produce
+identical QueryWeave issues, so this decision is reversible.

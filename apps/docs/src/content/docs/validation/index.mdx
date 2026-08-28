@@ -1,0 +1,159 @@
+---
+title: Standard Schema
+description: QueryWeave validates through the Standard Schema specification rather than through one vendor.
+---
+
+import QueryFlow from "../../../components/QueryFlow.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+QueryWeave does not bundle a validation library, and it never will. Validators join through
+[Standard Schema](https://standardschema.dev), a specification several libraries implement, so the
+choice stays yours and stays replaceable.
+
+## Where validation fits
+
+Codecs already decide shape. `param.integer({ min: 1 })` rejects `abc` and rejects `0` without any
+validator at all. Validation is the layer above that: rules a codec should not know about, such as
+"this slug must exist" or "this range must be ordered".
+
+<QueryFlow
+  stages={[
+    { label: "Raw values", value: '["2"]', kind: "input" },
+    { label: "Codec", kind: "operation" },
+    { label: "Typed value", value: "2", kind: "state" },
+    { label: "Refinement", kind: "operation" },
+    { label: "Validated value", value: "2", kind: "output" },
+  ]}
+  caption="A refinement runs after decoding, on a value that already has the right type."
+/>
+
+## The contract
+
+QueryWeave's own hook is `QueryRefinement`, which is deliberately tiny:
+
+```ts
+interface QueryRefinement<TInput, TOutput = TInput> {
+  readonly name?: string | undefined;
+  refine(
+    value: TInput,
+    context: QueryRefineContext,
+  ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
+}
+```
+
+`@queryweave/standard-schema` adapts any Standard Schema validator into that shape. It is the only
+vendor-facing function in the entire project:
+
+```ts
+import { fromStandardSchema } from "@queryweave/standard-schema";
+```
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/standard-schema
+```
+
+The package depends on `@standard-schema/spec` — a types-only package — and on nothing else. No
+validator is a dependency of any published QueryWeave package, and a repository check fails the
+build if one ever becomes one.
+
+## Validating one parameter
+
+```ts
+import { defineQueryModel, param } from "@queryweave/core";
+import { fromStandardSchema } from "@queryweave/standard-schema";
+import { z } from "zod";
+
+const products = defineQueryModel({
+  search: param
+    .text()
+    .refine(fromStandardSchema(z.string().min(2)))
+    .optional(),
+});
+
+products.decode("?search=vue"); // ok, search: "vue"
+
+const rejected = products.decode("?search=v");
+rejected.issues[0]?.code; // "validation_failed"
+rejected.ok && rejected.value.search; // undefined — recovered by presence
+```
+
+The failure became a QueryWeave issue. Zod's error type never reaches your code, which is what lets
+you change validators later without touching anything that reads issues.
+
+## Validating the whole model
+
+Rules that involve more than one key belong to the model:
+
+```ts
+const range = defineQueryModel(
+  {
+    from: param.integer(),
+    to: param.integer(),
+  },
+  {
+    refine: [fromStandardSchema(orderedRangeSchema)],
+  },
+);
+```
+
+Model refinements run only after every parameter decoded, and their issues are reported under the
+key `$` (`modelIssueKey`).
+
+## Transforming values
+
+A Standard Schema that transforms changes the parameter's value type, and QueryWeave follows it:
+
+```ts
+const model = defineQueryModel({
+  search: param.text().refine(fromStandardSchema(z.string().transform((value) => value.length))),
+});
+
+// search is now number
+```
+
+<Aside type="caution" title="A transformed value still has to encode">
+  The parameter's codec encodes whatever the refinement produced. If a refinement turns a string
+  into a number, the codec that writes it back must be able to represent that number — otherwise the
+  round trip breaks and canonical output stops being canonical. Prefer transforms that stay
+  representable.
+</Aside>
+
+## Asynchronous schemas
+
+```ts
+const result = await products.decodeAsync("?search=vue");
+```
+
+A refinement may return a promise. Synchronous `decode` cannot wait, so it reports
+`validation_failed` with a message naming `decodeAsync` and recovers by presence — it does not
+block and does not silently pass.
+
+## Naming a refinement
+
+```ts
+fromStandardSchema(schema, { name: "product-search" });
+```
+
+The name defaults to the validator's own vendor string and is used for diagnostics only.
+
+## Which validators work
+
+Any library implementing Standard Schema v1. The repository verifies three of them against one
+shared contract: see [Zod, Valibot, ArkType](/validation/vendors/).
+
+## Edge cases
+
+- **Refinements are a pipeline.** Each receives the previous one's output, in declaration order.
+- **A failed refinement recovers by presence**, exactly like a codec failure: a default, or
+  `undefined`, or a failed result for a required parameter.
+- **Issue paths are preserved.** A validator's path is appended to the parameter's path, so a
+  nested failure still points at the right place.
+- **A validator error is never thrown.** It becomes an issue.
+
+## How it is tested
+
+`tests/standard-schema/compatibility.test.ts` runs one contract across Zod, Valibot, and ArkType,
+asserting normalized issues and inferred output types — never a vendor's own error shape. The
+`standard-schema` consumer fixture repeats it against the packed archive.
