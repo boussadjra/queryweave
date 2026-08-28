@@ -18,23 +18,55 @@ if (!application) {
 }
 
 application.innerHTML = `
-  <h1>QueryWeave browser playground</h1>
-  <p>The History API adapter drives one model. Every change is an explicit operation.</p>
-  <div class="controls">
-    <button type="button" data-action="next-page">Next page (push)</button>
-    <button type="button" data-action="search">Search "vue" (replace)</button>
-    <button type="button" data-action="tags">Add tag</button>
-    <button type="button" data-action="reset">Reset</button>
-    <button type="button" data-action="back">Back</button>
-  </div>
-  <dl>
-    <dt>Canonical query</dt>
-    <dd data-field="query"></dd>
-    <dt>Typed state</dt>
-    <dd data-field="state"></dd>
-    <dt>Status</dt>
-    <dd data-field="status"></dd>
-  </dl>
+  <main class="playground-shell">
+    <header class="hero">
+      <p class="eyebrow"><span></span> Browser adapter</p>
+      <h1>Query state that feels <em>native</em> to the URL.</h1>
+      <p class="lede">Drive a typed product model through the History API. Every control below makes its navigation decision explicit.</p>
+      <div class="hero-meta" aria-label="Browser playground capabilities">
+        <span>History API</span><span>Canonical output</span><span>Back-button aware</span>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="Browser query model lab">
+      <section class="control-panel" aria-labelledby="actions-heading">
+        <div class="section-heading">
+          <div>
+            <p class="kicker">Try a transition</p>
+            <h2 id="actions-heading">Model controls</h2>
+          </div>
+          <span class="live-dot">Runtime connected</span>
+        </div>
+        <div class="action-grid">
+          <button type="button" class="action primary" data-action="next-page"><strong>Next page</strong><small>push a new URL</small></button>
+          <button type="button" class="action" data-action="search"><strong>Search “vue”</strong><small>replace the URL</small></button>
+          <button type="button" class="action" data-action="tags"><strong>Add a tag</strong><small>transaction update</small></button>
+          <button type="button" class="action quiet" data-action="reset"><strong>Reset model</strong><small>restore defaults</small></button>
+        </div>
+        <button type="button" class="history-button" data-action="back">← Go back in browser history</button>
+      </section>
+
+      <section class="snapshot" aria-labelledby="snapshot-heading">
+        <div class="section-heading">
+          <div>
+            <p class="kicker">Live inspection</p>
+            <h2 id="snapshot-heading">One URL, one typed model</h2>
+          </div>
+          <span class="status-badge" data-field="status"></span>
+        </div>
+        <dl class="state-grid">
+          <div>
+            <dt>Canonical query</dt>
+            <dd class="query" data-field="query"></dd>
+          </div>
+          <div>
+            <dt>Typed state</dt>
+            <dd class="code" data-field="state"></dd>
+          </div>
+        </dl>
+      </section>
+    </section>
+  </main>
 `;
 
 const queryOutput = application.querySelector<HTMLElement>('[data-field="query"]');
