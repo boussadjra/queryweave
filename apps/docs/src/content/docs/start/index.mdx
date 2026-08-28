@@ -4,6 +4,7 @@ description: QueryWeave treats URL query state as a domain model that can be dec
 ---
 
 import QueryFlow from "../../../components/QueryFlow.astro";
+import { currentPackageVersion } from "../../../data/release";
 import { Aside } from "@astrojs/starlight/components";
 
 QueryWeave is a framework-independent, type-safe URL state engine. It gives one description of what
@@ -67,8 +68,9 @@ without changing.
 - It does not decide navigation policy inside a codec, and it does not let an adapter decode.
 
 <Aside type="caution" title="Experimental">
-  QueryWeave is pre-1.0 and has not been published. The API is provisional and may change in minor
-  versions; every breaking change is recorded in an architecture decision record and a changeset.
+  QueryWeave {currentPackageVersion} is pre-1.0 and is not on npm yet. The API is provisional and
+  may change in minor versions; every breaking change is recorded in an architecture decision record
+  and a changeset.
 </Aside>
 
 ## Where to go next

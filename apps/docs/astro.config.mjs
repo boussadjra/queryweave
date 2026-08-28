@@ -50,6 +50,7 @@ export default defineConfig({
       components: {
         Header: "./src/components/overrides/Header.astro",
         MobileMenuFooter: "./src/components/overrides/MobileMenuFooter.astro",
+        PageTitle: "./src/components/overrides/PageTitle.astro",
       },
       head: [
         { tag: "meta", attrs: { property: "og:type", content: "website" } },

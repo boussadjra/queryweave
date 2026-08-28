@@ -14,6 +14,7 @@ import BrowserQuerySimulator from "../../components/BrowserQuerySimulator.astro"
 import FeatureStep from "../../components/FeatureStep.astro";
 import HomeHero from "../../components/HomeHero.astro";
 import PackageGrid from "../../components/PackageGrid.astro";
+import { currentPackageVersion } from "../../data/release";
 
 <HomeHero />
 
@@ -109,7 +110,7 @@ defaults, validity, and canonical form. Adapters decide navigation. Neither reac
 <PackageGrid />
 
 <p class="qw-home-footnote">
-  QueryWeave is experimental and pre-1.0. The public API is provisional, every breaking change is
-  recorded in an architecture decision record, and nothing has been published to npm yet. See the{" "}
-  <a href="/project/roadmap/">roadmap</a> for what is deliberately absent.
+  QueryWeave {currentPackageVersion} is experimental and pre-1.0. The public API is provisional,
+  every breaking change is recorded in an architecture decision record, and the packages are not on
+  npm yet. See the <a href="/project/roadmap/">roadmap</a> for what is deliberately absent.
 </p>

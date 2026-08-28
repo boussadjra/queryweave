@@ -1,9 +1,10 @@
 ---
 import { packageGroupLabels, packageGroupOrder, packagesInGroup } from "../data/packages";
+import { currentPackageVersion } from "../data/release";
 import PackageBadge from "./PackageBadge.astro";
 
 /**
- * The published packages, grouped by responsibility rather than listed flat.
+ * The public packages, grouped by responsibility rather than listed flat.
  *
  * A flat grid would imply nine equivalent choices. They are not equivalent: one is the engine,
  * some carry a query through an environment, and the rest bind a framework to it.
@@ -37,6 +38,7 @@ const groups = packageGroupOrder
               <span class="name">{entry.name}</span>
               <span class="responsibility">{entry.responsibility}</span>
               <span class="meta">
+                <PackageBadge label="Version">v{currentPackageVersion}</PackageBadge>
                 <PackageBadge tone="runtime">{entry.runtime}</PackageBadge>
               </span>
             </a>
@@ -100,6 +102,9 @@ const groups = packageGroupOrder
   }
 
   .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
     margin-top: 0.15rem;
   }
 </style>

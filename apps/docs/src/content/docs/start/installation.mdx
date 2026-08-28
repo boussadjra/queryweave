@@ -4,12 +4,12 @@ description: Install the QueryWeave engine and the one package that matches your
 ---
 
 import PackageGrid from "../../../components/PackageGrid.astro";
+import { currentPackageVersion } from "../../../data/release";
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-<Aside type="caution" title="Not yet published">
-  QueryWeave has not been released to npm. The commands below are the ones that will work once the
-  first version ships; today the packages exist only inside the repository. Nothing on this site
-  documents an API that is not already implemented, but installation is not yet possible.
+<Aside type="caution" title={`Source version ${currentPackageVersion}`}>
+  Every public package in this repository is version {currentPackageVersion}. The packages are not
+  on npm yet, so the commands below document the first release but cannot be installed today.
 </Aside>
 
 ## Requirements

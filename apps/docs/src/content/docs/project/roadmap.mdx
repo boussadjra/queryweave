@@ -4,12 +4,13 @@ description: What is implemented, what is deliberately absent, and what comes ne
 ---
 
 import PackageBadge from "../../../components/PackageBadge.astro";
+import { currentPackageVersion } from "../../../data/release";
 import { Aside } from "@astrojs/starlight/components";
 
 <Aside type="caution" title="Status">
-  QueryWeave is in **Phase 3: hardening, packaging, and release readiness**. The engine is
-  implemented, tested, and validated as published archives — but the API is provisional and nothing
-  has been published to npm. Do not treat it as production ready.
+  QueryWeave {currentPackageVersion} is in **Phase 3: hardening, packaging, and release readiness**.
+  The engine is implemented, tested, and validated as package archives, but the API is provisional
+  and the packages are not on npm. Do not treat it as production ready.
 </Aside>
 
 ## Implemented
@@ -85,7 +86,8 @@ In order:
 
 1. **Transition scheduling** — throttling, coalescing, cancellation, and concurrency control.
 2. **Codec composition** — date, JSON, object, tuple, and nested representations.
-3. **First release** — the first published version, migration guidance, and supported matrices.
+3. **Publish {currentPackageVersion}** — the first npm release, migration guidance, and supported
+   matrices.
 4. **API stabilization** — freezing the public contracts for 1.0.
 5. **Additional framework adapters** — designed against the established core contracts.
 

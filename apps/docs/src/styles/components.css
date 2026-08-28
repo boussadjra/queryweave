@@ -18,6 +18,7 @@
   font-size: var(--qw-text-small);
   font-weight: 600;
   line-height: 1.2;
+  min-height: 2.75rem;
   text-decoration: none;
   cursor: pointer;
   transition:

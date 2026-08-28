@@ -1,23 +1,12 @@
 ---
-/**
- * The homepage hero.
- *
- * The install command is shown with its real status attached. QueryWeave has not been published,
- * and a documentation site that prints a working-looking `pnpm add` without saying so would be
- * lying in its most prominent position.
- */
+import { currentPackageVersion } from "../data/release";
 ---
 
 <section class="hero not-content">
   <div class="copy">
-    <p class="status">
-      <span class="dot" aria-hidden="true"></span>
-      Pre-1.0 · provisional API · not yet published
-    </p>
-
     <h1>
       Type-safe URL state,<br />
-      <span class="woven">woven together.</span>
+      <span>woven together.</span>
     </h1>
 
     <p class="lede">
@@ -32,26 +21,42 @@
 
     <p class="install">
       <code>pnpm add @queryweave/core</code>
-      <span class="install-note">once the first version ships</span>
+      <span class="install-note">v{currentPackageVersion} is the current source version</span>
     </p>
   </div>
 
-  <div class="stages" aria-hidden="true">
-    <div class="stage">
-      <span class="stage-label">Raw query</span>
-      <code>?search=vue&page=2</code>
-    </div>
-    <div class="arrow"><span>decode</span></div>
-    <div class="stage stage--typed">
-      <span class="stage-label">Typed state</span>
-      <code>{`{ search: "vue", page: 2 }`}</code>
-    </div>
-    <div class="arrow"><span>encode</span></div>
-    <div class="stage stage--canonical">
-      <span class="stage-label">Canonical query</span>
-      <code>search=vue&page=2</code>
-    </div>
-  </div>
+  <figure class="stages" aria-labelledby="query-lifecycle-title">
+    <figcaption>
+      <span id="query-lifecycle-title">Query lifecycle</span>
+      <small>One model keeps every boundary in step.</small>
+    </figcaption>
+
+    <ol class="stage-list">
+      <li class="stage">
+        <span class="stage-marker" aria-hidden="true">1</span>
+        <div class="stage-copy">
+          <span class="stage-label">Raw query</span>
+          <code>?search=vue&page=2</code>
+        </div>
+      </li>
+      <li class="stage" data-operation="decode">
+        <span class="qw-sr-only">Decode into</span>
+        <span class="stage-marker" aria-hidden="true">2</span>
+        <div class="stage-copy">
+          <span class="stage-label">Typed state</span>
+          <code>{`{ search: "vue", page: 2 }`}</code>
+        </div>
+      </li>
+      <li class="stage" data-operation="encode">
+        <span class="qw-sr-only">Encode into</span>
+        <span class="stage-marker" aria-hidden="true">3</span>
+        <div class="stage-copy">
+          <span class="stage-label">Canonical query</span>
+          <code>search=vue&page=2</code>
+        </div>
+      </li>
+    </ol>
+  </figure>
 </section>
 
 <style>
@@ -63,27 +68,6 @@
     padding-block: 1rem 2.5rem;
   }
 
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    border: 1px solid var(--qw-panel-border-strong);
-    border-radius: 999px;
-    padding: 0.2rem 0.75rem;
-    margin: 0 0 1.5rem;
-    color: var(--qw-muted);
-    font-family: var(--qw-font-mono);
-    font-size: var(--qw-text-label);
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--qw-signal);
-  }
-
-  /* The single place the brand colour carries a headline. Every other heading on the site is ink. */
   h1 {
     margin: 0;
     color: var(--qw-heading-brand);
@@ -91,28 +75,6 @@
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.03em;
-  }
-
-  /* The one place the weave is drawn rather than described. */
-  .woven {
-    position: relative;
-    white-space: nowrap;
-  }
-
-  .woven::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0.08em;
-    height: 0.12em;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--qw-path-core) 0%,
-      var(--qw-path-valid) 45%,
-      var(--qw-path-active) 70%,
-      var(--qw-path-runtime) 100%
-    );
   }
 
   .lede {
@@ -156,35 +118,116 @@
   /* ------------------------------------------------------------- stages */
 
   .stages {
+    overflow: hidden;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    margin: 0;
+  }
+
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--qw-panel-border);
+    padding: 1rem 1.1rem;
+  }
+
+  figcaption > span {
+    color: var(--qw-heading);
+    font-weight: 600;
+  }
+
+  figcaption small {
+    max-width: 18rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    line-height: 1.5;
+    text-align: end;
+  }
+
+  .stage-list {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1.45rem;
+    list-style: none;
+    padding: 1.15rem;
+    margin: 0;
+  }
+
+  .stage-list::before {
+    content: "";
+    position: absolute;
+    inset-block: 2rem;
+    inset-inline-start: 2.25rem;
+    width: 1px;
+    background: var(--qw-panel-border-strong);
   }
 
   .stage {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 0;
+  }
+
+  .stage:not(:first-child)::before {
+    content: attr(data-operation);
+    position: absolute;
+    inset-block-start: -1.2rem;
+    inset-inline-start: 3.05rem;
+    color: var(--qw-technical);
+    font-family: var(--qw-font-mono);
+    font-size: 0.6875rem;
+  }
+
+  .stage-marker {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: 50%;
+    background: var(--qw-panel-raised);
+    color: var(--qw-heading);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    font-weight: 600;
+  }
+
+  .stage:first-child .stage-marker {
+    border-color: var(--qw-path-runtime);
+    color: var(--qw-technical);
+  }
+
+  .stage:nth-child(2) .stage-marker {
+    border-color: var(--qw-path-core);
+    color: var(--qw-accent);
+  }
+
+  .stage:last-child .stage-marker {
+    border-color: var(--qw-path-valid);
+    color: var(--qw-valid);
+  }
+
+  .stage-copy {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    border: 1px solid var(--qw-panel-border);
-    border-inline-start: 3px solid var(--qw-path-runtime);
-    border-radius: var(--qw-radius);
-    background: var(--qw-panel);
-    padding: 0.85rem 1rem;
-  }
-
-  .stage--typed {
-    border-inline-start-color: var(--qw-path-core);
-  }
-
-  .stage--canonical {
-    border-inline-start-color: var(--qw-path-valid);
+    gap: 0.25rem;
+    min-width: 0;
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel-raised);
+    padding: 0.75rem 0.9rem;
   }
 
   .stage-label {
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
   }
 
   .stage code {
@@ -192,28 +235,6 @@
     font-family: var(--qw-font-mono);
     font-size: 0.8125rem;
     overflow-wrap: anywhere;
-  }
-
-  .arrow {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding-inline-start: 1.5rem;
-    height: 2.25rem;
-  }
-
-  .arrow::before {
-    content: "";
-    width: 2px;
-    height: 100%;
-    border-radius: 2px;
-    background: linear-gradient(180deg, var(--qw-path-runtime), var(--qw-path-core));
-  }
-
-  .arrow span {
-    color: var(--qw-technical);
-    font-family: var(--qw-font-mono);
-    font-size: var(--qw-text-label);
   }
 
   @media (max-width: 62rem) {
@@ -224,6 +245,25 @@
 
     .lede {
       max-width: none;
+    }
+  }
+
+  @media (max-width: 32rem) {
+    .hero {
+      padding-block-start: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.25rem, 12vw, 3rem);
+    }
+
+    figcaption {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    figcaption small {
+      text-align: start;
     }
   }
 </style>

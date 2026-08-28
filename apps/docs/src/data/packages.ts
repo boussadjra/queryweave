@@ -1,5 +1,5 @@
 /**
- * The published package graph, described once.
+ * The package graph, described once.
  *
  * Every card, badge, and table on the site reads this file. The groups mirror responsibility, not
  * popularity: the engine is one thing, the environments that carry a query are another, and the
@@ -9,7 +9,7 @@
 /** Responsibility bucket a package belongs to. */
 export type PackageGroup = "core" | "framework" | "runtime" | "testing" | "validation";
 
-/** One published package. */
+/** One public package. */
 export interface PackageEntry {
   readonly name: string;
   readonly group: PackageGroup;

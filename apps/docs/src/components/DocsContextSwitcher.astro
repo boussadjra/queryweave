@@ -236,6 +236,7 @@ const axes = (["runtime", "framework"] as const).map((kind: DocsContextKind) => 
 
   .compact .axis {
     gap: 0.3rem;
+    min-height: 2.75rem;
   }
 
   /* One header row is a fixed budget, so the labels drop their tracking and a step of size rather
@@ -246,6 +247,7 @@ const axes = (["runtime", "framework"] as const).map((kind: DocsContextKind) => 
   }
 
   .compact select {
+    min-height: 2.75rem;
     padding-block: 0.2rem;
     padding-inline: 0.5rem 1.4rem;
     font-size: var(--qw-text-label);
