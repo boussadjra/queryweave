@@ -1,0 +1,138 @@
+---
+title: Server
+description: Decode a request's query with the same model the client uses, on any web-standard runtime.
+integration:
+  kind: runtime
+  context: server
+  concept: server
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="server" />
+
+## What it owns
+
+- Decoding the query of a `Request` or a `URL` with a model.
+- Building a canonical query string, or a complete `URL`, from typed state.
+- Producing a read-only `QuerySource` scoped to one request.
+
+## What it does not own
+
+Navigation. A request is read once and then ends; there is no history to push to. That is why this
+package produces a `QuerySource` rather than a `QueryAdapter` — the capability is absent from the
+type, not present and throwing.
+
+<AdapterDiagram
+  mode="source"
+  environment="Request"
+  caption="Read, decode, respond. Nothing in this chain can navigate."
+/>
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/server
+```
+
+No Node built-in is used anywhere in the package, so it runs unchanged on Node.js, Deno, Bun,
+Cloudflare Workers, and any other runtime with `Request` and `URL`.
+
+## Example
+
+```ts
+import { readRequestQuery } from "@queryweave/server";
+
+export async function handler(request: Request): Promise<Response> {
+  const result = readRequestQuery(request, products);
+  const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+  return Response.json({
+    products: await search(values),
+    issues: result.issues,
+  });
+}
+```
+
+The merge on the second line is the standard pattern: render something useful, and keep the issues
+for diagnostics.
+
+## Reading
+
+```ts
+readUrlQuery(url, model); // string | URL
+readRequestQuery(request, model); // Request
+
+await readUrlQueryAsync(url, model); // when validation is asynchronous
+await readRequestQueryAsync(request, model);
+```
+
+A relative URL string is accepted. It is resolved against `relativeUrlBase`
+(`http://queryweave.invalid`), which is exported so tests can assert against it. Only the query is
+ever read, so the base is irrelevant to the result.
+
+```ts
+readUrlQuery("/products?page=2", products); // works
+```
+
+## A request-scoped source
+
+```ts
+import { createRequestQuerySource } from "@queryweave/server";
+
+const source = createRequestQuerySource(request);
+
+source.read(); // "?page=2"
+source.request; // the original Request
+```
+
+Use this when a helper wants a `QuerySource` rather than a decoded result — for example, code that
+should work with any read-only environment.
+
+## Building links
+
+```ts
+import { createQueryUrl, encodeQuery } from "@queryweave/server";
+
+encodeQuery(products, { search: "vue", page: 2, sort: "created_at", status: "all" });
+// "search=vue&page=2"
+
+createQueryUrl("https://example.com/products?utm_source=email", products, values);
+// https://example.com/products?search=vue&page=2&utm_source=email
+```
+
+`encodeQuery` returns the canonical query string with no leading `?`. `createQueryUrl` returns a
+`URL`, and it is the one place outside the runtime that preserves unmanaged keys: managed keys are
+written first, and everything the model does not declare follows in its original order.
+
+<Aside type="tip" title="Canonical links on the server">
+  `createQueryUrl` is what makes server-rendered links match what the client will produce after a
+  transition. If you build query strings by hand, the two drift and every state has two URLs.
+</Aside>
+
+## Server mode in the simulator
+
+<BrowserQuerySimulator
+  preset="server"
+  adapter="server"
+  caption="In Server mode the history controls are gone, not merely disabled: there is no stack to move through. Each change represents a new request URL being decoded."
+/>
+
+## Edge cases
+
+- **An absolute URL is used as given.** A string that parses as absolute is not re-based.
+- **A malformed query does not throw.** It decodes with issues, exactly as in the browser.
+- **`createQueryUrl` mutates nothing.** It copies the base URL before writing to `search`.
+- **Repeated unmanaged keys keep their order and multiplicity.**
+
+## How it is tested
+
+`tests/server/server.test.ts` covers reading, encoding, and link building, including unmanaged-key
+preservation and the relative-base fallback. The `universal` consumer fixture installs the packed
+archive and runs the same helpers outside the workspace.
+
+<IntegrationNav />

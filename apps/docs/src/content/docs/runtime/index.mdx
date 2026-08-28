@@ -1,0 +1,149 @@
+---
+title: The query runtime
+description: A runtime binds one model to one adapter and exposes explicit state transitions.
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+A model says what a query means. A runtime connects that meaning to a place that stores it.
+
+```ts
+import { createQueryRuntime } from "@queryweave/core";
+
+const runtime = createQueryRuntime({
+  model: products,
+  adapter,
+  navigation: "push", // the default for every transition on this runtime
+});
+```
+
+<AdapterDiagram
+  mode="adapter"
+  environment="Environment"
+  caption="The runtime is the only layer that holds both a model and an environment. Neither of the layers it joins knows about the other."
+/>
+
+## Reading
+
+```ts
+const snapshot = runtime.read();
+
+snapshot.status; // "valid" | "invalid"
+snapshot.values; // complete typed state, always present
+snapshot.issues; // everything decoding reported
+snapshot.result; // the underlying DecodeResult
+```
+
+`read` decodes the adapter's current query every time it is called. There is no cache, so a
+snapshot can never be stale relative to the environment.
+
+When decoding fails, `values` is the model's defaults merged with whatever did decode. That is why
+`values` is safe to render unconditionally, and why `status` — not a boolean on the snapshot —
+carries the distinction.
+
+## Changing state
+
+Five named operations, all asynchronous, all returning what they wrote:
+
+```ts
+await runtime.update({ page: 2 }); // merge a patch
+await runtime.replace(nextValues); // swap the whole state
+await runtime.remove(["search"]); // omit keys from the output
+await runtime.reset(); // back to declared defaults
+await runtime.transaction((draft) => {
+  // several changes, one write
+  draft.search = "vue";
+  draft.page = 1;
+});
+```
+
+Each returns a `QueryTransitionResult`:
+
+```ts
+const { navigation, output, snapshot } = await runtime.update({ page: 2 });
+
+navigation; // "push" | "replace" — what was actually used
+output; // the canonical entries written, including unmanaged keys
+snapshot; // the state after the write
+```
+
+[Transitions](/runtime/transitions/) covers each operation and when to reach for it.
+
+## One transition, one notification
+
+Every transition follows the same path: start from the current typed state, apply the change once,
+encode once, navigate once, notify once.
+
+The notification does not come from the transition. It arrives through the adapter's subscription,
+because the environment is the source of truth — a browser back button and a call to `update` must
+produce the same kind of event, or subscribers would have two code paths to reconcile.
+
+```ts
+const unsubscribe = runtime.subscribe((snapshot) => {
+  render(snapshot.values);
+});
+```
+
+The runtime subscribes to the adapter lazily, on the first `subscribe` call, so a runtime that is
+only ever read never attaches a listener.
+
+## Unmanaged keys survive
+
+`model.encode` emits only the keys the model declares. The runtime is what preserves the rest:
+
+```ts
+// current URL: ?page=2&utm_source=newsletter
+await runtime.update({ page: 3 });
+// written: ?page=3&utm_source=newsletter
+```
+
+Managed keys are written first, in the model's definition order, and unmanaged entries follow in
+their original order. This is what makes QueryWeave adoptable for part of a URL rather than all of
+it.
+
+<Aside type="note" title="Why the model does not do this">
+  `encode` is a pure function of typed state. It has no access to the current URL, so it cannot know
+  what else was there. Putting preservation in the runtime keeps the model deterministic and
+  testable without an environment.
+</Aside>
+
+## Disposal
+
+```ts
+runtime.dispose();
+```
+
+Disposal clears the subscribers, detaches the adapter subscription, and makes every later operation
+throw. It is idempotent. In a framework binding this is wired to the component scope for you; in
+plain TypeScript, call it when the runtime's owner goes away.
+
+## What the runtime does not do
+
+Transitions are applied immediately and independently. There is no scheduling, throttling,
+coalescing, or cancellation, and two overlapping transitions are not reconciled — the second reads
+the state the first produced.
+
+This absence is deliberate and recorded in
+[ADR 0004](https://github.com/queryweave/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md).
+For a fast-changing input such as a search field, debounce at the call site:
+
+```ts
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+input.addEventListener("input", () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    void runtime.update({ search: input.value }, { navigation: "replace" });
+  }, 200);
+});
+```
+
+## How it is tested
+
+The `runtime` Vitest project drives a runtime against the memory adapter from
+`@queryweave/testing`, asserting the single-notification rule, unmanaged-key preservation, and
+disposal; `tests/runtime/failures.test.ts` covers behavior when decoding fails.
+
+<IntegrationNav />

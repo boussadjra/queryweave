@@ -1,0 +1,159 @@
+---
+title: Transitions
+description: update, replace, remove, reset, transaction, and the push or replace decision.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+Every change to query state goes through a named operation. There is no setter, no proxy, and no
+direct mutation of the values a runtime hands you — which is what makes "when does the URL change?"
+answerable by reading the call site.
+
+## update
+
+Merge a partial patch into the current state.
+
+```ts
+await runtime.update({ page: 2 });
+await runtime.update({ search: "vue", page: 1 });
+```
+
+Keys you do not mention keep their current value. This is the operation you want most of the time.
+
+## replace
+
+Swap the entire state. Every managed key is written from the value you pass.
+
+```ts
+await runtime.replace({
+  search: undefined,
+  page: 1,
+  sort: "created_at",
+  status: "all",
+});
+```
+
+`replace` takes a complete state, not a patch, so the compiler tells you when the model gains a
+parameter you have not accounted for.
+
+<Aside type="caution" title="replace is not the replace navigation mode">
+`runtime.replace(values)` decides *what* is written. `{ navigation: "replace" }` decides *how* it is
+recorded in history. They are independent: `runtime.update(patch, { navigation: "replace" })` is a
+perfectly ordinary call.
+</Aside>
+
+## remove
+
+Omit keys from the written output, whatever their current value.
+
+```ts
+await runtime.remove("search");
+await runtime.remove(["search", "page"]);
+```
+
+The keys are dropped from the encoded output, so they disappear from the URL. On the next read they
+decode as absent — which means a parameter with a default comes back as that default.
+
+## reset
+
+Set keys back to their declared defaults.
+
+```ts
+await runtime.reset(); // every managed key
+await runtime.reset(["page"]); // just these
+```
+
+For a parameter with a default, `reset` and `remove` produce the same URL, because a value equal to
+its default is omitted. They differ for `required` parameters, which have no default to reset to.
+
+## transaction
+
+Apply several changes as one write.
+
+```ts
+await runtime.transaction((draft) => {
+  draft.search = "vue";
+  draft.page = 1;
+});
+```
+
+The draft is a copy of the current values. Mutating it is safe precisely because it is not the
+state — the runtime encodes the result once, writes once, and notifies once. The callback may be
+asynchronous.
+
+This is the right tool for changes that must not be observable separately. Setting a filter and
+resetting pagination in two `update` calls produces two history entries and two renders; in one
+transaction it produces one of each.
+
+<BrowserQuerySimulator
+  preset="pagination"
+  adapter="browser"
+  caption="Search runs a transaction — it sets the term and resets the page in a single history entry. Page buttons run an update. Watch the history counter to see the difference."
+/>
+
+## Push or replace
+
+Every operation takes a navigation mode, and every runtime has a default:
+
+```ts
+const runtime = createQueryRuntime({ model, adapter, navigation: "replace" });
+
+await runtime.update({ page: 2 }); // replace — the runtime default
+await runtime.update({ page: 3 }, { navigation: "push" }); // per call
+```
+
+| Mode      | History            | Back button                   | Use for                                 |
+| --------- | ------------------ | ----------------------------- | --------------------------------------- |
+| `push`    | adds an entry      | returns to the previous state | Deliberate navigation: a filter, a page |
+| `replace` | rewrites the entry | skips past it entirely        | Incidental state: a search box, a tab   |
+
+The rule of thumb: if a reader would be surprised that Back did _not_ undo it, use `push`. If they
+would be annoyed at pressing Back twenty times to escape a search field, use `replace`.
+
+The default is `push` when the runtime does not say otherwise.
+
+## Ordering and concurrency
+
+Transitions are applied in the order you call them, and each starts from the state the previous one
+produced. Nothing is coalesced or cancelled, so two rapid calls produce two writes and two history
+entries in `push` mode.
+
+There is no queue. If an adapter's navigation is asynchronous — Vue Router's is — and you start a
+second transition before the first settles, the second reads whatever the environment currently
+reports. Await the first when the second depends on it:
+
+```ts
+await runtime.update({ search: "vue" });
+await runtime.update({ page: 2 });
+```
+
+Scheduling, throttling, coalescing, and cancellation are [planned](/project/roadmap/), and their
+absence is deliberate rather than accidental.
+
+## Failure
+
+A transition does not throw when the environment refuses. Adapters that can fail — Vue Router's
+rejects a navigation guarded away — report through their own callback rather than by throwing into
+your call:
+
+```ts
+createVueRouterAdapter(router, {
+  onNavigationFailure: (outcome) => {
+    if (!outcome.ok) {
+      report(outcome.failure);
+    }
+  },
+});
+```
+
+A transition on a disposed runtime _does_ throw, because that is a programming error rather than an
+environment condition.
+
+## How it is tested
+
+`tests/runtime/runtime.test.ts` asserts one write and one notification per operation, patch
+merging, removal, reset, and transaction batching, all against the memory adapter.
+
+<IntegrationNav />

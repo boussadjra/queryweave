@@ -1,0 +1,69 @@
+---
+title: Adapters
+description: Where a query is actually stored, and what each environment owns.
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import ArchitectureMap from "../../../components/ArchitectureMap.astro";
+import ContextCards from "../../../components/ContextCards.astro";
+
+An adapter connects a runtime to one environment. It reads the current query, writes canonical
+output, and reports external changes. That is the whole job.
+
+## The responsibility boundary
+
+An adapter **never** decodes, validates, applies defaults, or re-implements model semantics. If it
+did, the meaning of `page=2` would have two definitions that could disagree — which is exactly the
+problem QueryWeave exists to remove.
+
+```ts
+interface QueryAdapter extends QuerySource {
+  read(): QueryInput;
+  push(next: QueryOutput): void | Promise<void>;
+  replace(next: QueryOutput): void | Promise<void>;
+  subscribe(listener: QueryChangeListener): () => void;
+}
+```
+
+## Two shapes, not one
+
+Some environments can navigate. Some only hand you a query once and then end. QueryWeave models
+that difference in the type system rather than by giving request-scoped code a `push` method that
+throws.
+
+<AdapterDiagram
+  mode="adapter"
+  environment="Browser, router, memory"
+  caption="A mutable environment implements the full QueryAdapter contract."
+/>
+
+<AdapterDiagram
+  mode="source"
+  environment="Request"
+  caption="A request-scoped environment implements QuerySource — read, and nothing else."
+/>
+
+`QuerySource` has one method. `QueryAdapter` extends it with `push`, `replace`, and `subscribe`.
+The server and Node packages produce sources; the browser, Vue Router, and memory packages produce
+adapters.
+
+## Where each one sits
+
+<ArchitectureMap caption="Every environment reaches the engine through the same contract." />
+
+## Choosing
+
+<ContextCards kind="runtime" only={["browser", "server", "node", "testing"]} />
+
+## What every adapter page answers
+
+Each of the pages below states, in the same order: where it runs, what it owns, what it does not
+own, which package installs it, and when to reach for it.
+
+- [Browser](/adapters/browser/) — History API
+- [Server](/adapters/server/) — `Request` and `URL`
+- [Node.js](/adapters/node/) — `IncomingMessage`
+- [Testing](/adapters/testing/) — memory
+- [Vue Router](/frameworks/vue-router/) — router navigation, documented with the framework
+  integrations
+- [Writing an adapter](/adapters/writing-an-adapter/) — the contract, for a new environment

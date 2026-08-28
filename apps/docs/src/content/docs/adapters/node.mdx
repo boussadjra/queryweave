@@ -1,0 +1,119 @@
+---
+title: Node.js
+description: Bridge Node request primitives into the web-standard server helpers without an HTTP framework.
+integration:
+  kind: runtime
+  context: node
+  concept: server
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="node" />
+
+## What it owns
+
+One thing: turning a Node `IncomingMessage` into an absolute `URL`. Everything after that is
+delegated to [`@queryweave/server`](/adapters/server/), so decoding lives in exactly one place.
+
+## What it does not own
+
+Decoding, validation, defaults, navigation, and any HTTP framework. Express, Fastify, NestJS, and
+Hono are not dependencies and never will be — they all expose a request object this package can
+read.
+
+<AdapterDiagram
+  mode="source"
+  environment="IncomingMessage"
+  caption="Resolve an absolute URL, then hand the query to the same decoder the browser uses."
+/>
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/server @queryweave/node
+```
+
+## Example
+
+```ts
+import { createServer } from "node:http";
+
+import { readNodeQuery } from "@queryweave/node";
+
+createServer((request, response) => {
+  const result = readNodeQuery(request, products);
+  const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+  response.writeHead(200, { "content-type": "application/json" });
+  response.end(JSON.stringify({ values, issues: result.issues }));
+}).listen(3000);
+```
+
+## Resolving the URL
+
+A Node request carries a path, not an absolute URL, so the authority has to come from somewhere:
+
+```ts
+import { resolveNodeRequestUrl } from "@queryweave/node";
+
+resolveNodeRequestUrl(request);
+// http://<host header>/products?page=2
+
+resolveNodeRequestUrl(request, { host: "example.com", protocol: "https" });
+// https://example.com/products?page=2
+```
+
+The order of precedence is: explicit options, then forwarded headers _if you opted in_, then the
+`host` header, then the fallback host `queryweave.invalid`.
+
+<Aside type="caution" title="Forwarded headers are off by default">
+`x-forwarded-host` and `x-forwarded-proto` are attacker-controlled unless a trusted proxy sets them.
+They are ignored unless you pass `trustForwardedHeaders: true`, which you should do only when a
+proxy you control is guaranteed to overwrite them.
+
+```ts
+readNodeQuery(request, products, { trustForwardedHeaders: true });
+```
+
+Only the query is decoded, so the authority does not affect the values — but it does affect any URL
+you build from the result.
+
+</Aside>
+
+## A request-scoped source
+
+```ts
+import { createNodeQuerySource } from "@queryweave/node";
+
+const source = createNodeQuerySource(request);
+source.read(); // "?page=2"
+source.request; // the original IncomingMessage
+```
+
+## Asynchronous validation
+
+```ts
+const result = await readNodeQueryAsync(request, products);
+```
+
+Same rule as everywhere else: use the asynchronous form when a parameter or the model uses an
+asynchronous refinement.
+
+## Edge cases
+
+- **A request with no URL** resolves to `/`.
+- **A comma-separated forwarded header** uses the first entry, trimmed.
+- **An empty header value** is ignored rather than producing an empty host.
+- **The fallback host is `queryweave.invalid`**, chosen because `.invalid` can never resolve.
+
+## How it is tested
+
+`tests/node/node.test.ts` covers URL resolution, header precedence, the forwarded-header opt-in,
+and decoding. The `node` consumer fixture runs the packed archive against a real
+`node:http` server.
+
+<IntegrationNav />

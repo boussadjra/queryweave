@@ -1,0 +1,137 @@
+---
+title: Testing
+description: A deterministic in-memory adapter with its own back and forward stack.
+integration:
+  kind: runtime
+  context: testing
+  concept: runtime
+---
+
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="testing" />
+
+## What it owns
+
+- A query string held in memory.
+- A history stack with `back`, `forward`, and the two predicates that guard them.
+- Notification on every change, exactly like a real adapter.
+
+## What it does not own
+
+The same things no adapter owns: decoding, validation, defaults. It is the _reference_
+implementation of the adapter contract precisely because it does nothing extra — if a behavior
+appears with the memory adapter, it came from the engine.
+
+## Install
+
+```sh
+pnpm add -D @queryweave/testing
+```
+
+## Example
+
+```ts
+import { createQueryRuntime } from "@queryweave/core";
+import { createMemoryQueryAdapter } from "@queryweave/testing";
+import { expect, test } from "vitest";
+
+test("resetting the page keeps the search term", async () => {
+  const adapter = createMemoryQueryAdapter({ initial: "?search=vue&page=3" });
+  const runtime = createQueryRuntime({ model: products, adapter });
+
+  await runtime.reset(["page"]);
+
+  expect(adapter.current()).toBe("search=vue");
+  expect(runtime.read().values.page).toBe(1);
+});
+```
+
+`adapter.current()` returns the stored query as a string, which makes assertions read like the URL
+a user would see.
+
+## The surface
+
+```ts
+const adapter = createMemoryQueryAdapter({ initial: "?page=2" });
+
+adapter.read(); // QueryOutput — what the runtime consumes
+adapter.entries(); // the same entries, as a convenience
+adapter.current(); // "page=2" — formatted, no leading "?"
+
+adapter.push(entries); // adds a history entry
+adapter.replace(entries); // rewrites the current one
+
+adapter.back();
+adapter.forward();
+adapter.canGoBack();
+adapter.canGoForward();
+
+adapter.dispose();
+```
+
+## Testing history semantics
+
+The stack behaves like a browser's, which is what makes push and replace testable without a
+browser:
+
+```ts
+test("replace does not grow the history", async () => {
+  const adapter = createMemoryQueryAdapter();
+  const runtime = createQueryRuntime({ model: products, adapter });
+
+  await runtime.update({ page: 2 }); // push
+  await runtime.update({ page: 3 }, { navigation: "replace" });
+
+  expect(adapter.canGoBack()).toBe(true);
+  adapter.back();
+  expect(adapter.canGoBack()).toBe(false); // only one entry was added
+  expect(runtime.read().values.page).toBe(1);
+});
+```
+
+Pushing after going back truncates the forward entries, exactly as a browser does.
+
+## Testing notifications
+
+```ts
+test("one transition notifies once", async () => {
+  const adapter = createMemoryQueryAdapter();
+  const runtime = createQueryRuntime({ model: products, adapter });
+  const seen: number[] = [];
+
+  runtime.subscribe((snapshot) => {
+    seen.push(snapshot.values.page);
+  });
+
+  await runtime.transaction((draft) => {
+    draft.search = "vue";
+    draft.page = 2;
+  });
+
+  expect(seen).toStrictEqual([2]);
+});
+```
+
+<Aside type="tip" title="This is what the documentation runs on">
+  The simulator on this site is built from `@queryweave/core` and this adapter. Its history counter,
+  its push and replace behavior, and its inspector panels are the real engine — which is also why
+  Server mode has no history controls.
+</Aside>
+
+## Edge cases
+
+- **`back` at the start and `forward` at the end do nothing.** They do not throw and do not notify.
+- **After `dispose`, every mutating call throws.** `read` and `entries` keep working.
+- **Entries are copied on write**, so a caller cannot mutate the stack afterwards.
+- **The initial value accepts any `QueryInput`** — a string, entries, or an object.
+
+## How it is tested
+
+`tests/testing/memory-adapter.test.ts` covers the stack, truncation, notification, and disposal.
+The coverage threshold for this package is the highest in the repository, because everything else
+is tested through it.
+
+<IntegrationNav />

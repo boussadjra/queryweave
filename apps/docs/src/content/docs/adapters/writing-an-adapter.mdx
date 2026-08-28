@@ -1,0 +1,166 @@
+---
+title: Writing an adapter
+description: The contract a new environment has to satisfy, and the rules that keep it an adapter.
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+If your environment can store and change a query, it can back a QueryWeave runtime. The contract is
+four methods, and the constraints matter more than the code.
+
+## Decide which contract you need
+
+```ts
+interface QuerySource {
+  read(): QueryInput;
+}
+
+interface QueryAdapter extends QuerySource {
+  push(next: QueryOutput): void | Promise<void>;
+  replace(next: QueryOutput): void | Promise<void>;
+  subscribe(listener: QueryChangeListener): () => void;
+}
+```
+
+If the environment hands you a query once and then ends — a request, a message, a job payload —
+implement `QuerySource`. Do not implement `QueryAdapter` with methods that throw; the absence of a
+capability belongs in the type.
+
+<AdapterDiagram mode="adapter" environment="Your environment" />
+
+## The rules
+
+An adapter must not:
+
+- decode, validate, or apply defaults,
+- reorder, deduplicate, or drop entries,
+- re-implement default omission,
+- hold decoded state,
+- throw when the environment merely refuses a navigation.
+
+An adapter must:
+
+- preserve repeated keys and their order,
+- resolve its target when it is created, not at module evaluation,
+- notify subscribers once per external change,
+- return a working unsubscribe function,
+- provide deterministic cleanup.
+
+<Aside type="caution" title="Do not preserve unmanaged keys">
+  It is tempting to merge the incoming output with whatever else is in the environment. Do not: the
+  runtime already did that, and doing it twice produces duplicated keys. `push` and `replace`
+  receive the complete output to write.
+</Aside>
+
+## A minimal adapter
+
+<Steps>
+
+1. **Read.** Return whatever raw shape you have. Anything `QueryInput` accepts is fine — a string,
+   entries, or an object — so you rarely need to convert.
+
+   ```ts
+   const read = (): QueryOutput => parseQueryString(store.query);
+   ```
+
+2. **Write.** Format the canonical output and hand it to the environment.
+
+   ```ts
+   const write = (next: QueryOutput, mode: "push" | "replace"): void => {
+     const search = formatQueryString(next);
+     store.navigate(search === "" ? path : `${path}?${search}`, mode);
+   };
+   ```
+
+3. **Notify.** Tell subscribers once, with the new raw input.
+
+   ```ts
+   const notify = (): void => {
+     const input = read();
+     for (const listener of [...listeners]) {
+       listener(input);
+     }
+   };
+   ```
+
+   Copy the listener set before iterating, so a listener that unsubscribes during notification does
+   not corrupt the loop.
+
+4. **Subscribe lazily.** Attach the environment listener on the first subscription, not on
+   creation.
+
+   ```ts
+   const subscribe = (listener: QueryChangeListener): (() => void) => {
+     attach();
+     listeners.add(listener);
+     return () => {
+       listeners.delete(listener);
+     };
+   };
+   ```
+
+5. **Dispose.** Detach, clear, and make later writes fail loudly.
+
+</Steps>
+
+## Does your environment fire a change event for programmatic writes?
+
+This is the question that decides whether you notify after writing.
+
+- **The History API does not** fire `popstate` for `pushState`, so `@queryweave/browser` notifies
+  directly after writing.
+- **Vue Router does**, through its reactive current route, so `@queryweave/vue-router` watches
+  `fullPath` and does not notify from `push` itself.
+
+Getting this wrong produces either no notification or two. The rule to hold onto is that exactly one
+notification must reach the runtime per change, whatever its source.
+
+## Reporting failure
+
+If the environment can refuse — a navigation guard, a rejected route — report it rather than
+throwing into the caller's transition:
+
+```ts
+interface MyAdapterOptions {
+  readonly onNavigationFailure?: (outcome: { ok: boolean; failure?: unknown }) => void;
+}
+```
+
+`@queryweave/vue-router` does exactly this. A transition that was refused is an environment
+condition, not a programming error.
+
+## Testing a new adapter
+
+Test it against the engine, not on its own. The behaviors worth asserting are:
+
+```ts
+// It reports what it stores.
+expect(adapter.read()).toStrictEqual([["page", "2"]]);
+
+// One change, one notification.
+expect(notifications).toHaveLength(1);
+
+// Repeated keys survive a round trip.
+adapter.push([
+  ["tag", "a"],
+  ["tag", "b"],
+]);
+expect(runtime.read().values.tags).toStrictEqual(["a", "b"]);
+
+// Unsubscribing works.
+unsubscribe();
+adapter.push([]);
+expect(notifications).toHaveLength(1);
+```
+
+Compare behavior with `createMemoryQueryAdapter` from [`@queryweave/testing`](/adapters/testing/):
+if the two disagree for the same operations, the new adapter is doing something the contract does
+not allow.
+
+## Packaging
+
+If you publish an adapter, keep the dependency direction QueryWeave uses: depend on
+`@queryweave/core` alone, declare the environment's framework as a peer dependency rather than a
+dependency, and do not pull in a validation library. The
+[architecture page](/project/architecture/) explains why those boundaries exist.
