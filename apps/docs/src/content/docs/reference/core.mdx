@@ -72,6 +72,24 @@ Options by family:
 | `list`    | `maxItems`, `minItems`                         |
 | `custom`  | `consumesMultipleValues`, `kind`               |
 
+### Named parameter constructors
+
+Each `param` method also has a named export with identical behavior and inference:
+
+```ts
+booleanParam(options?: BooleanParamOptions);
+choiceParam<const T extends string>(choices: readonly T[]);
+customParam<T>(codec: QueryCodec<T>, options?: CustomParamOptions);
+integerParam(options?: IntegerParamOptions);
+listParam<T>(item: QueryParam<T>, options?: ListParamOptions);
+numberParam(options?: NumberParamOptions);
+textParam(options?: TextParamOptions);
+```
+
+Use named constructors when bundle size matters and a model only needs some built-in families. A
+bundler can then remove unrelated codecs. The `param.*` registry remains supported as the compact,
+ergonomic form when that distinction is not important.
+
 ### `QueryParamBuilder`
 
 ```ts

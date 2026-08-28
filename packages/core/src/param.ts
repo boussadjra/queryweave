@@ -1,6 +1,6 @@
 import type { QueryCodec, QueryDecodeContext, QueryEncodeContext } from "./codec";
 import { createQueryIssue, type QueryIssue } from "./issues";
-import type { QueryRefineContext, QueryRefinement, QueryRefinementResult } from "./refinement";
+import { isPromiseLike, type QueryRefinement, type QueryRefinementResult } from "./refinement";
 import { failValue, okValue, type QueryValueResult } from "./results";
 
 /** Parameter families implemented by this release. */
@@ -109,7 +109,7 @@ export interface QueryParamFactory {
   text(options?: TextParamOptions): QueryParamBuilder<string, "required">;
 }
 
-type UnknownRefinement = QueryRefinement<never, unknown>;
+type UnknownRefinement = QueryRefinement<unknown, unknown>;
 
 interface RawParamCodec {
   decode(input: readonly string[], context: QueryDecodeContext): QueryValueResult<unknown>;
@@ -138,14 +138,6 @@ type Prepared =
   | { readonly stage: "settled"; readonly result: QueryValueResult<unknown> }
   | { readonly stage: "refine"; readonly value: unknown; readonly issues: readonly QueryIssue[] };
 
-function isPromiseLike<TValue>(value: unknown): value is Promise<TValue> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { then?: unknown }).then === "function"
-  );
-}
-
 function recover(state: ParamState, issues: readonly QueryIssue[]): QueryValueResult<unknown> {
   if (state.presence === "default") {
     return okValue(state.defaultValue, issues);
@@ -168,18 +160,6 @@ function toValidationIssues(
       path: [...context.path, ...(issue.path ?? [])],
     }),
   );
-}
-
-function callRefine(
-  refinement: UnknownRefinement,
-  value: unknown,
-  context: QueryRefineContext,
-): QueryRefinementResult<unknown> | Promise<QueryRefinementResult<unknown>> {
-  const refine = refinement.refine.bind(refinement) as (
-    input: unknown,
-    refineContext: QueryRefineContext,
-  ) => QueryRefinementResult<unknown> | Promise<QueryRefinementResult<unknown>>;
-  return refine(value, context);
 }
 
 function prepare(
@@ -263,7 +243,7 @@ function decodeWithState(
   const issues = [...prepared.issues];
 
   for (const refinement of state.refinements) {
-    const outcome = callRefine(refinement, current, context);
+    const outcome = refinement.refine(current, context);
     if (isPromiseLike(outcome)) {
       issues.push(
         createQueryIssue({
@@ -302,7 +282,7 @@ async function decodeWithStateAsync(
   for (const refinement of state.refinements) {
     // Refinements form a pipeline: each one may transform the value the next one receives.
     // oxlint-disable-next-line no-await-in-loop
-    const outcome = await callRefine(refinement, current, context);
+    const outcome = await refinement.refine(current, context);
     if (!outcome.ok) {
       issues.push(...toValidationIssues(context, outcome));
       return recover(state, issues);
@@ -642,13 +622,12 @@ function createListCodec(item: QueryParam<unknown>, options: ListParamOptions): 
     },
     decodeAsync: async (input, context) => {
       const preparation = prepareListValues(input);
-      const decodeItem = item.codec.decodeAsync?.bind(item.codec) ?? undefined;
       const results = await Promise.all(
         preparation.kept.map(async (value, index) => {
           const scoped = itemContext(context, index);
-          return decodeItem === undefined
+          return item.codec.decodeAsync === undefined
             ? item.codec.decode([value], scoped)
-            : decodeItem([value], scoped);
+            : item.codec.decodeAsync([value], scoped);
         }),
       );
       return collectListItems(input, preparation, results, context, options);
@@ -671,11 +650,81 @@ function toRawCodec(codec: QueryCodec<unknown>): RawParamCodec {
     decode: (input, context) => codec.decode(input, context),
     encode: (value, context) => codec.encode(value, context),
   };
-  const decodeAsync = codec.decodeAsync?.bind(codec);
-  if (decodeAsync === undefined) {
+  if (codec.decodeAsync === undefined) {
     return raw;
   }
-  return { ...raw, decodeAsync: async (input, context) => decodeAsync(input, context) };
+  return { ...raw, decodeAsync: (input, context) => codec.decodeAsync!(input, context) };
+}
+
+/** Create a boolean query parameter without retaining unrelated built-in codecs. */
+export function booleanParam(
+  options: BooleanParamOptions = {},
+): QueryParamBuilder<boolean, "required"> {
+  return createParam(baseState("boolean", createBooleanCodec(options))) as QueryParamBuilder<
+    boolean,
+    "required"
+  >;
+}
+
+/** Create a choice query parameter without retaining unrelated built-in codecs. */
+export function choiceParam<const TChoice extends string>(
+  choices: readonly TChoice[],
+): QueryParamBuilder<TChoice, "required"> {
+  return createParam(baseState("choice", createChoiceCodec(choices))) as QueryParamBuilder<
+    TChoice,
+    "required"
+  >;
+}
+
+/** Create a custom query parameter without retaining unrelated built-in codecs. */
+export function customParam<TValue>(
+  codec: QueryCodec<TValue>,
+  options: CustomParamOptions = {},
+): QueryParamBuilder<TValue, "required"> {
+  return createParam(
+    baseState(options.kind ?? "custom", toRawCodec(codec), {
+      consumesMultipleValues: options.consumesMultipleValues ?? false,
+    }),
+  ) as QueryParamBuilder<TValue, "required">;
+}
+
+/** Create an integer query parameter without retaining unrelated built-in codecs. */
+export function integerParam(
+  options: IntegerParamOptions = {},
+): QueryParamBuilder<number, "required"> {
+  return createParam(baseState("integer", createIntegerCodec(options))) as QueryParamBuilder<
+    number,
+    "required"
+  >;
+}
+
+/** Create a list query parameter without retaining unrelated built-in codecs. */
+export function listParam<TItem>(
+  item: QueryParam<TItem>,
+  options: ListParamOptions = {},
+): QueryParamBuilder<readonly TItem[], "required"> {
+  return createParam(
+    baseState("list", createListCodec(item, options), {
+      consumesMultipleValues: true,
+    }),
+  ) as QueryParamBuilder<readonly TItem[], "required">;
+}
+
+/** Create a finite-number query parameter without retaining unrelated built-in codecs. */
+export function numberParam(
+  options: NumberParamOptions = {},
+): QueryParamBuilder<number, "required"> {
+  return createParam(baseState("number", createNumberCodec(options))) as QueryParamBuilder<
+    number,
+    "required"
+  >;
+}
+
+/** Create a text query parameter without retaining unrelated built-in codecs. */
+export function textParam(options: TextParamOptions = {}): QueryParamBuilder<string, "required"> {
+  return createParam(
+    baseState("text", createTextCodec(options), { allowEmpty: options.allowEmpty ?? false }),
+  ) as QueryParamBuilder<string, "required">;
 }
 
 /**
@@ -685,40 +734,11 @@ function toRawCodec(codec: QueryCodec<unknown>): RawParamCodec {
  * custom. Richer representations are expected to arrive as composed custom codecs.
  */
 export const param: QueryParamFactory = {
-  boolean: (options = {}) =>
-    createParam(baseState("boolean", createBooleanCodec(options))) as QueryParamBuilder<
-      boolean,
-      "required"
-    >,
-  choice: <const TChoice extends string>(choices: readonly TChoice[]) =>
-    createParam(baseState("choice", createChoiceCodec(choices))) as QueryParamBuilder<
-      TChoice,
-      "required"
-    >,
-  custom: <TValue>(codec: QueryCodec<TValue>, options: CustomParamOptions = {}) =>
-    createParam(
-      baseState(options.kind ?? "custom", toRawCodec(codec), {
-        consumesMultipleValues: options.consumesMultipleValues ?? false,
-      }),
-    ) as QueryParamBuilder<TValue, "required">,
-  integer: (options = {}) =>
-    createParam(baseState("integer", createIntegerCodec(options))) as QueryParamBuilder<
-      number,
-      "required"
-    >,
-  list: <TItem>(item: QueryParam<TItem>, options: ListParamOptions = {}) =>
-    createParam(
-      baseState("list", createListCodec(item, options), {
-        consumesMultipleValues: true,
-      }),
-    ) as QueryParamBuilder<readonly TItem[], "required">,
-  number: (options = {}) =>
-    createParam(baseState("number", createNumberCodec(options))) as QueryParamBuilder<
-      number,
-      "required"
-    >,
-  text: (options = {}) =>
-    createParam(
-      baseState("text", createTextCodec(options), { allowEmpty: options.allowEmpty ?? false }),
-    ) as QueryParamBuilder<string, "required">,
+  boolean: booleanParam,
+  choice: choiceParam,
+  custom: customParam,
+  integer: integerParam,
+  list: listParam,
+  number: numberParam,
+  text: textParam,
 };

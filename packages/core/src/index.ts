@@ -20,7 +20,16 @@ export type {
   QueryParamValue,
   QueryPatch,
 } from "./model";
-export { param } from "./param";
+export {
+  booleanParam,
+  choiceParam,
+  customParam,
+  integerParam,
+  listParam,
+  numberParam,
+  param,
+  textParam,
+} from "./param";
 export type {
   BooleanParamOptions,
   CustomParamOptions,

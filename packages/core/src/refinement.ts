@@ -36,3 +36,12 @@ export interface QueryRefinement<TInput, TOutput = TInput> {
     context: QueryRefineContext,
   ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
 }
+
+/** Internal promise detection shared by synchronous refinement pipelines. */
+export function isPromiseLike<TValue>(value: unknown): value is Promise<TValue> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
+}

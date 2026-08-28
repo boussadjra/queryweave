@@ -1,6 +1,13 @@
 import {
+  booleanParam,
+  choiceParam,
+  customParam,
   defineQueryModel,
+  integerParam,
+  listParam,
+  numberParam,
   param,
+  textParam,
   type QueryCodec,
   type QueryModelValues,
   type QueryParamBuilder,
@@ -9,6 +16,25 @@ import {
 import { describe, expectTypeOf, it } from "vitest";
 
 describe("parameter inference", () => {
+  it("preserves inference through tree-shakable named constructors", () => {
+    expectTypeOf(textParam()).toExtend<QueryParamBuilder<string, "required">>();
+    expectTypeOf(integerParam()).toExtend<QueryParamBuilder<number, "required">>();
+    expectTypeOf(numberParam()).toExtend<QueryParamBuilder<number, "required">>();
+    expectTypeOf(booleanParam()).toExtend<QueryParamBuilder<boolean, "required">>();
+    expectTypeOf(choiceParam(["a", "b"]).defaultValue).toEqualTypeOf<"a" | "b" | undefined>();
+    expectTypeOf(listParam(textParam())).toExtend<
+      QueryParamBuilder<readonly string[], "required">
+    >();
+
+    const codec: QueryCodec<{ readonly id: string }> = {
+      decode: () => ({ ok: true, value: { id: "one" }, issues: [] }),
+      encode: (value) => [value.id],
+    };
+    expectTypeOf(customParam(codec)).toExtend<
+      QueryParamBuilder<{ readonly id: string }, "required">
+    >();
+  });
+
   it("gives every family its own value type", () => {
     expectTypeOf(param.text()).toExtend<QueryParamBuilder<string, "required">>();
     expectTypeOf(param.integer()).toExtend<QueryParamBuilder<number, "required">>();

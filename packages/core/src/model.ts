@@ -8,7 +8,7 @@ import {
   type QueryInput,
   type QueryOutput,
 } from "./query-input";
-import type { QueryRefinement, QueryRefinementResult } from "./refinement";
+import { isPromiseLike, type QueryRefinement, type QueryRefinementResult } from "./refinement";
 import type { DecodeResult, QueryValueResult } from "./results";
 
 /** The shape accepted by {@link defineQueryModel}. */
@@ -73,7 +73,7 @@ export interface QueryModel<TDefs extends QueryParamDefinitions> {
 export const modelIssueKey = "$";
 
 type LooseParam = QueryParam<unknown>;
-type LooseRefinement = QueryRefinement<never, unknown>;
+type LooseRefinement = QueryRefinement<unknown, unknown>;
 
 interface MergedDecode {
   readonly ok: boolean;
@@ -131,25 +131,6 @@ function toModelIssues(
       path: issue.path,
     }),
   );
-}
-
-function isPromiseLike<TValue>(value: unknown): value is Promise<TValue> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { then?: unknown }).then === "function"
-  );
-}
-
-function callModelRefine(
-  refinement: LooseRefinement,
-  value: unknown,
-): QueryRefinementResult<unknown> | Promise<QueryRefinementResult<unknown>> {
-  const refine = refinement.refine.bind(refinement) as (
-    input: unknown,
-    context: { key: string; path: readonly PropertyKey[] },
-  ) => QueryRefinementResult<unknown> | Promise<QueryRefinementResult<unknown>>;
-  return refine(value, { key: modelIssueKey, path: [] });
 }
 
 /**
@@ -256,7 +237,7 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
     const issues: QueryIssue[] = [];
 
     for (const refinement of refinements) {
-      const outcome = callModelRefine(refinement, current);
+      const outcome = refinement.refine(current, { key: modelIssueKey, path: [] });
       if (isPromiseLike(outcome)) {
         issues.push(
           createQueryIssue({
@@ -287,10 +268,9 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
         }
         const values = grouped.get(key) ?? [];
         const context = decodeContext(key);
-        const asyncDecode = definition.codec.decodeAsync?.bind(definition.codec);
-        return asyncDecode === undefined
+        return definition.codec.decodeAsync === undefined
           ? definition.codec.decode(values, context)
-          : asyncDecode(values, context);
+          : definition.codec.decodeAsync(values, context);
       }),
     );
 
@@ -305,7 +285,7 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
     for (const refinement of refinements) {
       // Model refinements form a pipeline; each one sees the previous one's output.
       // oxlint-disable-next-line no-await-in-loop
-      const outcome = await callModelRefine(refinement, current);
+      const outcome = await refinement.refine(current, { key: modelIssueKey, path: [] });
       if (!outcome.ok) {
         issues.push(...toModelIssues(outcome));
         return finish(merged, issues, undefined);
