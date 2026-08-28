@@ -1,0 +1,68 @@
+---
+import type { DiagramEdge, DiagramNode, DiagramTone } from "../diagrams/types";
+import DiagramFigure from "./DiagramFigure.astro";
+
+/**
+ * The decode and encode path, drawn as stages joined by a line.
+ *
+ * A page states the stages; the renderer decides where they sit and reflows them into a single
+ * column when the reading column is too narrow for the full path.
+ */
+
+interface Stage {
+  readonly label: string;
+  readonly value?: string | undefined;
+  readonly kind?: "input" | "operation" | "state" | "output" | undefined;
+}
+
+interface Props {
+  readonly stages?: readonly Stage[] | undefined;
+  readonly caption?: string | undefined;
+}
+
+const defaultStages: readonly Stage[] = [
+  { label: "Raw query", value: "?search=vue&page=2", kind: "input" },
+  { label: "decode()", kind: "operation" },
+  { label: "Typed state", value: '{ search: "vue", page: 2 }', kind: "state" },
+  { label: "encode()", kind: "operation" },
+  { label: "Canonical query", value: "search=vue&page=2", kind: "output" },
+];
+
+const { stages = defaultStages, caption } = Astro.props;
+
+/** Where a stage sits on the path decides its colour: input arrives, state is the engine's, and
+    output is the valid end. */
+const tones: Record<NonNullable<Stage["kind"]>, DiagramTone> = {
+  input: "environment",
+  operation: "operation",
+  output: "valid",
+  state: "core",
+};
+
+const nodes: readonly DiagramNode[] = stages.map((stage, index) => ({
+  id: `stage-${String(index)}`,
+  label: stage.label,
+  value: stage.value,
+  tone: tones[stage.kind ?? "state"],
+  col: index,
+  row: 0,
+}));
+
+// Only the segments feeding a transformation move. Animating every segment would say the whole
+// path is in motion, which is both untrue and, on a page of prose, tiring to read past.
+const edges: readonly DiagramEdge[] = stages.slice(1).map((stage, index) => ({
+  from: `stage-${String(index)}`,
+  to: `stage-${String(index + 1)}`,
+  active: stage.kind === "operation",
+}));
+---
+
+<DiagramFigure
+  nodes={nodes}
+  edges={edges}
+  orientation="horizontal"
+  unit={170}
+  gapX={40}
+  caption={caption}
+  label="The path a query takes through the model, stage by stage."
+/>

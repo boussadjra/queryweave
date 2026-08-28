@@ -1,0 +1,334 @@
+---
+import { findContext, type DocsContext } from "../data/docs-contexts";
+
+/**
+ * "Where are you using QueryWeave?"
+ *
+ * Package names, install commands, and guide links come from the canonical registry; only the
+ * minimal example belongs to this component. Every panel is rendered and visible before the script
+ * runs, so the content is complete without JavaScript and the tablist is an enhancement.
+ */
+
+const examples: Record<string, { readonly code: string; readonly language: string }> = {
+  browser: {
+    language: "ts",
+    code: `import { createBrowserAdapter } from "@queryweave/browser";
+import { createQueryRuntime } from "@queryweave/core";
+
+const runtime = createQueryRuntime({
+  model: products,
+  adapter: createBrowserAdapter(),
+});
+
+await runtime.update({ search: "vue" });`,
+  },
+  server: {
+    language: "ts",
+    code: `import { readRequestQuery } from "@queryweave/server";
+
+export function handle(request: Request) {
+  const result = readRequestQuery(request, products);
+  return result.ok ? result.value : { ...products.defaults(), ...result.partial };
+}`,
+  },
+  node: {
+    language: "ts",
+    code: `import { readNodeQuery } from "@queryweave/node";
+
+createServer((request, response) => {
+  const result = readNodeQuery(request, products);
+  response.end(JSON.stringify(result.ok ? result.value : result.partial));
+});`,
+  },
+  vue: {
+    language: "ts",
+    code: `import { useQueryModel } from "@queryweave/vue";
+
+const filters = useQueryModel(products);
+
+filters.values.page; // readonly reactive state
+await filters.update({ page: 2 });`,
+  },
+  "vue-router": {
+    language: "ts",
+    code: `import { createVueRouterAdapter } from "@queryweave/vue-router";
+import { provideQueryAdapter } from "@queryweave/vue";
+
+provideQueryAdapter(createVueRouterAdapter(router));`,
+  },
+  nuxt: {
+    language: "ts",
+    code: `// nuxt.config.ts
+export default defineNuxtConfig({
+  modules: ["@queryweave/nuxt"],
+});`,
+  },
+};
+
+const order = ["browser", "server", "node", "vue", "vue-router", "nuxt"];
+
+const options = order
+  .map((id) => findContext(id))
+  .filter((context): context is DocsContext => context !== undefined)
+  .map((context) => ({
+    context,
+    example: examples[context.id],
+  }));
+---
+
+<qw-integration-chooser class="chooser not-content">
+  <p class="question" id="qw-chooser-question">Where are you using QueryWeave?</p>
+
+  <div class="tabs" role="tablist" aria-labelledby="qw-chooser-question">
+    {
+      options.map((option, index) => (
+        <button
+          type="button"
+          role="tab"
+          id={`qw-chooser-tab-${option.context.id}`}
+          aria-controls={`qw-chooser-panel-${option.context.id}`}
+          aria-selected={index === 0 ? "true" : "false"}
+          data-context={option.context.id}
+        >
+          {option.context.label}
+        </button>
+      ))
+    }
+  </div>
+
+  <div class="panels">
+    {
+      options.map((option) => (
+        <section
+          role="tabpanel"
+          id={`qw-chooser-panel-${option.context.id}`}
+          aria-labelledby={`qw-chooser-tab-${option.context.id}`}
+          data-panel={option.context.id}
+          tabindex="0"
+        >
+          <h3>{option.context.label}</h3>
+          <p class="summary">{option.context.summary}</p>
+
+          <dl>
+            <div>
+              <dt>Package</dt>
+              <dd class="mono">{option.context.packageName}</dd>
+            </div>
+            <div>
+              <dt>Install</dt>
+              <dd class="mono">{option.context.install}</dd>
+            </div>
+          </dl>
+
+          {option.example !== undefined && (
+            <pre class={`language-${option.example.language}`}>
+              <code>{option.example.code}</code>
+            </pre>
+          )}
+
+          <a class="qw-btn qw-btn--secondary" href={option.context.basePath}>
+            Read the {option.context.label} guide
+          </a>
+        </section>
+      ))
+    }
+  </div>
+</qw-integration-chooser>
+
+<script>
+  /**
+   * A WAI-ARIA tablist with roving tabindex.
+   *
+   * Panels start visible so the page is complete without scripting; the first thing this does is
+   * take ownership of visibility.
+   */
+  class QueryWeaveIntegrationChooser extends HTMLElement {
+    private tabs: HTMLButtonElement[] = [];
+
+    connectedCallback(): void {
+      this.tabs = [...this.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+      if (this.tabs.length === 0) {
+        return;
+      }
+
+      this.dataset["enhanced"] = "true";
+      this.select(this.storedContext() ?? this.tabs[0]?.dataset["context"], false);
+
+      for (const tab of this.tabs) {
+        tab.addEventListener("click", () => {
+          this.select(tab.dataset["context"], false);
+        });
+        tab.addEventListener("keydown", (event: KeyboardEvent) => {
+          this.onKeydown(event, tab);
+        });
+      }
+    }
+
+    /** The reader's last chosen context, when it is one this chooser offers. */
+    private storedContext(): string | undefined {
+      let stored: string | null = null;
+      try {
+        stored =
+          globalThis.localStorage.getItem("queryweave.docs.framework") ??
+          globalThis.localStorage.getItem("queryweave.docs.runtime");
+      } catch {
+        stored = null;
+      }
+      return this.tabs.some((tab) => tab.dataset["context"] === stored)
+        ? (stored ?? undefined)
+        : undefined;
+    }
+
+    private onKeydown(event: KeyboardEvent, tab: HTMLButtonElement): void {
+      const index = this.tabs.indexOf(tab);
+      const last = this.tabs.length - 1;
+      const next = {
+        ArrowRight: index === last ? 0 : index + 1,
+        ArrowLeft: index === 0 ? last : index - 1,
+        Home: 0,
+        End: last,
+      }[event.key];
+
+      if (next === undefined) {
+        return;
+      }
+      event.preventDefault();
+      this.select(this.tabs[next]?.dataset["context"], true);
+    }
+
+    private select(context: string | undefined, focus: boolean): void {
+      if (context === undefined) {
+        return;
+      }
+      for (const tab of this.tabs) {
+        const selected = tab.dataset["context"] === context;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        if (selected && focus) {
+          tab.focus();
+        }
+      }
+      for (const panel of this.querySelectorAll<HTMLElement>("[data-panel]")) {
+        panel.hidden = panel.dataset["panel"] !== context;
+      }
+    }
+  }
+
+  if (customElements.get("qw-integration-chooser") === undefined) {
+    customElements.define("qw-integration-chooser", QueryWeaveIntegrationChooser);
+  }
+</script>
+
+<style>
+  .chooser {
+    display: block;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    padding: 1.25rem;
+    margin-block: 1.75rem;
+  }
+
+  .question {
+    margin: 0 0 0.9rem;
+    color: var(--qw-heading);
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+  }
+
+  [role="tab"] {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: 999px;
+    background: transparent;
+    padding: 0.3rem 0.85rem;
+    color: var(--qw-body);
+    font-family: inherit;
+    font-size: var(--qw-text-small);
+    cursor: pointer;
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  [role="tab"]:hover {
+    border-color: var(--qw-accent);
+  }
+
+  /* aria-selected carries the state for assistive technology; the weight change carries it for
+     readers who cannot separate the two surface colours. */
+  [role="tab"][aria-selected="true"] {
+    border-color: var(--qw-accent);
+    background: var(--qw-accent);
+    color: var(--qw-accent-contrast);
+    font-weight: 600;
+  }
+
+  .panels > section + section {
+    margin-top: 2rem;
+  }
+
+  /* Once enhanced, the separator is unnecessary because one panel shows at a time. */
+  .chooser[data-enhanced="true"] .panels > section + section {
+    margin-top: 0;
+  }
+
+  section h3 {
+    margin: 0 0 0.35rem;
+    color: var(--qw-heading);
+    font-size: 1rem;
+  }
+
+  .summary {
+    margin: 0;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+  }
+
+  dl {
+    display: grid;
+    gap: 0.75rem 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    margin: 1rem 0;
+  }
+
+  dt {
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+    font-size: var(--qw-text-small);
+    overflow-wrap: anywhere;
+  }
+
+  dd.mono {
+    font-family: var(--qw-font-mono);
+  }
+
+  pre {
+    border: 1px solid var(--qw-code-border);
+    border-radius: var(--qw-radius);
+    background: var(--qw-code-surface);
+    padding: 0.85rem 1rem;
+    margin: 0 0 1.1rem;
+    overflow-x: auto;
+  }
+
+  code {
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre;
+  }
+</style>

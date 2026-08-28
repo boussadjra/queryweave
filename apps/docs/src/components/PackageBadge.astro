@@ -1,0 +1,73 @@
+---
+/**
+ * A small outlined label.
+ *
+ * Tone is never the only signal: each badge carries a text prefix in its accessible name, so the
+ * meaning survives without colour.
+ */
+
+interface Props {
+  readonly tone?: "package" | "runtime" | "framework" | "valid" | "planned" | undefined;
+  readonly label?: string | undefined;
+}
+
+const { tone = "package", label } = Astro.props;
+
+const prefixes: Record<string, string> = {
+  package: "Package",
+  runtime: "Runtime",
+  framework: "Framework",
+  valid: "Status",
+  planned: "Status",
+};
+
+const prefix = label ?? prefixes[tone] ?? "";
+---
+
+<span class:list={["badge", `badge--${tone}`]}>
+  <span class="qw-sr-only">{prefix}: </span>
+  <slot />
+</span>
+
+<style>
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    line-height: 1.7;
+    white-space: nowrap;
+  }
+
+  .badge--package {
+    border-color: color-mix(in srgb, var(--qw-accent) 45%, transparent);
+    color: var(--qw-accent);
+  }
+
+  .badge--runtime {
+    border-color: color-mix(in srgb, var(--qw-technical) 55%, transparent);
+    color: var(--qw-technical);
+  }
+
+  .badge--framework {
+    border-color: var(--qw-panel-border-strong);
+    color: var(--qw-body);
+  }
+
+  .badge--valid {
+    border-color: color-mix(in srgb, var(--qw-valid) 55%, transparent);
+    color: var(--qw-valid);
+  }
+
+  /* The outline is a mark and the fill is a ground, so they read from the two different signal
+     roles rather than from one hue used at two strengths. */
+  .badge--planned {
+    border-color: color-mix(in srgb, var(--qw-signal) 82%, transparent);
+    color: var(--qw-body);
+    background: color-mix(in srgb, var(--qw-signal-surface) 14%, transparent);
+  }
+</style>

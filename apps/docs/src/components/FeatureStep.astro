@@ -1,0 +1,77 @@
+---
+/**
+ * One numbered idea on the homepage.
+ *
+ * The number is decorative in the accessibility tree — the heading already carries the order —
+ * and the slot holds ordinary markdown so code samples keep Expressive Code's copy button and
+ * syntax highlighting instead of becoming inert markup.
+ */
+
+interface Props {
+  readonly index: string;
+  readonly title: string;
+}
+
+const { index, title } = Astro.props;
+---
+
+<section class="step">
+  <div class="head">
+    <span class="index" aria-hidden="true">{index}</span>
+    <h2>{title}</h2>
+  </div>
+  <div class="body">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .step {
+    display: grid;
+    gap: 1rem 2.5rem;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    border-top: 1px solid var(--qw-panel-border);
+    padding-block: 2.25rem;
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .index {
+    color: var(--qw-signal);
+    font-family: var(--qw-font-mono);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  h2 {
+    margin: 0;
+    color: var(--qw-heading);
+    font-size: var(--qw-text-h2);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .body :global(p) {
+    margin-block: 0 1rem;
+    color: var(--qw-body);
+    line-height: 1.7;
+  }
+
+  .body :global(.expressive-code) {
+    margin-block: 0;
+  }
+
+  /* minmax(0, 1fr) rather than 1fr: a grid column's automatic minimum is its content's
+     min-content width, which a code block would stretch past the viewport. */
+  @media (max-width: 55rem) {
+    .step {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

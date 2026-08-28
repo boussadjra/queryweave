@@ -1,0 +1,184 @@
+---
+import { contextsOfKind, type DocsContextKind } from "../data/docs-contexts";
+import { findPackage } from "../data/packages";
+import PackageBadge from "./PackageBadge.astro";
+
+/**
+ * Integration cards for one axis, built from the canonical registry.
+ *
+ * Every card gets identical treatment. No framework is larger, first by accident, or tinted with
+ * its own brand colour: QueryWeave's position is that these are peers, and the layout has to agree
+ * with the prose.
+ */
+
+interface Props {
+  readonly kind: DocsContextKind;
+  /** Restrict to these context ids, in this order. */
+  readonly only?: readonly string[] | undefined;
+}
+
+const { kind, only } = Astro.props;
+
+const contexts = contextsOfKind(kind).filter(
+  (context) => only === undefined || only.includes(context.id),
+);
+
+const cards = contexts.map((context) => ({
+  context,
+  entry: context.packageName === undefined ? undefined : findPackage(context.packageName),
+}));
+---
+
+<div class="cards not-content">
+  {
+    cards.map(({ context, entry }) => (
+      <article class="card">
+        <header>
+          <h3>
+            <a href={context.basePath}>{context.label}</a>
+          </h3>
+          {context.packageName !== undefined && (
+            <code class="package">{context.packageName}</code>
+          )}
+        </header>
+
+        <p class="summary">{context.summary}</p>
+
+        <dl>
+          <div>
+            <dt>Runs in</dt>
+            <dd>{entry?.runtime ?? context.label}</dd>
+          </div>
+          <div>
+            <dt>Needs</dt>
+            <dd>
+              {entry === undefined || entry.peers.length === 0
+                ? "No framework"
+                : entry.peers.join(", ")}
+            </dd>
+          </div>
+        </dl>
+
+        {context.install !== undefined && <code class="install">{context.install}</code>}
+
+        <footer>
+          <PackageBadge tone="planned">experimental</PackageBadge>
+          <a class="more" href={context.basePath}>
+            {context.kind === "framework" ? "Integration guide" : "Adapter guide"}
+            <span aria-hidden="true"> →</span>
+          </a>
+        </footer>
+      </article>
+    ))
+  }
+</div>
+
+<style>
+  .cards {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    margin-block: 1.75rem;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    padding: 1.15rem 1.25rem;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  h3 a {
+    color: var(--qw-heading);
+    text-decoration: none;
+  }
+
+  h3 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .package {
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    overflow-wrap: anywhere;
+  }
+
+  .summary {
+    margin: 0;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+    line-height: 1.6;
+  }
+
+  dl {
+    display: grid;
+    gap: 0.5rem 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    margin: 0;
+  }
+
+  dt {
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  dd {
+    margin: 0.1rem 0 0;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+  }
+
+  .install {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-code-surface);
+    padding: 0.35rem 0.6rem;
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+  }
+
+  footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: auto;
+    padding-top: 0.35rem;
+  }
+
+  .more {
+    color: var(--qw-accent);
+    font-size: var(--qw-text-small);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .more:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+</style>

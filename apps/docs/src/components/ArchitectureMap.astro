@@ -1,0 +1,98 @@
+---
+import type { DiagramEdge, DiagramNode } from "../diagrams/types";
+import DiagramFigure from "./DiagramFigure.astro";
+
+/**
+ * The whole architecture in one figure.
+ *
+ * It is drawn left to right, in the same direction as the decode and encode path, so the two
+ * figures read as one story: definition, transformation, transitions, environment, binding. Each
+ * layer knows only the one before it, and that is exactly what the edges say.
+ *
+ * No framework colour appears anywhere: the map has to read as QueryWeave even where it names Vue
+ * Router or Nuxt.
+ */
+
+interface Props {
+  readonly caption?: string | undefined;
+}
+
+const { caption } = Astro.props;
+
+const nodes: readonly DiagramNode[] = [
+  {
+    id: "model",
+    label: "Query Model",
+    note: "parameters, codecs, defaults",
+    tone: "core",
+    col: 0,
+    row: 0,
+    rowSpan: 4,
+  },
+  {
+    id: "decode",
+    label: "decode",
+    note: "raw query → typed state",
+    tone: "operation",
+    col: 1,
+    row: 0,
+    rowSpan: 2,
+  },
+  {
+    id: "encode",
+    label: "encode",
+    note: "typed state → canonical query",
+    tone: "operation",
+    col: 1,
+    row: 2,
+    rowSpan: 2,
+  },
+  {
+    id: "runtime",
+    label: "Query Runtime",
+    note: "encode once, navigate once, notify once",
+    tone: "core",
+    col: 2,
+    row: 0,
+    rowSpan: 4,
+  },
+  {
+    id: "browser",
+    label: "Browser",
+    note: "History API",
+    tone: "environment",
+    col: 3,
+    row: 0,
+    rowSpan: 2,
+  },
+  { id: "server", label: "Server", note: "Request and URL", tone: "environment", col: 3, row: 2 },
+  { id: "testing", label: "Testing", note: "memory stack", tone: "environment", col: 3, row: 3 },
+  { id: "vue-router", label: "Vue Router", note: "router navigation", tone: "neutral", col: 4, row: 0 },
+  { id: "nuxt", label: "Nuxt", note: "request-scoped", tone: "neutral", col: 4, row: 1 },
+  { id: "node", label: "Node.js", note: "IncomingMessage", tone: "neutral", col: 4, row: 2 },
+];
+
+const edges: readonly DiagramEdge[] = [
+  { from: "model", to: "decode", active: true },
+  { from: "model", to: "encode", active: true },
+  { from: "decode", to: "runtime", tone: "core" },
+  { from: "encode", to: "runtime", tone: "core" },
+  { from: "runtime", to: "browser" },
+  { from: "runtime", to: "server" },
+  { from: "runtime", to: "testing" },
+  { from: "browser", to: "vue-router", tone: "environment" },
+  { from: "browser", to: "nuxt", tone: "environment" },
+  { from: "server", to: "node", tone: "environment" },
+];
+---
+
+<DiagramFigure
+  nodes={nodes}
+  edges={edges}
+  orientation="horizontal"
+  unit={168}
+  gapX={44}
+  gapY={18}
+  caption={caption}
+  label="Every environment reaches the engine through the same model and runtime."
+/>

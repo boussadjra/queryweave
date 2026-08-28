@@ -1,0 +1,229 @@
+---
+/**
+ * The homepage hero.
+ *
+ * The install command is shown with its real status attached. QueryWeave has not been published,
+ * and a documentation site that prints a working-looking `pnpm add` without saying so would be
+ * lying in its most prominent position.
+ */
+---
+
+<section class="hero not-content">
+  <div class="copy">
+    <p class="status">
+      <span class="dot" aria-hidden="true"></span>
+      Pre-1.0 · provisional API · not yet published
+    </p>
+
+    <h1>
+      Type-safe URL state,<br />
+      <span class="woven">woven together.</span>
+    </h1>
+
+    <p class="lede">
+      Define your query model once. Decode, validate, encode, synchronize, and reuse it across
+      browsers, servers, Node.js, and framework adapters.
+    </p>
+
+    <div class="actions">
+      <a class="qw-btn qw-btn--primary" href="/start/">Get started</a>
+      <a class="qw-btn qw-btn--secondary" href="/project/architecture/">Explore the architecture</a>
+    </div>
+
+    <p class="install">
+      <code>pnpm add @queryweave/core</code>
+      <span class="install-note">once the first version ships</span>
+    </p>
+  </div>
+
+  <div class="stages" aria-hidden="true">
+    <div class="stage">
+      <span class="stage-label">Raw query</span>
+      <code>?search=vue&page=2</code>
+    </div>
+    <div class="arrow"><span>decode</span></div>
+    <div class="stage stage--typed">
+      <span class="stage-label">Typed state</span>
+      <code>{`{ search: "vue", page: 2 }`}</code>
+    </div>
+    <div class="arrow"><span>encode</span></div>
+    <div class="stage stage--canonical">
+      <span class="stage-label">Canonical query</span>
+      <code>search=vue&page=2</code>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    display: grid;
+    gap: 2.5rem 3rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: center;
+    padding-block: 1rem 2.5rem;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+    margin: 0 0 1.5rem;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--qw-signal);
+  }
+
+  /* The single place the brand colour carries a headline. Every other heading on the site is ink. */
+  h1 {
+    margin: 0;
+    color: var(--qw-heading-brand);
+    font-size: var(--qw-text-hero);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+
+  /* The one place the weave is drawn rather than described. */
+  .woven {
+    position: relative;
+    white-space: nowrap;
+  }
+
+  .woven::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0.08em;
+    height: 0.12em;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      var(--qw-path-core) 0%,
+      var(--qw-path-valid) 45%,
+      var(--qw-path-active) 70%,
+      var(--qw-path-runtime) 100%
+    );
+  }
+
+  .lede {
+    max-width: 34rem;
+    margin: 1.35rem 0 0;
+    color: var(--qw-body);
+    font-size: 1.125rem;
+    line-height: 1.65;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .install {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.65rem;
+    margin: 1.75rem 0 0;
+  }
+
+  .install code {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.35rem 0.7rem;
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-small);
+  }
+
+  .install-note {
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  /* ------------------------------------------------------------- stages */
+
+  .stages {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .stage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: 1px solid var(--qw-panel-border);
+    border-inline-start: 3px solid var(--qw-path-runtime);
+    border-radius: var(--qw-radius);
+    background: var(--qw-panel);
+    padding: 0.85rem 1rem;
+  }
+
+  .stage--typed {
+    border-inline-start-color: var(--qw-path-core);
+  }
+
+  .stage--canonical {
+    border-inline-start-color: var(--qw-path-valid);
+  }
+
+  .stage-label {
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .stage code {
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding-inline-start: 1.5rem;
+    height: 2.25rem;
+  }
+
+  .arrow::before {
+    content: "";
+    width: 2px;
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--qw-path-runtime), var(--qw-path-core));
+  }
+
+  .arrow span {
+    color: var(--qw-technical);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+  }
+
+  @media (max-width: 62rem) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2rem;
+    }
+
+    .lede {
+      max-width: none;
+    }
+  }
+</style>

@@ -1,0 +1,26 @@
+---
+import Default from "@astrojs/starlight/components/MobileMenuFooter.astro";
+
+import DocsContextSwitcher from "../DocsContextSwitcher.astro";
+
+/**
+ * The mobile menu's footer.
+ *
+ * Below 60rem the header drops the context selects, so they are carried here instead — the two
+ * axes stay reachable on every viewport, and Starlight's own social, theme, and language row is
+ * rendered underneath untouched.
+ */
+---
+
+<div class="qw-mobile-context">
+  <DocsContextSwitcher stacked />
+</div>
+
+<Default><slot /></Default>
+
+<style>
+  .qw-mobile-context {
+    border-top: 1px solid var(--qw-panel-border);
+    padding-top: 0.25rem;
+  }
+</style>

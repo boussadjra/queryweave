@@ -1,0 +1,162 @@
+---
+import {
+  describeDiagram,
+  estimateDiagramReserve,
+  type DiagramEdge,
+  type DiagramNode,
+} from "../diagrams/types";
+
+/**
+ * The frame every diagram is presented in.
+ *
+ * The canvas is one representation of the graph and the list underneath is another. The list is
+ * the one that is guaranteed: it is in the HTML whether or not the canvas has mounted, it is what
+ * assistive technology reads, and it is what the search index picks up. Without scripting the
+ * `noscript` rule below simply reveals it, so a diagram never degrades to an empty box.
+ *
+ * The canvas itself carries no framework markup at build time — Vue and Vue Flow are the heaviest
+ * script on any page that has a diagram, and most diagrams sit below the prose that introduces
+ * them, so there is no reason to pay for either before a reader scrolls near one. `data-diagram`
+ * and `data-props` are read by `../diagrams/lazy-mount`, which fetches and mounts the renderer
+ * once the canvas is close to the viewport.
+ */
+
+interface Props {
+  readonly nodes: readonly DiagramNode[];
+  readonly edges: readonly DiagramEdge[];
+  readonly orientation?: "horizontal" | "vertical" | undefined;
+  readonly unit?: number | undefined;
+  readonly gapX?: number | undefined;
+  readonly gapY?: number | undefined;
+  /** Small uppercase line above the canvas naming what kind of figure this is. */
+  readonly eyebrow?: string | undefined;
+  readonly caption?: string | undefined;
+  /** Wide diagrams break out of the reading column; narrow ones stay inside it. */
+  readonly breakout?: boolean | undefined;
+  /** Describes the figure for assistive technology when the caption does not. */
+  readonly label?: string | undefined;
+}
+
+const {
+  nodes,
+  edges,
+  orientation = "horizontal",
+  unit = 170,
+  gapX = 44,
+  gapY = 20,
+  eyebrow,
+  caption,
+  breakout = true,
+  label,
+} = Astro.props;
+
+const connections = describeDiagram(nodes, edges);
+
+/**
+ * Space held for the canvas before it mounts.
+ *
+ * No viewport exists yet at build time, so this cannot know whether the canvas will end up as a
+ * grid or as a single stacked column — `lazy-mount.ts` corrects it the moment a real width is
+ * available, well before the canvas is due to become visible. This value only has to hold until
+ * then, without a page grown or shrunk by the difference.
+ */
+const reserve = estimateDiagramReserve(nodes, { orientation, unit, gapX, gapY });
+
+const mountProps = { nodes, edges, orientation, unit, gapX, gapY };
+---
+
+<figure class:list={["diagram not-content", { "qw-breakout": breakout }]}>
+  {eyebrow !== undefined && <p class="eyebrow">{eyebrow}</p>}
+
+  <div
+    class="qw-diagram-canvas"
+    style={`--qw-diagram-reserve: ${String(reserve)}px`}
+    data-diagram
+    data-props={JSON.stringify(mountProps)}
+  >
+  </div>
+
+  <div class="alternative qw-sr-only">
+    <p>{label ?? caption ?? "Diagram"}</p>
+    <ol>
+      {
+        nodes.map((node) => (
+          <li>
+            {node.label}
+            {node.value !== undefined && <> — {node.value}</>}
+            {node.note !== undefined && <> ({node.note})</>}
+          </li>
+        ))
+      }
+    </ol>
+    <p>{connections.join(". ")}.</p>
+  </div>
+
+  <noscript>
+    {/* `is:inline` keeps the rule inside the `noscript` element instead of letting Astro hoist it
+        into the page head, where it would apply unconditionally. */}
+    <style is:inline>
+      /* Scripting is off, so the canvas will never arrive: the space held for it is given back,
+         and the text alternative is promoted from screen-reader-only to the figure's content. */
+      .diagram .qw-diagram-canvas {
+        display: none;
+      }
+
+      .diagram .alternative {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 0;
+        margin: 0;
+        overflow: visible;
+        clip-path: none;
+        white-space: normal;
+      }
+    </style>
+  </noscript>
+
+  {caption !== undefined && <figcaption>{caption}</figcaption>}
+</figure>
+
+<script>
+  import { mountWhenVisible } from "../diagrams/lazy-mount";
+
+  // Astro includes this module once per page no matter how many `DiagramFigure`s render, so every
+  // canvas already exists by the time it runs.
+  for (const canvas of document.querySelectorAll<HTMLElement>("[data-diagram]")) {
+    mountWhenVisible(canvas);
+  }
+</script>
+
+<style>
+  /* The figure is a panel and the cards sit on it raised, so depth carries the reading order
+     before colour does. */
+  .diagram {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    padding: 1.35rem 1.25rem;
+    margin-block: 2rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 0.9rem;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .alternative ol {
+    padding-inline-start: 1.2rem;
+  }
+
+  figcaption {
+    margin-top: 1.1rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-small);
+    line-height: 1.6;
+    text-align: center;
+  }
+</style>

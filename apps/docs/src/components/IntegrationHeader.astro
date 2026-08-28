@@ -1,0 +1,129 @@
+---
+import { findContext } from "../data/docs-contexts";
+import { findPackage } from "../data/packages";
+import PackageBadge from "./PackageBadge.astro";
+
+/**
+ * The metadata block under an adapter or framework page title.
+ *
+ * It answers the architectural questions before the prose starts: which package, where it runs,
+ * and what it depends on. Everything is read from the registries, so a page never restates facts
+ * that already exist in one place.
+ */
+
+interface Props {
+  /** Context identifier from `src/data/docs-contexts.ts`. */
+  readonly context: string;
+  /** Anchor for the install section, when the page has one. */
+  readonly install?: string | undefined;
+  /** Anchor for the first example, when the page has one. */
+  readonly example?: string | undefined;
+}
+
+const { context: contextId, install = "#install", example = "#example" } = Astro.props;
+
+const context = findContext(contextId);
+if (context === undefined) {
+  throw new Error(
+    `IntegrationHeader: "${contextId}" is not in the context registry. Add it to src/data/docs-contexts.ts.`,
+  );
+}
+
+const entry = context.packageName === undefined ? undefined : findPackage(context.packageName);
+
+const facts = [
+  { term: "Package", value: context.packageName ?? "—", mono: true },
+  { term: "Runtime", value: entry?.runtime ?? context.label, mono: false },
+  {
+    term: "Depends on",
+    value: entry === undefined || entry.dependsOn.length === 0 ? "—" : entry.dependsOn.join(", "),
+    mono: true,
+  },
+  {
+    term: entry !== undefined && entry.peers.length > 0 ? "Requires" : "Framework required",
+    value: entry === undefined || entry.peers.length === 0 ? "No" : entry.peers.join(", "),
+    mono: entry !== undefined && entry.peers.length > 0,
+  },
+];
+---
+
+<div class="integration-header not-content">
+  <p class="qw-eyebrow">{context.kind === "runtime" ? "Adapter" : "Framework"}</p>
+  <p class="summary">{context.summary}</p>
+
+  <dl class="facts">
+    {
+      facts.map((fact) => (
+        <div class="fact">
+          <dt>{fact.term}</dt>
+          <dd class:list={{ mono: fact.mono }}>{fact.value}</dd>
+        </div>
+      ))
+    }
+  </dl>
+
+  <div class="actions">
+    <a class="qw-btn qw-btn--primary" href={install}>Install</a>
+    <a class="qw-btn qw-btn--secondary" href={example}>Quick example</a>
+    {
+      context.packageName !== undefined && (
+        <PackageBadge tone="package">{context.packageName}</PackageBadge>
+      )
+    }
+  </div>
+</div>
+
+<style>
+  .integration-header {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    border-inline-start: 3px solid var(--qw-accent);
+    background: var(--qw-panel);
+    padding: 1.15rem 1.35rem;
+    margin-block: 1.5rem 2rem;
+  }
+
+  .summary {
+    margin: 0.35rem 0 0;
+    color: var(--qw-body);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+
+  .facts {
+    display: grid;
+    gap: 0.85rem 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    margin: 1.15rem 0 0;
+  }
+
+  .fact {
+    min-width: 0;
+  }
+
+  dt {
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+    overflow-wrap: anywhere;
+  }
+
+  dd.mono {
+    font-family: var(--qw-font-mono);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+  }
+</style>

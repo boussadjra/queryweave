@@ -1,0 +1,58 @@
+---
+import type { DiagramEdge, DiagramNode } from "../diagrams/types";
+import DiagramFigure from "./DiagramFigure.astro";
+
+/**
+ * The two shapes an environment can take.
+ *
+ * A mutable environment gets the full chain, ending in navigation. A request-scoped environment
+ * stops at decoding, because there is nothing to navigate. Keeping both in one component makes the
+ * difference visible instead of leaving it to prose.
+ */
+
+interface Props {
+  /** `adapter` for mutable environments, `source` for read-only request-scoped ones. */
+  readonly mode?: "adapter" | "source" | undefined;
+  /** The concrete environment at the end of the chain. */
+  readonly environment?: string | undefined;
+  readonly caption?: string | undefined;
+}
+
+const { mode = "adapter", environment = "Browser History API", caption } = Astro.props;
+
+const adapterChain: readonly DiagramNode[] = [
+  { id: "model", label: "QueryModel", note: "meaning", tone: "core", col: 0, row: 0 },
+  { id: "runtime", label: "QueryRuntime", note: "transitions", tone: "core", col: 0, row: 1 },
+  { id: "adapter", label: "QueryAdapter", note: "synchronization", tone: "environment", col: 0, row: 2 },
+  { id: "environment", label: environment, note: "environment", tone: "terminal", col: 0, row: 3 },
+];
+
+const sourceChain: readonly DiagramNode[] = [
+  { id: "environment", label: environment, note: "incoming", tone: "terminal", col: 0, row: 0 },
+  { id: "source", label: "QuerySource", note: "read-only", tone: "environment", col: 0, row: 1 },
+  { id: "decode", label: "QueryModel.decode()", note: "typed result", tone: "core", col: 0, row: 2 },
+];
+
+const chain = mode === "adapter" ? adapterChain : sourceChain;
+
+const edges: readonly DiagramEdge[] = chain.slice(1).map((node, index) => ({
+  from: chain[index]?.id ?? "",
+  to: node.id,
+}));
+
+const eyebrow =
+  mode === "adapter"
+    ? "Mutable environment — reads, navigates, and notifies"
+    : "Request-scoped source — reads once, never navigates";
+---
+
+<DiagramFigure
+  nodes={chain}
+  edges={edges}
+  orientation="vertical"
+  gapY={18}
+  eyebrow={eyebrow}
+  caption={caption}
+  breakout={false}
+  label={eyebrow}
+/>

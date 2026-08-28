@@ -1,0 +1,105 @@
+---
+import { packageGroupLabels, packageGroupOrder, packagesInGroup } from "../data/packages";
+import PackageBadge from "./PackageBadge.astro";
+
+/**
+ * The published packages, grouped by responsibility rather than listed flat.
+ *
+ * A flat grid would imply nine equivalent choices. They are not equivalent: one is the engine,
+ * some carry a query through an environment, and the rest bind a framework to it.
+ */
+
+interface Props {
+  /** Hide groups a page does not need. */
+  readonly only?: readonly string[] | undefined;
+}
+
+const { only } = Astro.props;
+
+const groups = packageGroupOrder
+  .filter((group) => only === undefined || only.includes(group))
+  .map((group) => ({
+    id: group,
+    label: packageGroupLabels[group],
+    entries: packagesInGroup(group),
+  }))
+  .filter((group) => group.entries.length > 0);
+---
+
+<div class="packages not-content">
+  {
+    groups.map((group) => (
+      <section class="group">
+        <h3 class="group-title">{group.label}</h3>
+        <div class="qw-grid">
+          {group.entries.map((entry) => (
+            <a class="package" href={entry.docs}>
+              <span class="name">{entry.name}</span>
+              <span class="responsibility">{entry.responsibility}</span>
+              <span class="meta">
+                <PackageBadge tone="runtime">{entry.runtime}</PackageBadge>
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+</div>
+
+<style>
+  .packages {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-block: 1.5rem;
+  }
+
+  .group-title {
+    margin: 0 0 0.85rem;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .package {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    padding: 1rem 1.1rem;
+    color: inherit;
+    text-decoration: none;
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      background-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .package:hover {
+    border-color: var(--qw-accent);
+    background: var(--qw-panel-raised);
+  }
+
+  .name {
+    color: var(--qw-heading);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-small);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .responsibility {
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+    line-height: 1.55;
+  }
+
+  .meta {
+    margin-top: 0.15rem;
+  }
+</style>

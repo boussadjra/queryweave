@@ -1,0 +1,282 @@
+---
+import {
+  asConcept,
+  conceptForPath,
+  contextForPath,
+  contextsOfKind,
+  contextStorageKeys,
+  resolveContextRoute,
+  type DocsConcept,
+  type DocsContextKind,
+} from "../data/docs-contexts";
+
+/**
+ * Moves the reader sideways between equivalent pages.
+ *
+ * Every target is resolved at build time from the canonical registry, so a switch can only ever
+ * land on a route that exists. Both axes are native selects: one control, one presentation, and
+ * the platform's own listbox on every device — a segmented row of pills would need a second
+ * presentation for narrow viewports and would grow unusable as contexts are added.
+ */
+
+interface Props {
+  /** Rendered inside the site header, which tightens the control to fit one row. */
+  readonly compact?: boolean | undefined;
+  /** Rendered in the mobile menu, where the two axes stack and fill the width. */
+  readonly stacked?: boolean | undefined;
+}
+
+interface IntegrationFrontmatter {
+  readonly kind?: string;
+  readonly context?: string;
+  readonly concept?: string;
+}
+
+const { compact = false, stacked = false } = Astro.props;
+
+/** Both presentations can appear on one page, so the label ids have to stay distinct. */
+const scope = compact ? "header" : stacked ? "menu" : "page";
+
+const route = Astro.locals.starlightRoute as { entry?: { data?: Record<string, unknown> } };
+const declared = route.entry?.data?.["integration"] as IntegrationFrontmatter | undefined;
+
+const pathname = Astro.url.pathname;
+const concept: DocsConcept | undefined = asConcept(declared?.concept) ?? conceptForPath(pathname);
+
+const axes = (["runtime", "framework"] as const).map((kind: DocsContextKind) => {
+  const active = contextForPath(kind, pathname);
+  return {
+    kind,
+    label: kind === "runtime" ? "Runtime" : "Framework",
+    storageKey: contextStorageKeys[kind],
+    activeId: active?.id,
+    options: contextsOfKind(kind).map((context) => ({
+      id: context.id,
+      label: context.label,
+      href: resolveContextRoute(context, concept),
+      current: context.id === active?.id,
+    })),
+  };
+});
+---
+
+<qw-context-switcher class:list={["switcher", { compact, stacked }]}>
+  {
+    axes.map((axis) => (
+      <div class="axis" data-axis={axis.kind} data-storage-key={axis.storageKey}>
+        <span class="axis-label" id={`qw-axis-${scope}-${axis.kind}`}>
+          {axis.label}
+        </span>
+
+        <span class="control">
+          <select
+            data-context-select={axis.kind}
+            aria-labelledby={`qw-axis-${scope}-${axis.kind}`}
+          >
+            {/* Pages that belong to no context still need a resting state, and it must not
+                navigate: an empty value is ignored by the change handler. */}
+            <option value="" selected={axis.activeId === undefined}>
+              Any
+            </option>
+            {axis.options.map((option) => (
+              <option value={option.href} data-context={option.id} selected={option.current}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <svg class="caret" viewBox="0 0 10 6" aria-hidden="true" focusable="false">
+            <path
+              d="M1 1l4 4 4-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </span>
+      </div>
+    ))
+  }
+</qw-context-switcher>
+
+<script>
+  import { contextStorageKeys } from "../data/docs-contexts";
+
+  /**
+   * Persistence is a convenience and never a redirect.
+   *
+   * The current route always decides what is highlighted; storage only records what the reader
+   * last chose so other components can offer it as a starting point. Nothing here runs during
+   * rendering, so there is no hydration flash and no server access to `localStorage`.
+   */
+  class QueryWeaveContextSwitcher extends HTMLElement {
+    connectedCallback(): void {
+      for (const axis of this.querySelectorAll<HTMLElement>("[data-axis]")) {
+        const storageKey = axis.dataset["storageKey"];
+        const select = axis.querySelector<HTMLSelectElement>("select");
+        if (select === null) {
+          continue;
+        }
+
+        this.remember(storageKey, select.selectedOptions[0]?.dataset["context"]);
+
+        select.addEventListener("change", () => {
+          const option = select.selectedOptions[0];
+          this.remember(storageKey, option?.dataset["context"]);
+          if (select.value !== "") {
+            globalThis.location.assign(select.value);
+          }
+        });
+      }
+    }
+
+    private remember(storageKey: string | undefined, context: string | undefined): void {
+      if (storageKey === undefined || context === undefined) {
+        return;
+      }
+      try {
+        globalThis.localStorage.setItem(storageKey, context);
+      } catch {
+        // Private browsing modes and disabled storage are not an error: the site works without it.
+      }
+    }
+  }
+
+  if (customElements.get("qw-context-switcher") === undefined) {
+    customElements.define("qw-context-switcher", QueryWeaveContextSwitcher);
+  }
+
+  // Referenced so the registry stays the single source of truth for key names at runtime too.
+  void contextStorageKeys;
+</script>
+
+<style>
+  .switcher {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1.25rem;
+  }
+
+  .axis {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+
+  .axis-label {
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  /* The caret is drawn rather than left to the platform, so the control keeps one shape across
+     browsers and the select itself can stay transparent over the header surface. */
+  .control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    min-width: 0;
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      background-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .control:hover {
+    border-color: var(--qw-accent);
+  }
+
+  .control:focus-within {
+    border-color: var(--qw-accent);
+  }
+
+  select {
+    appearance: none;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    padding: 0.3rem 1.6rem 0.3rem 0.6rem;
+    width: 100%;
+    color: var(--qw-body);
+    font-family: var(--qw-font-sans);
+    font-size: var(--qw-text-small);
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  /* The listbox is painted by the platform, so it needs explicit colours to match the surface. */
+  option {
+    background: var(--sl-color-bg-nav);
+    color: var(--qw-body);
+  }
+
+  .caret {
+    position: absolute;
+    inset-inline-end: 0.55rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    color: var(--qw-muted);
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------------------- header fit */
+
+  .compact {
+    gap: 0.55rem;
+  }
+
+  .compact .axis {
+    gap: 0.3rem;
+  }
+
+  /* One header row is a fixed budget, so the labels drop their tracking and a step of size rather
+     than disappearing: an unlabelled select would not say which axis it moves. */
+  .compact .axis-label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+  }
+
+  .compact select {
+    padding-block: 0.2rem;
+    padding-inline: 0.5rem 1.4rem;
+    font-size: var(--qw-text-label);
+  }
+
+  .compact .caret {
+    inset-inline-end: 0.45rem;
+  }
+
+  /* The header is already crowded at the sidebar breakpoint, and the mobile menu carries the same
+     two selects, so the header copy steps aside rather than wrapping onto a second row. */
+  @media (max-width: 60rem) {
+    .compact {
+      display: none;
+    }
+  }
+
+  /* ------------------------------------------------------------- mobile menu */
+
+  .stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    padding-block: 0.75rem;
+  }
+
+  .stacked .axis {
+    justify-content: space-between;
+  }
+
+  .stacked .control {
+    flex: 0 1 12rem;
+  }
+</style>

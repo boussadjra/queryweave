@@ -1,0 +1,116 @@
+---
+import {
+  asConcept,
+  conceptForPath,
+  contextsDocumenting,
+  resolveContextRoute,
+  type DocsConcept,
+} from "../data/docs-contexts";
+
+/**
+ * "Same concept in" navigation.
+ *
+ * The list is derived from the canonical registry, never written out in MDX, so a context that
+ * gains or loses a page updates every integration page at once. Contexts that do not document the
+ * concept are omitted rather than linked to a landing page, because a link that silently changes
+ * subject is worse than no link.
+ */
+
+interface Props {
+  /** Overrides the concept inferred from the current route. */
+  readonly concept?: DocsConcept | undefined;
+  readonly title?: string | undefined;
+}
+
+const pathname = Astro.url.pathname;
+const route = Astro.locals.starlightRoute as { entry?: { data?: Record<string, unknown> } };
+const declared = route.entry?.data?.["integration"] as { concept?: string } | undefined;
+
+const concept: DocsConcept | undefined =
+  Astro.props.concept ?? asConcept(declared?.concept) ?? conceptForPath(pathname);
+
+const title = Astro.props.title ?? "Same concept in";
+
+const targets =
+  concept === undefined
+    ? []
+    : [...contextsDocumenting("runtime", concept), ...contextsDocumenting("framework", concept)]
+        .map((context) => ({
+          id: context.id,
+          label: context.label,
+          kind: context.kind,
+          href: resolveContextRoute(context, concept),
+        }))
+        .filter((target) => !pathname.startsWith(target.href));
+---
+
+{
+  targets.length > 0 && (
+    <nav class="integration-nav not-content" aria-label={title}>
+      <span class="qw-eyebrow">{title}</span>
+      <ul>
+        {targets.map((target) => (
+          <li>
+            <a href={target.href}>
+              <span class="dot" data-kind={target.kind} aria-hidden="true" />
+              {target.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .integration-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    border-top: 1px solid var(--qw-panel-border);
+    padding-top: 1.1rem;
+    margin-top: 2.5rem;
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+    text-decoration: none;
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  a:hover {
+    border-color: var(--qw-accent);
+    color: var(--qw-accent);
+  }
+
+  /* A path terminal, coloured by axis: runtimes carry the technical blue, frameworks the green. */
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--qw-path-runtime);
+  }
+
+  .dot[data-kind="framework"] {
+    background: var(--qw-path-valid);
+  }
+</style>

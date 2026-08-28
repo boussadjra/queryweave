@@ -1,0 +1,169 @@
+---
+import Search from "@astrojs/starlight/components/Search.astro";
+import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
+import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
+import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
+
+import DocsContextSwitcher from "../DocsContextSwitcher.astro";
+
+/**
+ * The QueryWeave header — one row.
+ *
+ * Starlight's own header parts are reused unchanged (site title, search, social links, theme
+ * select), so their keyboard handling, mobile behavior, and theme persistence all still come from
+ * Starlight. Only the arrangement is ours: section navigation and the two context selects join the
+ * same row rather than forming a second bar, which keeps `--sl-nav-height` at Starlight's own value
+ * and leaves the sidebar offset and heading scroll margins untouched.
+ */
+
+const sections = [
+  { label: "Core", href: "/concepts/" },
+  { label: "Runtime", href: "/runtime/" },
+  { label: "Adapters", href: "/adapters/" },
+  { label: "Frameworks", href: "/frameworks/" },
+  { label: "API", href: "/reference/" },
+];
+
+const pathname = Astro.url.pathname;
+const currentSection = sections
+  .filter((section) => pathname.startsWith(section.href))
+  .sort((left, right) => right.href.length - left.href.length)[0];
+---
+
+<div class="qw-header">
+  <div class="title-wrapper sl-flex">
+    <SiteTitle />
+  </div>
+
+  <nav class="qw-sections print:hidden" aria-label="Documentation sections">
+    {
+      sections.map((section) => (
+        <a
+          href={section.href}
+          aria-current={section.href === currentSection?.href ? "true" : undefined}
+        >
+          {section.label}
+        </a>
+      ))
+    }
+  </nav>
+
+  <div class="qw-switcher print:hidden">
+    <DocsContextSwitcher compact />
+  </div>
+
+  <div class="qw-search print:hidden">
+    <Search />
+  </div>
+
+  <div class="qw-utilities sl-hidden md:sl-flex print:hidden">
+    <div class="social-icons sl-flex">
+      <SocialIcons />
+    </div>
+    <ThemeSelect />
+  </div>
+</div>
+
+<style>
+  .qw-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    height: 100%;
+  }
+
+  .title-wrapper {
+    /* Long titles must not cover the search and menu buttons on narrow viewports. */
+    overflow: clip;
+    /* Keeps the focus ring around the title link from being clipped by the line above. */
+    padding: 0.25rem;
+    margin: -0.25rem;
+    flex: none;
+    min-width: 0;
+  }
+
+  /* Section links and the context selects sit together on the left; search and the utilities are
+     pushed to the end by the search column taking the free space. */
+  .qw-sections {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    flex: none;
+  }
+
+  .qw-sections a {
+    position: relative;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-small);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    padding-block: 0.4rem;
+    transition: color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .qw-sections a:hover {
+    color: var(--qw-body);
+  }
+
+  /* The active section is marked by a path segment under the label as well as by weight and
+     aria-current, so the state survives without colour. */
+  .qw-sections a[aria-current="true"] {
+    color: var(--qw-heading);
+    font-weight: 600;
+  }
+
+  .qw-sections a[aria-current="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--qw-signal);
+  }
+
+  .qw-switcher {
+    flex: none;
+  }
+
+  /* Search takes the free space so everything after it is pushed to the end of the row. */
+  .qw-search {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .qw-utilities {
+    flex: none;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .social-icons {
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .social-icons:not(:empty)::after {
+    content: "";
+    height: 2rem;
+    border-inline-end: 1px solid var(--sl-color-gray-5);
+  }
+
+  /* The section links duplicate the sidebar, which is always available, so they are the first
+     thing to go when the row runs out of room. The context selects follow at 60rem, where the
+     mobile menu takes over and carries them instead. */
+  @media (max-width: 80rem) {
+    .qw-sections {
+      display: none;
+    }
+  }
+
+  @media (max-width: 50rem) {
+    .qw-search {
+      justify-content: flex-start;
+    }
+  }
+</style>

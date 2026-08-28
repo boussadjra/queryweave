@@ -1,0 +1,1159 @@
+---
+import { findMode, presetControls, simulatorModes, type SimulatorPreset } from "../simulator/modes";
+import { createSimulator, demoOrigin, demoPath } from "../simulator/state";
+
+/**
+ * A small browser, driven by QueryWeave itself.
+ *
+ * The initial snapshot is produced at build time by the same `createSimulator` the browser uses,
+ * so the server-rendered markup already shows real decoded state: no placeholder, no hydration
+ * flash, and a complete demonstration even with scripting disabled. The client script only
+ * attaches behavior to markup that is already correct.
+ */
+
+interface Props {
+  readonly preset?: SimulatorPreset | undefined;
+  readonly adapter?: string | undefined;
+  readonly showInspector?: boolean | undefined;
+  readonly showNavigation?: boolean | undefined;
+  readonly initialQuery?: string | undefined;
+  /** Rendered above the browser frame as the figure's purpose. */
+  readonly caption?: string | undefined;
+}
+
+const {
+  preset = "search",
+  adapter = "browser",
+  showInspector = true,
+  showNavigation = true,
+  initialQuery = "",
+  caption,
+} = Astro.props;
+
+const controls = presetControls[preset];
+const mode = findMode(adapter);
+
+const simulator = createSimulator({ mode: mode.id, initialQuery });
+const initial = simulator.snapshot();
+simulator.dispose();
+
+const statuses = ["all", "active", "archived"] as const;
+const statusLabels: Record<string, string> = {
+  all: "All",
+  active: "Active",
+  archived: "Archived",
+};
+
+const instance = Math.random().toString(36).slice(2, 8);
+const searchId = `qw-sim-search-${instance}`;
+const modeId = `qw-sim-mode-${instance}`;
+const addressId = `qw-sim-address-${instance}`;
+const rawId = `qw-sim-raw-${instance}`;
+
+/**
+ * Three outcomes, not two.
+ *
+ * `status` is `"invalid"` only when decoding could not produce usable values at all. A value that
+ * was rejected and replaced by its default still decodes to `"valid"` — with an issue explaining
+ * what happened — and that middle state is the one the documentation exists to teach, so it gets
+ * its own label rather than being folded into either end.
+ */
+const validity = (status: string, issueCount: number): "invalid" | "recovered" | "valid" =>
+  status === "invalid" ? "invalid" : issueCount > 0 ? "recovered" : "valid";
+
+const validityLabels = {
+  invalid: "Invalid",
+  recovered: "Recovered",
+  valid: "Valid",
+} as const;
+
+const initialValidity = validity(initial.status, initial.issues.length);
+---
+
+<figure class="simulator not-content qw-breakout">
+  {caption !== undefined && <figcaption class="caption">{caption}</figcaption>}
+
+  <qw-browser-simulator
+    class="frame"
+    data-preset={preset}
+    data-mode={mode.id}
+    data-initial-query={initialQuery}
+  >
+    <div class="chrome">
+      <div class="chrome-buttons">
+        <button type="button" data-action="back" disabled aria-label="Back" title="Back">
+          <span aria-hidden="true">←</span>
+        </button>
+        <button type="button" data-action="forward" disabled aria-label="Forward" title="Forward">
+          <span aria-hidden="true">→</span>
+        </button>
+        <button type="button" data-action="reload" aria-label="Reload" title="Reload">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
+
+      {/* The query is editable because it is the subject of the page: a reader can type anything,
+          including something the model rejects, and watch what decoding makes of it. Only the
+          query is editable — the origin and path belong to the application, not to QueryWeave. */}
+      <form class="address" data-address-form>
+        {/* The host is split out so it can drop away on a phone, the way a mobile browser's
+            address bar does, leaving the path and the query — the part this figure is about. */}
+        <span class="address-origin" aria-hidden="true"
+          ><span class="address-host">{demoOrigin}</span>{demoPath}</span
+        >
+        <span class="address-separator" aria-hidden="true">?</span>
+        <label class="qw-sr-only" for={addressId}>Query string</label>
+        <input
+          id={addressId}
+          class="address-query"
+          data-query-input
+          type="text"
+          value={initial.rawQuery}
+          placeholder="search=vue&page=2"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+        />
+        <button type="submit" class="qw-sr-only">Go</button>
+      </form>
+
+      {
+        showNavigation && (
+          <p class="history" data-history>
+            {mode.navigates
+              ? `History ${String(initial.historyIndex + 1)} / ${String(initial.historyLength)}`
+              : "Single request"}
+          </p>
+        )
+      }
+    </div>
+
+    <div class="viewport">
+      <div class="page-head">
+        <p class="page-title">Products</p>
+        <p class="page-count" data-total>{initial.total} matching</p>
+      </div>
+
+      <label class="field" for={searchId}>
+        <span>Search products</span>
+        <input
+          id={searchId}
+          type="search"
+          data-search
+          value={initial.values.search ?? ""}
+          placeholder="Try “vue”"
+          autocomplete="off"
+        />
+      </label>
+
+      {
+        controls.status && (
+          <div class="chips" role="group" aria-label="Status filter">
+            {statuses.map((status) => (
+              <button
+                type="button"
+                data-status={status}
+                aria-pressed={initial.values.status === status ? "true" : "false"}
+              >
+                {statusLabels[status]}
+              </button>
+            ))}
+          </div>
+        )
+      }
+
+      <ul class="results" data-results>
+        {
+          initial.rows.map((row) => (
+            <li>
+              <span class="result-name">{row.name}</span>
+              <span class="result-meta">
+                {row.status} · ${row.price}
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+
+      {
+        controls.pagination && (
+          <div class="pager">
+            <button type="button" data-action="previous-page">
+              Previous
+            </button>
+            <span data-page-label>
+              Page {initial.values.page} of {initial.pageCount}
+            </span>
+            <button type="button" data-action="next-page">
+              Next
+            </button>
+          </div>
+        )
+      }
+    </div>
+
+    <div class="controls">
+      {
+        showNavigation && (
+          <fieldset class="navigation" data-navigation-control>
+            <legend>Navigation</legend>
+            {(["push", "replace"] as const).map((option) => (
+              <label>
+                <input
+                  type="radio"
+                  name={`qw-sim-navigation-${instance}`}
+                  value={option}
+                  checked={initial.navigation === option}
+                />
+                <span>{option === "push" ? "Push" : "Replace"}</span>
+              </label>
+            ))}
+          </fieldset>
+        )
+      }
+
+      <div class="adapter">
+        <label for={modeId}>Adapter</label>
+        <select id={modeId} data-mode-select>
+          {
+            simulatorModes.map((option) => (
+              <option value={option.id} selected={option.id === mode.id}>
+                {option.label}
+              </option>
+            ))
+          }
+        </select>
+      </div>
+
+      <ul class="api" data-api>
+        {initial.mode.api.map((entry) => <li>{entry}</li>)}
+      </ul>
+
+      <p class="mode-note" data-mode-note>{initial.mode.note}</p>
+    </div>
+
+    {
+      showInspector && (
+        <div class="inspector">
+          {/* These three name fields, not document sections. As headings they put an `h4` under
+              the page `h1` or `h2` on every page carrying a simulator, which is a broken outline
+              for something the reader never navigates by. */}
+          <section class="panel panel--raw">
+            <label class="panel-label" for={rawId}>
+              Raw query
+            </label>
+            <input
+              id={rawId}
+              class="raw-editor"
+              data-query-input
+              type="text"
+              value={initial.rawQuery}
+              placeholder="(empty)"
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off"
+              autocorrect="off"
+            />
+            <p class="hint">Type a query, press Enter.</p>
+          </section>
+
+          <section class="panel panel--typed">
+            <p class="panel-label">Typed state</p>
+            <pre data-typed>{JSON.stringify(initial.values, null, 2)}</pre>
+          </section>
+
+          <section class="panel panel--canonical">
+            <p class="panel-label">Canonical URL</p>
+            <code data-canonical>{initial.canonicalUrl}</code>
+            {/* `data-validity`, not `data-status`: the status filter chips already carry
+                `data-status`, and they come first in the document. */}
+            <p class="validity" data-validity data-state={initialValidity}>
+              {validityLabels[initialValidity]}
+            </p>
+            <ul class="issues" data-issues>
+              {
+                initial.issues.map((issue) => (
+                  <li>
+                    <code>{issue.key}</code>
+                    <span>{issue.message}</span>
+                  </li>
+                ))
+              }
+            </ul>
+          </section>
+        </div>
+      )
+    }
+
+    <p class="qw-sr-only" role="status" data-announce></p>
+  </qw-browser-simulator>
+</figure>
+
+<script>
+  import type { SimulatorMode } from "../simulator/modes";
+  import { createSimulator, type SimulatorSnapshot } from "../simulator/state";
+
+  /**
+   * DOM binding.
+   *
+   * All behavior lives in `createSimulator`, which is plain TypeScript over `@queryweave/core` and
+   * `@queryweave/testing`. This class only writes snapshot values into elements that already exist,
+   * so nothing here can disagree with the engine.
+   */
+  class QueryWeaveBrowserSimulator extends HTMLElement {
+    private controller: ReturnType<typeof createSimulator> | undefined;
+    private unsubscribe: (() => void) | undefined;
+    private highlightTimer: ReturnType<typeof setTimeout> | undefined;
+    private announceTimer: ReturnType<typeof setTimeout> | undefined;
+
+    connectedCallback(): void {
+      const controller = createSimulator({
+        mode: (this.dataset["mode"] ?? "browser") as SimulatorMode,
+        initialQuery: this.dataset["initialQuery"] ?? "",
+      });
+      this.controller = controller;
+      this.unsubscribe = controller.subscribe((snapshot) => {
+        this.render(snapshot);
+      });
+
+      this.bind(controller);
+      this.render(controller.snapshot());
+    }
+
+    disconnectedCallback(): void {
+      this.unsubscribe?.();
+      this.controller?.dispose();
+      if (this.highlightTimer !== undefined) {
+        clearTimeout(this.highlightTimer);
+      }
+      if (this.announceTimer !== undefined) {
+        clearTimeout(this.announceTimer);
+      }
+    }
+
+    private bind(controller: ReturnType<typeof createSimulator>): void {
+      const search = this.querySelector<HTMLInputElement>("[data-search]");
+      search?.addEventListener("input", () => {
+        void controller.setSearch(search.value);
+      });
+
+      for (const chip of this.querySelectorAll<HTMLButtonElement>("[data-status]")) {
+        chip.addEventListener("click", () => {
+          const status = chip.dataset["status"];
+          if (status === "all" || status === "active" || status === "archived") {
+            void controller.setStatus(status);
+          }
+        });
+      }
+
+      const actions: Record<string, () => void> = {
+        back: () => {
+          controller.back();
+        },
+        forward: () => {
+          controller.forward();
+        },
+        reload: () => {
+          controller.reload();
+        },
+        "previous-page": () => {
+          void controller.setPage(controller.snapshot().values.page - 1);
+        },
+        "next-page": () => {
+          void controller.setPage(controller.snapshot().values.page + 1);
+        },
+      };
+
+      for (const button of this.querySelectorAll<HTMLButtonElement>("[data-action]")) {
+        const action = actions[button.dataset["action"] ?? ""];
+        if (action !== undefined) {
+          button.addEventListener("click", action);
+        }
+      }
+
+      for (const radio of this.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
+        radio.addEventListener("change", () => {
+          if (radio.checked && (radio.value === "push" || radio.value === "replace")) {
+            controller.setNavigation(radio.value);
+          }
+        });
+      }
+
+      const modeSelect = this.querySelector<HTMLSelectElement>("[data-mode-select]");
+      modeSelect?.addEventListener("change", () => {
+        controller.setMode(modeSelect.value as SimulatorMode);
+      });
+
+      this.bindQueryEditors(controller);
+    }
+
+    /**
+     * The address bar and the raw query panel edit the same string.
+     *
+     * Neither holds state: both commit to the controller and then take whatever the next snapshot
+     * says, so a reader sees the query they typed replaced by its normalized form rather than a
+     * private copy that drifts from the URL.
+     */
+    private bindQueryEditors(controller: ReturnType<typeof createSimulator>): void {
+      const editors = this.querySelectorAll<HTMLInputElement>("[data-query-input]");
+
+      const commit = (input: HTMLInputElement): void => {
+        const next = input.value.trim().replace(/^\?/u, "");
+        if (next === controller.snapshot().rawQuery) {
+          // Nothing changed, so nothing should reach the history stack.
+          input.value = next;
+          return;
+        }
+        void controller.setRawQuery(next);
+      };
+
+      for (const input of editors) {
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit(input);
+          } else if (event.key === "Escape") {
+            input.value = controller.snapshot().rawQuery;
+            input.blur();
+          }
+        });
+        input.addEventListener("blur", () => {
+          commit(input);
+        });
+      }
+
+      // Submitting the address form is the same operation; the button exists for keyboard and
+      // assistive technology users who do not press Enter inside the field.
+      this.querySelector<HTMLFormElement>("[data-address-form]")?.addEventListener(
+        "submit",
+        (event) => {
+          event.preventDefault();
+          const input = this.querySelector<HTMLInputElement>(".address-query");
+          if (input !== null) {
+            commit(input);
+          }
+        },
+      );
+    }
+
+    private text(selector: string, value: string): void {
+      const element = this.querySelector<HTMLElement>(selector);
+      if (element !== null) {
+        element.textContent = value;
+      }
+    }
+
+    private render(snapshot: SimulatorSnapshot): void {
+      for (const input of this.querySelectorAll<HTMLInputElement>("[data-query-input]")) {
+        input.value = snapshot.rawQuery;
+      }
+      this.text("[data-typed]", JSON.stringify(snapshot.values, null, 2));
+      this.text("[data-canonical]", snapshot.canonicalUrl);
+      this.text("[data-total]", `${String(snapshot.total)} matching`);
+      this.text(
+        "[data-history]",
+        snapshot.mode.navigates
+          ? `History ${String(snapshot.historyIndex + 1)} / ${String(snapshot.historyLength)}`
+          : "Single request",
+      );
+      this.text("[data-mode-note]", snapshot.mode.note);
+      this.text("[data-page-label]", `Page ${String(snapshot.values.page)} of ${String(snapshot.pageCount)}`);
+
+      const validity = this.querySelector<HTMLElement>("[data-validity]");
+      if (validity !== null) {
+        // Kept in step with the same three outcomes the server rendered.
+        const state =
+          snapshot.status === "invalid"
+            ? "invalid"
+            : snapshot.issues.length > 0
+              ? "recovered"
+              : "valid";
+        validity.dataset["state"] = state;
+        validity.textContent =
+          state === "invalid" ? "Invalid" : state === "recovered" ? "Recovered" : "Valid";
+      }
+
+      const issues = this.querySelector<HTMLElement>("[data-issues]");
+      if (issues !== null) {
+        issues.replaceChildren(
+          ...snapshot.issues.map((issue) => {
+            const item = document.createElement("li");
+            const key = document.createElement("code");
+            key.textContent = issue.key;
+            const message = document.createElement("span");
+            message.textContent = issue.message;
+            item.append(key, message);
+            return item;
+          }),
+        );
+      }
+
+      const api = this.querySelector<HTMLElement>("[data-api]");
+      if (api !== null) {
+        api.replaceChildren(
+          ...snapshot.mode.api.map((entry) => {
+            const item = document.createElement("li");
+            item.textContent = entry;
+            return item;
+          }),
+        );
+      }
+
+      const results = this.querySelector<HTMLElement>("[data-results]");
+      if (results !== null) {
+        results.replaceChildren(
+          ...snapshot.rows.map((row) => {
+            const item = document.createElement("li");
+            const name = document.createElement("span");
+            name.className = "result-name";
+            name.textContent = row.name;
+            const meta = document.createElement("span");
+            meta.className = "result-meta";
+            meta.textContent = `${row.status} · $${String(row.price)}`;
+            item.append(name, meta);
+            return item;
+          }),
+        );
+      }
+
+      for (const chip of this.querySelectorAll<HTMLButtonElement>("[data-status]")) {
+        chip.setAttribute(
+          "aria-pressed",
+          String(chip.dataset["status"] === snapshot.values.status),
+        );
+      }
+
+      const back = this.querySelector<HTMLButtonElement>('[data-action="back"]');
+      const forward = this.querySelector<HTMLButtonElement>('[data-action="forward"]');
+      if (back !== null) {
+        back.disabled = !snapshot.canGoBack;
+      }
+      if (forward !== null) {
+        forward.disabled = !snapshot.canGoForward;
+      }
+
+      const navigationControl = this.querySelector<HTMLFieldSetElement>("[data-navigation-control]");
+      if (navigationControl !== null) {
+        navigationControl.disabled = !snapshot.mode.navigates;
+      }
+
+      this.highlight(snapshot);
+      this.announce(snapshot);
+    }
+
+    /** Mark the panels a transition touched, then let the mark fade on its own. */
+    private highlight(snapshot: SimulatorSnapshot): void {
+      const changed = snapshot.changedKeys.length > 0;
+      for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
+        panel.classList.toggle("panel--changed", changed);
+      }
+      if (!changed) {
+        return;
+      }
+      if (this.highlightTimer !== undefined) {
+        clearTimeout(this.highlightTimer);
+      }
+      this.highlightTimer = globalThis.setTimeout(() => {
+        for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
+          panel.classList.remove("panel--changed");
+        }
+      }, 900);
+    }
+
+    /**
+     * The status line waits for the reader to stop.
+     *
+     * The product search commits on every keystroke, so an undebounced live region reads a whole
+     * URL, a result count, and a history position three times while someone types "vue" — each
+     * one interrupting the last. Waiting out a pause costs a keyboard user nothing, because a
+     * polite region would not have spoken until the next gap anyway, and it means what they hear
+     * is the state they stopped on rather than the states they passed through.
+     */
+    private announce(snapshot: SimulatorSnapshot): void {
+      if (this.announceTimer !== undefined) {
+        clearTimeout(this.announceTimer);
+      }
+      this.announceTimer = globalThis.setTimeout(() => {
+        const history = snapshot.mode.navigates
+          ? `History entry ${String(snapshot.historyIndex + 1)} of ${String(snapshot.historyLength)}.`
+          : "Request-scoped: no history.";
+        const recovery =
+          snapshot.issues.length === 0
+            ? ""
+            : ` Recovered ${String(snapshot.issues.length)} value${snapshot.issues.length === 1 ? "" : "s"}: ${snapshot.issues.map((issue) => `${issue.key} — ${issue.message}`).join("; ")}.`;
+        this.text(
+          "[data-announce]",
+          `${snapshot.canonicalUrl}. ${String(snapshot.total)} results. ${history}${recovery}`,
+        );
+      }, 500);
+    }
+  }
+
+  if (customElements.get("qw-browser-simulator") === undefined) {
+    customElements.define("qw-browser-simulator", QueryWeaveBrowserSimulator);
+  }
+</script>
+
+<style>
+  .simulator {
+    margin-block: 2rem;
+  }
+
+  .caption {
+    margin: 0 0 0.75rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-small);
+  }
+
+  .frame {
+    display: block;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+    overflow: hidden;
+  }
+
+  /* ------------------------------------------------------------- chrome */
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--qw-panel-border);
+    background: var(--qw-code-chrome);
+    padding: 0.6rem 0.85rem;
+  }
+
+  .chrome-buttons {
+    display: flex;
+    gap: 0.25rem;
+    flex: none;
+  }
+
+  .chrome-buttons button {
+    display: grid;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--qw-radius-sm);
+    background: transparent;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: var(--qw-body);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .chrome-buttons button:hover:not(:disabled) {
+    background: var(--qw-panel);
+  }
+
+  .chrome-buttons button:disabled {
+    color: var(--qw-muted);
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .address {
+    display: flex;
+    align-items: baseline;
+    flex: 1 1 auto;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: 999px;
+    background: var(--qw-panel);
+    padding: 0.3rem 0.85rem;
+    margin: 0;
+    min-width: 0;
+    font-family: var(--qw-font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    transition: border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .address:focus-within {
+    border-color: var(--qw-accent);
+  }
+
+  /* The origin and path belong to the application, so they read as fixed chrome and give way
+     first when the bar is narrow. */
+  .address-origin {
+    flex: 0 1 auto;
+    min-width: 0;
+    color: var(--qw-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .address-separator {
+    flex: none;
+    padding-inline: 0.1rem;
+    color: var(--qw-muted);
+  }
+
+  /* The query is what the figure is about, so it is the last thing allowed to shrink: the origin
+     beside it gives up its width first and ellipsises. Without a floor here the field collapsed
+     to 18px on a phone — present, focusable, and useless. */
+  .address-query {
+    flex: 1 1 12ch;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    min-width: 10ch;
+    color: var(--qw-heading);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* A finger needs a target the line box alone does not give it. */
+  @media (pointer: coarse) {
+    .address-query {
+      min-height: 1.5rem;
+    }
+  }
+
+  .address-query::placeholder {
+    color: var(--qw-muted);
+    opacity: 0.7;
+  }
+
+  /* The field already signals focus through the bar it sits in, so a second ring inside would
+     double the outline. */
+  .address-query:focus-visible {
+    outline: none;
+  }
+
+  .history {
+    flex: none;
+    margin: 0;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------- viewport */
+
+  .viewport {
+    padding: 1.1rem 1.15rem;
+  }
+
+  .page-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .page-title {
+    margin: 0;
+    color: var(--qw-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .page-count {
+    margin: 0;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  .field {
+    display: block;
+  }
+
+  .field span {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* The simulated product search is a square field on the warm canvas surface, deliberately unlike
+     the rounded, muted docs search trigger in the site header. */
+  .field input {
+    width: 100%;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-page-bg);
+    padding: 0.5rem 0.7rem;
+    color: var(--qw-body);
+    font-family: inherit;
+    font-size: var(--qw-text-small);
+  }
+
+  .field input:focus-visible {
+    border-color: var(--qw-accent);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+  }
+
+  .chips button {
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: 999px;
+    background: transparent;
+    padding: 0.2rem 0.75rem;
+    color: var(--qw-body);
+    font-family: inherit;
+    font-size: var(--qw-text-label);
+    cursor: pointer;
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  /* Selection carries aria-pressed and a weight change as well as the fill. */
+  .chips button[aria-pressed="true"] {
+    border-color: var(--qw-accent);
+    background: var(--qw-accent);
+    color: var(--qw-accent-contrast);
+    font-weight: 600;
+  }
+
+  .results {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    border-top: 1px solid var(--qw-panel-border);
+  }
+
+  /**
+   * Rows, API chips, and issues are rebuilt by the client script, and `document.createElement`
+   * cannot know the scope class Astro writes into the server markup — so a plain `.results li`
+   * stops matching the moment the component hydrates, which it does on load. `:global()` is the
+   * escape hatch for exactly this: the container keeps its scope, so the rule still reaches only
+   * this component's rows, and it reaches them whoever built them.
+   */
+  .results :global(li) {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--qw-panel-border);
+    padding: 0.55rem 0;
+  }
+
+  .results :global(.result-name) {
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+  }
+
+  .results :global(.result-meta) {
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    white-space: nowrap;
+  }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  .pager button {
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: transparent;
+    padding: 0.2rem 0.7rem;
+    color: var(--qw-body);
+    font-family: inherit;
+    font-size: var(--qw-text-label);
+    cursor: pointer;
+  }
+
+  /* ------------------------------------------------------------- controls */
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+    border-top: 1px solid var(--qw-panel-border);
+    background: var(--qw-panel-raised);
+    padding: 0.85rem 1.15rem;
+  }
+
+  fieldset {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  legend,
+  .adapter label {
+    float: inline-start;
+    padding: 0;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+  }
+
+  fieldset:disabled label {
+    color: var(--qw-muted);
+    opacity: 0.55;
+  }
+
+  .adapter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .adapter select {
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.25rem 0.4rem;
+    color: var(--qw-body);
+    font-family: inherit;
+    font-size: var(--qw-text-small);
+  }
+
+  .api {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .api :global(li) {
+    border: 1px solid color-mix(in srgb, var(--qw-technical) 45%, transparent);
+    border-radius: var(--qw-radius-sm);
+    padding: 0.1rem 0.5rem;
+    color: var(--qw-technical);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+  }
+
+  .mode-note {
+    flex: 1 1 100%;
+    margin: 0;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    line-height: 1.6;
+  }
+
+  /* ------------------------------------------------------------- inspector */
+
+  .inspector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--qw-panel-border);
+  }
+
+  .panel {
+    border-inline-start: 1px solid var(--qw-panel-border);
+    padding: 0.85rem 1rem;
+    min-width: 0;
+    transition: background-color var(--qw-duration-panel) var(--qw-ease);
+  }
+
+  .panel:first-child {
+    border-inline-start: 0;
+  }
+
+  .panel-label {
+    display: block;
+    margin: 0 0 0.5rem;
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: var(--qw-text-label);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .panel code,
+  .panel pre {
+    display: block;
+    margin: 0;
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  /* Raw input sits on the warm canvas, the typed state carries the engine's colour, and the
+     canonical output is the valid end of the path. */
+  .panel--raw {
+    background: color-mix(in srgb, var(--qw-page-bg) 70%, transparent);
+  }
+
+  .panel--typed {
+    border-block-start: 2px solid var(--qw-path-core);
+  }
+
+  .panel--canonical {
+    border-block-start: 2px solid var(--qw-path-valid);
+  }
+
+  .panel--changed {
+    background: color-mix(in srgb, var(--qw-signal-surface) 18%, transparent);
+  }
+
+  /* The raw panel is where a reader writes, so its field looks like a field rather than like the
+     read-only output either side of it. */
+  .raw-editor {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.35rem 0.5rem;
+    color: var(--qw-body);
+    font-family: var(--qw-font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+
+  .raw-editor:focus-visible {
+    border-color: var(--qw-accent);
+  }
+
+  .hint {
+    margin: 0.45rem 0 0;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  label.panel-label {
+    cursor: pointer;
+  }
+
+  .validity {
+    margin: 0.6rem 0 0;
+    font-size: var(--qw-text-label);
+  }
+
+  .validity[data-state="valid"] {
+    color: var(--qw-valid);
+  }
+
+  /* Recovery is the interesting outcome — usable values, and a record of what was replaced — so it
+     carries the active-transformation colour rather than an alarm. */
+  .validity[data-state="recovered"] {
+    color: var(--qw-heading);
+    font-weight: 600;
+  }
+
+  .validity[data-state="recovered"]::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-inline-end: 0.4rem;
+    background: var(--qw-signal);
+  }
+
+  .validity[data-state="invalid"] {
+    color: var(--qw-heading);
+    font-weight: 600;
+  }
+
+  .issues {
+    list-style: none;
+    padding: 0;
+    margin: 0.4rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .issues :global(li) {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    border-inline-start: 2px solid var(--qw-signal);
+    padding-inline-start: 0.5rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+    line-height: 1.5;
+  }
+
+  /* Overrides the block treatment `.panel code` gives the two read-only outputs. That rule only
+     reaches the server-rendered pass, so this one has to hold on both. */
+  .issues :global(code) {
+    display: inline;
+    flex: none;
+    color: var(--qw-heading);
+    font-family: var(--qw-font-mono);
+    font-size: inherit;
+  }
+
+  @media (max-width: 50rem) {
+    .inspector {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel {
+      border-inline-start: 0;
+      border-top: 1px solid var(--qw-panel-border);
+    }
+
+    .panel:first-child {
+      border-top: 0;
+    }
+
+    .controls {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+
+  /* On a phone the buttons and the history counter leave the address bar about 110px, which is
+     not a text field. The bar takes a row of its own instead, and the host drops out of the
+     origin — the same trade a mobile browser makes. `order` moves the counter ahead of the bar
+     visually; nothing focusable is reordered, so tab order still follows the document. */
+  @media (max-width: 40rem) {
+    .chrome {
+      flex-wrap: wrap;
+      row-gap: 0.5rem;
+    }
+
+    .address {
+      order: 1;
+      flex-basis: 100%;
+    }
+
+    .history {
+      margin-inline-start: auto;
+    }
+
+    .address-host {
+      display: none;
+    }
+  }
+</style>
