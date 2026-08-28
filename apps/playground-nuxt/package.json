@@ -12,7 +12,6 @@
   "dependencies": {
     "@queryweave/core": "workspace:*",
     "@queryweave/nuxt": "workspace:*",
-    "@queryweave/vue": "workspace:*",
     "nuxt": "catalog:nuxt"
   },
   "devDependencies": {
