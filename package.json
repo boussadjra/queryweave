@@ -20,7 +20,7 @@
     "test:types": "vitest run --project types",
     "test:coverage": "vitest run --coverage",
     "boundary:check": "node scripts/check-boundaries.mjs",
-    "check": "oxfmt --check . && oxlint . && tsc -p tsconfig.json && turbo run typecheck && vitest run --coverage && turbo run build --filter=!@queryweave/docs && node scripts/check-boundaries.mjs && turbo run package:check && node scripts/check-artifacts.mjs && turbo run docs:build --filter=@queryweave/docs && knip --include files,dependencies,unlisted,binaries,unresolved,exports,types,nsExports,nsTypes,duplicates",
+    "check": "oxfmt --check . && oxlint . && tsc -p tsconfig.json && turbo run typecheck && vitest run --coverage && turbo run build --filter=!@queryweave/docs && node scripts/update-bundle-sizes.mjs --check && node scripts/check-boundaries.mjs && turbo run package:check && node scripts/check-artifacts.mjs && turbo run docs:build --filter=@queryweave/docs && knip --include files,dependencies,unlisted,binaries,unresolved,exports,types,nsExports,nsTypes,duplicates",
     "package:check": "turbo run package:check",
     "docs:dev": "turbo run dev --filter=@queryweave/docs",
     "docs:build": "turbo run docs:build --filter=@queryweave/docs",
@@ -35,6 +35,8 @@
     "knip": "knip --include files,dependencies,unlisted,binaries,unresolved,exports,types,nsExports,nsTypes,duplicates",
     "clean": "turbo run clean && node scripts/clean.mjs",
     "artifacts:check": "node scripts/check-artifacts.mjs",
+    "bundle:size": "turbo run build --filter=./packages/* && node scripts/update-bundle-sizes.mjs",
+    "bundle:size:check": "node scripts/update-bundle-sizes.mjs --check",
     "consumers:check": "node scripts/check-consumers.mjs",
     "check:release": "pnpm check && pnpm consumers:check"
   },

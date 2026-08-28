@@ -99,6 +99,30 @@ Vue and Nuxt are the first frontend integrations, but neither shapes the core ar
 | `@queryweave/vue-router`      | Vue Router adapter                                   |
 | `@queryweave/nuxt`            | Nuxt module-time and per-request runtime integration |
 
+## Bundle sizes
+
+These figures are the total emitted JavaScript owned by each package. They exclude dependencies,
+peer dependencies, declarations, and source maps. Each emitted `.js` file is compressed separately
+with gzip level 9; downstream bundling and tree-shaking can produce a smaller application cost.
+
+Run `pnpm bundle:size` to rebuild the packages and update this generated table.
+
+<!-- bundle-size-table:start -->
+
+| Package                       |      ESM |    gzip |
+| ----------------------------- | -------: | ------: |
+| `@queryweave/core`            | 24.55 kB | 5.91 kB |
+| `@queryweave/testing`         |  1.54 kB |   640 B |
+| `@queryweave/browser`         |  2.14 kB |   898 B |
+| `@queryweave/server`          |  2.36 kB |   926 B |
+| `@queryweave/node`            |  1.69 kB |   668 B |
+| `@queryweave/standard-schema` |  1.17 kB |   584 B |
+| `@queryweave/vue`             |  3.04 kB | 1.13 kB |
+| `@queryweave/vue-router`      |  2.52 kB | 1.02 kB |
+| `@queryweave/nuxt`            |  2.72 kB | 1.51 kB |
+
+<!-- bundle-size-table:end -->
+
 ## Documentation
 
 The documentation site lives in [`apps/docs`](./apps/docs) and is built with Astro and Starlight.
@@ -143,6 +167,7 @@ pnpm test:coverage    # every project, with coverage thresholds
 pnpm test:e2e         # Playwright against the browser playground
 pnpm boundary:check   # sources, manifests, and the dependency graph
 pnpm artifacts:check  # built output, archives, and declaration resolution
+pnpm bundle:size      # rebuild packages and update the bundle-size table
 pnpm consumers:check  # install packed archives into clean consumer projects
 pnpm check:release    # the full gate plus consumer fixtures
 pnpm docs:dev

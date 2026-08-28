@@ -100,14 +100,12 @@ function currentVersion(manifests) {
     );
   }
 
-  const versions = [...new Set(manifests.map(({ json }) => json.version))].sort(
-    (left, right) => compareVersions(right, left),
+  const versions = [...new Set(manifests.map(({ json }) => json.version))].sort((left, right) =>
+    compareVersions(right, left),
   );
   const [highest] = versions;
   if (versions.length > 1) {
-    console.warn(
-      `Packages are not in lockstep: ${versions.join(", ")}. Bumping from ${highest}.`,
-    );
+    console.warn(`Packages are not in lockstep: ${versions.join(", ")}. Bumping from ${highest}.`);
   }
   return highest;
 }
@@ -116,9 +114,7 @@ function nextVersion(current, { preid, target }) {
   const exact = parseVersion(target);
   if (exact) {
     if (compareVersions(exact, current) < 0) {
-      console.warn(
-        `Setting ${exact.raw}, which is lower than the current ${current}.`,
-      );
+      console.warn(`Setting ${exact.raw}, which is lower than the current ${current}.`);
     }
     return exact.raw;
   }
@@ -132,8 +128,7 @@ function nextVersion(current, { preid, target }) {
 
 function withVersion(raw, version) {
   const versionField = /^(  "version": ")([^"]*)(")/mu;
-  if (!versionField.test(raw))
-    throw new Error('no top-level "version" field found');
+  if (!versionField.test(raw)) throw new Error('no top-level "version" field found');
   return raw.replace(versionField, `$1${version}$3`);
 }
 
@@ -148,9 +143,7 @@ function main() {
   console.log(`${current} -> ${next}\n`);
   const width = Math.max(...manifests.map(({ json }) => json.name.length));
   for (const { json } of manifests) {
-    console.log(
-      `  ${json.name.padEnd(width)}  ${json.version.padStart(16)} -> ${next}`,
-    );
+    console.log(`  ${json.name.padEnd(width)}  ${json.version.padStart(16)} -> ${next}`);
   }
 
   if (options.dryRun) {
