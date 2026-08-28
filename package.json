@@ -60,6 +60,7 @@
     "@vitest/browser-playwright": "catalog:testing",
     "@vitest/coverage-v8": "catalog:testing",
     "arktype": "catalog:validation",
+    "esbuild": "catalog:tooling",
     "knip": "catalog:tooling",
     "oxfmt": "catalog:tooling",
     "oxlint": "catalog:tooling",

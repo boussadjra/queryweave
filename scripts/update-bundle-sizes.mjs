@@ -1,12 +1,20 @@
 #!/usr/bin/env node
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { gzipSync } from "node:zlib";
 
-import { packagesRoot, publishablePackages, readManifests, repositoryRoot } from "./packages.mjs";
+import {
+  formatBytes,
+  formatTable,
+  measureConsumerScenarios,
+  measurePackages,
+} from "./bundle-metrics.mjs";
+import { consumerMinifiedGzipBudgets, packageMinifiedGzipBudgets } from "./bundle-size-budgets.mjs";
+import { repositoryRoot } from "./packages.mjs";
 
 const startMarker = "<!-- bundle-size-table:start -->";
 const endMarker = "<!-- bundle-size-table:end -->";
+const consumerStartMarker = "<!-- consumer-size-table:start -->";
+const consumerEndMarker = "<!-- consumer-size-table:end -->";
 const readmePath = join(repositoryRoot, "README.md");
 const checkOnly = process.argv.includes("--check");
 const unknownArguments = process.argv.slice(2).filter((argument) => argument !== "--check");
@@ -15,100 +23,78 @@ if (unknownArguments.length > 0) {
   throw new Error(`Unknown argument: ${unknownArguments.join(", ")}`);
 }
 
-async function collectJavaScriptFiles(directory) {
-  let entries;
-  try {
-    entries = await readdir(directory, { withFileTypes: true });
-  } catch (error) {
-    if (error?.code === "ENOENT") {
-      throw new Error(`Missing build output at ${directory}. Run pnpm bundle:size first.`, {
-        cause: error,
-      });
+const readme = await readFile(readmePath, "utf8");
+function markerPattern(start, end) {
+  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(`${escape(start)}[\\s\\S]*?${escape(end)}`, "u");
+}
+
+const packagePattern = markerPattern(startMarker, endMarker);
+const consumerPattern = markerPattern(consumerStartMarker, consumerEndMarker);
+if (!packagePattern.test(readme) || !consumerPattern.test(readme)) {
+  throw new Error("README.md does not contain both generated bundle-size table marker pairs.");
+}
+
+const packages = await measurePackages();
+const consumers = await measureConsumerScenarios();
+
+function budgetViolations(items, budgets, key) {
+  const byKey = new Map(items.map((item) => [item[key], item]));
+  return Object.entries(budgets).flatMap(([id, maximum]) => {
+    const item = byKey.get(id);
+    if (item === undefined) {
+      return [`Missing bundle measurement for ${id}.`];
     }
-    throw error;
-  }
+    return item.minifiedGzip > maximum
+      ? [`${id}: ${formatBytes(item.minifiedGzip)} exceeds ${formatBytes(maximum)} min+gzip.`]
+      : [];
+  });
+}
 
-  const files = await Promise.all(
-    entries
-      .sort((left, right) => left.name.localeCompare(right.name))
-      .map(async (entry) => {
-        const path = join(directory, entry.name);
-        if (entry.isDirectory()) {
-          return collectJavaScriptFiles(path);
-        }
-        return entry.isFile() && entry.name.endsWith(".js") ? [path] : [];
-      }),
+const violations = [
+  ...budgetViolations(packages, packageMinifiedGzipBudgets, "name"),
+  ...budgetViolations(consumers, consumerMinifiedGzipBudgets, "id"),
+];
+if (violations.length > 0) {
+  console.error(
+    `Bundle-size budget exceeded:\n${violations.map((item) => `- ${item}`).join("\n")}`,
   );
-  return files.flat();
+  process.exitCode = 1;
 }
 
-function formatBytes(bytes) {
-  return bytes < 1_000 ? `${bytes} B` : `${(bytes / 1_000).toFixed(2)} kB`;
-}
-
-function formatTable(rows) {
-  const headers = ["Package", "ESM", "gzip"];
-  const cells = rows.map(({ gzip, name, raw }) => [
+const packageRows = packages.map(
+  ({ minified, minifiedBrotli, minifiedGzip, name, raw, rawGzip }) => [
     `\`${name}\``,
     formatBytes(raw),
-    formatBytes(gzip),
-  ]);
-  const widths = headers.map((header, index) =>
-    Math.max(header.length, ...cells.map((row) => row[index].length)),
-  );
-  const row = (values) =>
-    `| ${values
-      .map((value, index) =>
-        index === 0 ? value.padEnd(widths[index]) : value.padStart(widths[index]),
-      )
-      .join(" | ")} |`;
-  const separator = widths.map((width, index) =>
-    index === 0 ? "-".repeat(width) : `${"-".repeat(width - 1)}:`,
-  );
-
-  return [row(headers), row(separator), ...cells.map(row)].join("\n");
-}
-
-async function measurePackages() {
-  const manifests = await readManifests();
-  return Promise.all(
-    publishablePackages.map(async (packageDirectory) => {
-      const files = await collectJavaScriptFiles(join(packagesRoot, packageDirectory, "dist"));
-      if (files.length === 0) {
-        throw new Error(
-          `${manifests[packageDirectory].name} has no emitted JavaScript. Run pnpm bundle:size first.`,
-        );
-      }
-
-      const contents = await Promise.all(files.map((file) => readFile(file)));
-      return {
-        name: manifests[packageDirectory].name,
-        raw: contents.reduce((total, content) => total + content.byteLength, 0),
-        gzip: contents.reduce(
-          (total, content) => total + gzipSync(content, { level: 9 }).byteLength,
-          0,
-        ),
-      };
-    }),
-  );
-}
-
-const readme = await readFile(readmePath, "utf8");
-const markerPattern = new RegExp(
-  `${startMarker.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}[\\s\\S]*?${endMarker.replace(
-    /[.*+?^${}()|[\]\\]/gu,
-    "\\$&",
-  )}`,
-  "u",
+    formatBytes(rawGzip),
+    formatBytes(minified),
+    formatBytes(minifiedGzip),
+    formatBytes(minifiedBrotli),
+  ],
+);
+const packageTable = formatTable(
+  ["Package", "ESM", "ESM gzip", "minified", "min+gzip", "min+Brotli"],
+  packageRows,
+  new Set([1, 2, 3, 4, 5]),
 );
 
-if (!markerPattern.test(readme)) {
-  throw new Error("README.md does not contain the bundle-size table markers.");
-}
+const consumerRows = consumers.map(({ label, minified, minifiedBrotli, minifiedGzip }) => [
+  label,
+  formatBytes(minified),
+  formatBytes(minifiedGzip),
+  formatBytes(minifiedBrotli),
+]);
+const consumerTable = formatTable(
+  ["Consumer scenario", "minified", "gzip", "Brotli"],
+  consumerRows,
+  new Set([1, 2, 3]),
+);
 
-const table = formatTable(await measurePackages());
-const generatedBlock = `${startMarker}\n\n${table}\n\n${endMarker}`;
-const updatedReadme = readme.replace(markerPattern, generatedBlock);
+const packageBlock = `${startMarker}\n\n${packageTable}\n\n${endMarker}`;
+const consumerBlock = `${consumerStartMarker}\n\n${consumerTable}\n\n${consumerEndMarker}`;
+const updatedReadme = readme
+  .replace(packagePattern, packageBlock)
+  .replace(consumerPattern, consumerBlock);
 
 if (updatedReadme === readme) {
   console.log("Bundle-size table is current.");
