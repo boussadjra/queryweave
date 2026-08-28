@@ -60,7 +60,7 @@
     },
     "docs:build": {
       "dependsOn": ["^build"],
-      "outputs": [".nuxt/**", ".output/**"]
+      "outputs": ["dist/**", ".astro/**"]
     },
     "clean": {
       "cache": false,

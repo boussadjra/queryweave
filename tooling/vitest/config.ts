@@ -95,6 +95,7 @@ export default defineConfig({
       nodeProject("vue", "vue"),
       nodeProject("vue-router", "vue-router"),
       nodeProject("nuxt", "nuxt"),
+      nodeProject("docs", "docs"),
       {
         resolve: { alias },
         test: {

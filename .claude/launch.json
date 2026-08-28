@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "apps/docs/node_modules/astro/bin/astro.mjs",
+        "dev",
+        "--root",
+        "apps/docs",
+        "--port",
+        "4321"
+      ],
+      "port": 4321
+    },
+    {
+      "name": "docs-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "apps/docs/node_modules/astro/bin/astro.mjs",
+        "preview",
+        "--root",
+        "apps/docs",
+        "--port",
+        "4322"
+      ],
+      "port": 4322
+    }
+  ]
+}

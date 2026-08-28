@@ -6,14 +6,15 @@
       "ignore": ["fixtures/**"]
     },
     "apps/docs": {
-      "ignore": ["app/components/QueryWeaveMark.vue", "content.config.ts"],
-      "ignoreDependencies": [
-        "@iconify-json/lucide",
-        "@nuxt/fonts",
-        "@nuxt/icon",
-        "@nuxtjs/color-mode",
-        "@nuxtjs/mdc"
-      ]
+      "entry": [
+        "scripts/*.mjs",
+        "src/components/**/*.astro",
+        "src/components/**/*.vue",
+        "src/data/*.ts",
+        "src/diagrams/*.ts",
+        "src/simulator/*.ts"
+      ],
+      "project": ["**/*.{astro,mjs,ts,vue}"]
     }
   }
 }
