@@ -19,7 +19,7 @@ packages/vue               useQueryModel, provideQueryAdapter, field bindings
 packages/vue-router        createVueRouterAdapter (depends on core alone)
 packages/nuxt              module + request-scoped runtime plugin
 apps/playground-*          browser, node, vue, nuxt demonstrations
-apps/docs                  the Nuxt Content documentation site
+apps/docs                  the Astro + Starlight documentation site
 tests/<project>/           one directory per Vitest project
 fixtures/<consumer>/       clean projects that install packed archives, run by scripts
 tooling/                   shared tsconfig and Vitest project configuration

@@ -101,22 +101,23 @@ Vue and Nuxt are the first frontend integrations, but neither shapes the core ar
 
 ## Documentation
 
-- [Introduction](./apps/docs/content/guide/introduction.md) — the problem, and why URL state is a domain
-- [Core concepts](./apps/docs/content/guide/core-concepts.md)
-- [Query models](./apps/docs/content/guide/query-models.md)
-- [Codecs and parameters](./apps/docs/content/guide/codecs.md)
-- [Decode results, issues, and defaults](./apps/docs/content/guide/decode-results.md)
-- [Runtime operations](./apps/docs/content/guide/runtime-operations.md)
-- [Browser adapter](./apps/docs/content/guide/browser.md)
-- [Server and Node helpers](./apps/docs/content/guide/server-and-node.md)
-- [Vue and Vue Router](./apps/docs/content/guide/vue.md)
-- [Nuxt integration](./apps/docs/content/guide/nuxt.md)
-- [Validation](./apps/docs/content/guide/validation.md)
-- [Writing an adapter](./apps/docs/content/guide/writing-adapters.md)
-- [Testing](./apps/docs/content/guide/testing.md)
-- [Release process](./apps/docs/content/releasing.md)
-- [Security](./apps/docs/content/security.md)
-- [Architecture decisions](./docs/adr)
+The documentation site lives in [`apps/docs`](./apps/docs) and is built with Astro and Starlight.
+Run it with `pnpm docs:dev`.
+
+- [Introduction](./apps/docs/src/content/docs/start/index.mdx) — the problem, and why URL state is a domain
+- [Quick start](./apps/docs/src/content/docs/start/quick-start.mdx)
+- [Core concepts](./apps/docs/src/content/docs/concepts/index.mdx)
+- [Query models](./apps/docs/src/content/docs/concepts/query-models.mdx)
+- [Parameters](./apps/docs/src/content/docs/concepts/parameters.mdx) and [codecs](./apps/docs/src/content/docs/concepts/codecs.mdx)
+- [Decoding and encoding](./apps/docs/src/content/docs/concepts/decode-and-encode.mdx)
+- [Runtime transitions](./apps/docs/src/content/docs/runtime/transitions.mdx)
+- [Adapters](./apps/docs/src/content/docs/adapters/index.mdx) — browser, server, Node.js, testing
+- [Frameworks](./apps/docs/src/content/docs/frameworks/index.mdx) — vanilla, Vue, Vue Router, Nuxt
+- [Validation](./apps/docs/src/content/docs/validation/index.mdx)
+- [Writing an adapter](./apps/docs/src/content/docs/adapters/writing-an-adapter.mdx)
+- [Testing query state](./apps/docs/src/content/docs/recipes/testing-query-state.mdx)
+- [Architecture](./ARCHITECTURE.md) and [architecture decisions](./docs/adr)
+- [Security](./SECURITY.md)
 
 ## Development
 
