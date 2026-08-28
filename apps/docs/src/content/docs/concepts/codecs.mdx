@@ -1,0 +1,155 @@
+---
+title: Codecs
+description: A codec owns both directions of translation for one value, and nothing else.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A `QueryCodec` converts raw string values into one typed value and back again. Both directions live
+in the same object, which is the reason a QueryWeave parameter cannot drift the way a separate
+parser and serializer can.
+
+## The contract
+
+```ts
+interface QueryCodec<TValue> {
+  decode(input: readonly string[], context: QueryDecodeContext): QueryValueResult<TValue>;
+  decodeAsync?(
+    input: readonly string[],
+    context: QueryDecodeContext,
+  ): Promise<QueryValueResult<TValue>>;
+  encode(value: TValue, context: QueryEncodeContext): readonly string[];
+}
+```
+
+Three things follow from those signatures:
+
+- **Input is an array.** A key can appear more than once, so a codec always receives every value
+  stored under its key and decides what that means.
+- **Output is an array.** Encoding one value may produce zero entries (an absent key), one, or
+  many (a list).
+- **Decoding returns a result, not a value.** Failure is data.
+
+The context carries the `key` being decoded and a `path`, which list items extend with their index
+so an issue can point at `tags[2]`.
+
+## What a codec must never do
+
+A codec is pure. It must not:
+
+- navigate, or decide how a change should be recorded,
+- read a request, a `Window`, or any runtime global,
+- create reactive state,
+- mutate anything shared.
+
+This is enforced rather than requested: `@queryweave/core` compiles with `types: []` and a
+repository check rejects browser globals and Node built-ins anywhere in the package.
+
+<Aside type="note" title="Why URLSearchParams is not in the signature">
+`@queryweave/core` compiles against `lib: ["ES2023"]` with no DOM library, so the name
+`URLSearchParams` does not exist there. It is still accepted, structurally, through
+`Iterable<QueryEntry>` — which is exactly what `URLSearchParams` is. The type stays universal and
+the ergonomics survive.
+</Aside>
+
+## Writing one
+
+```ts
+import { createQueryIssue, failValue, okValue, param, type QueryCodec } from "@queryweave/core";
+
+const isoDateCodec: QueryCodec<Date> = {
+  decode: (input, context) => {
+    const raw = input[0] ?? "";
+    const value = new Date(raw);
+    if (Number.isNaN(value.getTime())) {
+      return failValue([
+        createQueryIssue({
+          key: context.key,
+          code: "invalid",
+          input,
+          message: `"${context.key}" must be an ISO date.`,
+          path: context.path,
+        }),
+      ]);
+    }
+    return okValue(value);
+  },
+  encode: (value) => [value.toISOString().slice(0, 10)],
+};
+
+const createdAfter = param.custom(isoDateCodec).optional();
+```
+
+`okValue` and `failValue` build the result; `createQueryIssue` builds an issue and freezes it,
+dropping optional members you did not supply.
+
+### Consuming several values
+
+By default `param.custom` treats a codec as single-valued, which means the parameter reports
+`unexpected_multiple_values` and passes only the first. Opt in explicitly:
+
+```ts
+const bounds = param.custom(boundsCodec, { consumesMultipleValues: true });
+```
+
+### Reporting a kind
+
+`kind` is metadata used for introspection and diagnostics. It defaults to `"custom"`:
+
+```ts
+param.custom(isoDateCodec, { kind: "text" });
+```
+
+## Round-tripping
+
+The rule a codec has to satisfy is that encoding a decoded value produces input that decodes to the
+same value. If that does not hold, canonical URLs are not canonical and the runtime can write a
+query it cannot read back.
+
+```ts
+const decoded = isoDateCodec.decode(["2026-03-02"], { key: "from", path: ["from"] });
+if (decoded.ok) {
+  isoDateCodec.encode(decoded.value, { key: "from", path: ["from"] }); // ["2026-03-02"]
+}
+```
+
+The repository asserts this property for every built-in family in `tests/core/round-trip.test.ts`.
+
+## Asynchronous decoding
+
+`decodeAsync` is optional and exists for one reason: validation vendors whose schemas are
+asynchronous. Synchronous decoding must always remain available, so a codec cannot be
+asynchronous-only.
+
+When a value needs a promise and you call the synchronous `decode`, QueryWeave reports
+`validation_failed` with a message pointing at `decodeAsync`. It does not block the thread and it
+does not quietly return a wrong value.
+
+## Query string handling
+
+Codecs never see percent-encoding. Parsing and formatting happen once, in the model's input layer,
+through four exported helpers:
+
+```ts
+import {
+  formatQueryString,
+  normalizeQueryEntries,
+  parseQueryString,
+  selectQueryValues,
+} from "@queryweave/core";
+
+parseQueryString("?tag=a&tag=b"); // [["tag", "a"], ["tag", "b"]]
+normalizeQueryEntries({ tag: ["a", "b"] }); // the same entries
+selectQueryValues(entries, "tag"); // ["a", "b"]
+formatQueryString(entries); // "tag=a&tag=b"
+```
+
+`parseQueryString` ignores one leading `?`, skips empty segments, treats a key without `=` as an
+empty value, and keeps malformed percent sequences verbatim instead of throwing.
+`formatQueryString` is hand-written and must stay byte-identical to
+`URLSearchParams.prototype.toString`, including `+` for spaces and percent-encoding for
+`!`, `'`, `(`, `)`, and `~`.
+
+## Next
+
+[Decoding and encoding](/concepts/decode-and-encode/) shows what the model does with these results.

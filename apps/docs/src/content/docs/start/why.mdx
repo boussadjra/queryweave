@@ -1,0 +1,78 @@
+---
+title: Why QueryWeave
+description: Why URL state is modelled as a domain object rather than as a component hook.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## URL state crosses runtime boundaries
+
+The same query is read by a server rendering the first response, by a client resuming after
+hydration, by a link the user copied into a message, and by a test asserting the result. A helper
+shaped around one framework's component lifecycle can only describe one of those.
+
+QueryWeave treats the query as a domain model and keeps synchronization in environment-specific
+adapters. The model is the portable part; the adapter is the part that changes.
+
+## Decoding and encoding belong to the same object
+
+A URL abstraction is bidirectional. When a parser and a serializer are configured separately, they
+drift: the parser accepts values the serializer cannot produce, and round-tripping stops being
+stable.
+
+In QueryWeave a parameter owns one codec that does both. This is why there is no `createParser`,
+no separate serializer, and no way to configure the two halves independently.
+
+## Defaults are part of the meaning, not of the reader
+
+If a default lives in the component that reads the query, every other reader must repeat it, and
+the URL cannot be canonical — `?page=1` and an absent `page` mean the same thing but produce
+different strings.
+
+Declaring the default on the parameter fixes both problems at once. The default participates in
+decoding _and_ in encoding, which is what makes omission possible.
+
+## Invalid input is normal
+
+External query values arrive from links, bookmarks, crawlers, and typos. Treating that as an
+exceptional condition forces every call site into a `try`/`catch` that usually swallows the cause.
+
+QueryWeave returns a result. A failed decode still carries `partial` values and a list of issues
+with stable codes, so an application can render something useful and report what went wrong.
+
+## What QueryWeave is not
+
+QueryWeave is not a port, a wrapper, or a rename of another library.
+
+- It is **not** a framework utility. `@queryweave/core` has no framework dependency, and the
+  boundary is enforced by a repository check rather than by convention.
+- It is **not** a query-string helper. Parsing a string is the smallest part; the model, the
+  issues, the canonical form, and the transition semantics are the substance.
+- It is **not** a collection of composables. Vue and Nuxt are integrations built on the same
+  runtime a plain TypeScript application uses.
+
+The public API is deliberately model-first. Hook-shaped identities, per-key hooks, tuple setters,
+and `parseAs*`-style constructors are rejected by name in
+[ADR 0001](https://github.com/queryweave/queryweave/blob/main/docs/adr/0001-public-api-model.md),
+and a test in the repository fails the build if one ever appears.
+
+## What that costs
+
+Model-first is not free, and the trade-offs are real:
+
+- **More to write up front.** A model must be declared before anything can read a single value.
+  For an application with one `?tab=` parameter, that is more ceremony than it is worth.
+- **No per-key ergonomics.** There is no `useTab()`. You read `binding.values.tab` and call an
+  explicit operation to change it.
+- **Transitions are immediate.** Without scheduling, a fast-changing input such as a search field
+  writes on every keystroke unless you debounce it yourself. Scheduling is
+  [planned](/project/roadmap/), not present.
+
+<Aside type="note">
+  If your query state is one boolean that never leaves the client, a model is overhead. QueryWeave
+  is built for the case where the same query is read in more than one place.
+</Aside>
+
+## Next
+
+[URL state as a domain](/concepts/) develops the vocabulary these decisions produced.

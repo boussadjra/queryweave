@@ -1,0 +1,131 @@
+---
+title: Query models
+description: A query model composes named parameters into one typed, portable description of a complete query state.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A `QueryModel` describes how external query values become typed application state, and how that
+state is encoded back into a canonical query. It is a plain value with no environment access, so
+the same model works on a server, in a browser, and in a test.
+
+## Defining a model
+
+```ts
+import { defineQueryModel, param } from "@queryweave/core";
+
+const products = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+  sort: param.choice(["name", "created_at", "price"]).default("created_at"),
+  tags: param.list(param.text()).default([]),
+});
+```
+
+The object keys are the external query keys. There is no separate mapping step and no renaming, so
+what you read in the model is what appears in the URL.
+
+## What a model exposes
+
+```ts
+products.name; // string | undefined — the optional name given in options
+products.params; // the parameter definitions, for introspection
+products.keys(); // readonly ["search", "page", "sort", "tags"]
+products.defaults(); // { search: undefined, page: 1, sort: "created_at", tags: [] }
+products.decode(input); // DecodeResult<Values>
+products.decodeAsync(input); // Promise<DecodeResult<Values>>
+products.encode(values); // QueryOutput — readonly [key, value] pairs
+products.normalize(input); // QueryOutput — decode, recover, then encode
+```
+
+`defaults()` materializes only the parameters that have one. A required parameter has no default
+and is therefore absent from that object, which is visible in the type as well as at runtime.
+
+## Inferred types
+
+The value type follows from the definitions; nothing is written twice.
+
+```ts
+type ProductValues = ReturnType<typeof products.decode> extends { value: infer T } ? T : never;
+// {
+//   search: string | undefined;
+//   page: number;
+//   sort: "name" | "created_at" | "price";
+//   tags: readonly string[];
+// }
+```
+
+`param.choice` narrows to a union of literals, `param.list` produces a `readonly` array, and
+`.optional()` widens the value with `undefined` while changing the parameter's presence.
+
+## Naming a model
+
+```ts
+const products = defineQueryModel({ page: param.integer().default(1) }, { name: "products" });
+```
+
+The name is used in diagnostics only. It does not appear in the URL and does not affect decoding.
+
+## Model-level refinement
+
+Individual parameters can be refined on their own, but some rules involve more than one key — for
+example, a date range whose end must not precede its start. Those belong to the model.
+
+```ts
+const range = defineQueryModel(
+  {
+    from: param.integer(),
+    to: param.integer(),
+  },
+  {
+    refine: [
+      {
+        name: "ordered-range",
+        refine: (values) =>
+          values.from <= values.to
+            ? { ok: true, value: values }
+            : { ok: false, issues: [{ message: "`from` must not be after `to`." }] },
+      },
+    ],
+  },
+);
+```
+
+A model refinement runs only after every parameter decoded successfully — there is no point
+checking a relationship between values that do not exist yet. Its failures are reported under the
+key `$`, exported as `modelIssueKey`, because they belong to the whole rather than to one
+parameter.
+
+<Aside type="note" title="A model refinement cannot change the output type">
+  The refine option is typed to return the same values it received. Refinements that transform the
+  model's type are a [deferred decision](/project/roadmap/), not an oversight. Per-parameter
+  `.refine()` can transform a single value's type today.
+</Aside>
+
+## Keys the model does not manage
+
+A model describes the keys it knows about and ignores the rest. `encode` emits only managed keys;
+it does not preserve anything else, because a pure function over typed state has no way to know
+what else was in the URL.
+
+Preservation happens one level up, in the [runtime](/runtime/), which reads the current query and
+re-attaches unmanaged entries after the managed ones. This is what lets QueryWeave own `?page=` and
+`?sort=` while an analytics parameter continues to ride along untouched.
+
+## Edge cases
+
+- **An empty key throws.** `defineQueryModel({ "": param.text() })` raises a `TypeError` at
+  definition time rather than producing a model that can never round-trip.
+- **Duplicate external values** are handed to the parameter, which decides. A single-value
+  parameter reports `unexpected_multiple_values` and uses the first; `param.list` consumes them all.
+- **Unknown keys in the input** are ignored by `decode`. They are not an error, because a model is
+  a description of what you care about, not an assertion about the whole URL.
+
+## How it is tested
+
+The `core` Vitest project covers definition, inference, and composition; `tests/types` asserts both
+what the inferred types accept and what they reject, so a widened type fails the build.
+
+## Next
+
+[Parameters](/concepts/parameters/) covers the families a model is built from.

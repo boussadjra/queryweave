@@ -1,0 +1,107 @@
+---
+title: Quick start
+description: Define a model, decode a URL, encode typed state, and choose a runtime integration.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import IntegrationChooser from "../../../components/IntegrationChooser.astro";
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Five steps, none of which mention a framework until the last one.
+
+<Steps>
+
+1. ### Define a query model
+
+   ```ts title="products.ts"
+   import { defineQueryModel, param } from "@queryweave/core";
+
+   export const products = defineQueryModel({
+     search: param.text().optional(),
+     page: param.integer({ min: 1 }).default(1),
+     sort: param.choice(["name", "created_at", "price"]).default("created_at"),
+     status: param.choice(["all", "active", "archived"]).default("all"),
+   });
+   ```
+
+   `search` may be absent. The other three always have a value, because a default makes a
+   parameter total.
+
+2. ### Decode a URL
+
+   ```ts
+   const result = products.decode("?search=vue&page=2");
+
+   if (result.ok) {
+     result.value.page; // 2 — a number, not a string
+     result.value.sort; // "created_at" — the declared default
+   }
+   ```
+
+   `decode` accepts a query string, an iterable of entries (which includes `URLSearchParams`), or a
+   plain object. It never throws.
+
+3. ### Handle what did not decode
+
+   ```ts
+   const result = products.decode("?page=abc");
+
+   result.ok; // false
+   result.partial; // { sort: "created_at", status: "all" } — the keys that did decode
+   result.issues[0]?.code; // "invalid"
+   result.issues[0]?.key; // "page"
+   ```
+
+   An invalid value produces an issue _and_ a recovery. `page` falls back to its default rather
+   than vanishing, so the page still renders while the problem stays reportable.
+
+4. ### Encode typed state
+
+   ```ts
+   products.encode({ search: "vue", page: 1, sort: "created_at", status: "all" });
+   // [["search", "vue"]]
+   ```
+
+   `page`, `sort`, and `status` are omitted because each equals its declared default. Canonical
+   output is the shortest encoding that decodes back to the same state.
+
+5. ### Choose a runtime integration
+
+   Everything above is environment-free. A runtime is what connects it to a place that stores and
+   navigates the query.
+
+   <IntegrationChooser />
+
+</Steps>
+
+## See it run
+
+The simulator below is driven by the model from step 1, `createQueryRuntime` from
+`@queryweave/core`, and the memory adapter from `@queryweave/testing`. Switch **Navigation** between
+push and replace and watch the history counter; switch **Adapter** to `Server` and the history
+controls disappear, because a request has none.
+
+<BrowserQuerySimulator
+  preset="filters"
+  adapter="browser"
+  caption="Typing in the search box runs a real transaction: search is set, page resets to 1, and the encoder omits every value that equals its default."
+/>
+
+<Aside type="note" title="Why search vanishes from the typed state">
+  `search` is `param.text().optional()`, so when it has no value it is `undefined`. JSON has no
+  representation for `undefined`, which is why the key is absent from the inspector panel rather
+  than shown as `null`. Its encoded form is absent too — that is the same fact seen twice.
+</Aside>
+
+## What you now have
+
+- One description of the query, usable on both sides of a request.
+- Types that follow from the model rather than being written twice.
+- Canonical URLs, so equal states produce equal links.
+- Issues you can render, rather than exceptions you must catch.
+
+## Next
+
+- [Query models](/concepts/query-models/) — composition, defaults, and model-level refinement.
+- [The query runtime](/runtime/) — transitions, subscriptions, and unmanaged keys.
+- [Adapters](/adapters/) — where a query is actually stored.

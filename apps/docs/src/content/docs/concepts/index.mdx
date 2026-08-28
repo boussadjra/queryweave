@@ -1,0 +1,71 @@
+---
+title: URL state as a domain
+description: The vocabulary QueryWeave uses, and how the pieces relate.
+---
+
+import QueryFlow from "../../../components/QueryFlow.astro";
+
+A query string is an untyped, externally supplied, user-editable value that your application must
+treat as state. QueryWeave gives that value a domain vocabulary so each concern has exactly one
+home.
+
+## The vocabulary
+
+| Concept        | Owns                                                          | Never does                       |
+| -------------- | ------------------------------------------------------------- | -------------------------------- |
+| `QueryParam`   | One named value: its type, presence, default, and constraints | Read the environment             |
+| `QueryCodec`   | Both directions of translation for one value                  | Navigate or touch globals        |
+| `QueryModel`   | A complete query state composed from parameters               | Know where the query came from   |
+| `DecodeResult` | Whether a decode produced a usable whole, plus issues         | Throw                            |
+| `QueryRuntime` | Transitions from current state to next state                  | Parse or validate                |
+| `QueryAdapter` | Reading, writing, and observing one environment               | Decode, validate, apply defaults |
+| `QuerySource`  | Reading one request-scoped query                              | Navigate                         |
+
+The separation is the point. A codec that could navigate would put policy in a place that is
+supposed to be pure; an adapter that could decode would give you two sources of truth for what
+`page=2` means.
+
+## The path a value takes
+
+<QueryFlow caption="Decoding and encoding are the same description read in two directions." />
+
+Written out:
+
+1. **Raw input arrives** as a string, an iterable of entries, or a plain object.
+2. **The model decodes it** by asking each parameter's codec for a value, collecting issues.
+3. **Refinements run**, if any, turning validator errors into QueryWeave issues.
+4. **A result is produced** — either a complete typed value, or partial values plus issues.
+5. **A transition changes that state**, in a runtime.
+6. **The model encodes it** into canonical entries, omitting anything equal to its default.
+7. **An adapter writes the result** to the environment and reports the change back.
+
+Steps 1 to 4 and step 6 are pure. Steps 5 and 7 are the only ones that know about an environment.
+
+## Reading order
+
+<div class="qw-grid">
+  <a class="qw-panel qw-concept" href="/concepts/query-models/">
+    <strong>Query models</strong>
+    <span>Composing parameters into one typed state.</span>
+  </a>
+  <a class="qw-panel qw-concept" href="/concepts/parameters/">
+    <strong>Parameters</strong>
+    <span>The seven families, and how presence works.</span>
+  </a>
+  <a class="qw-panel qw-concept" href="/concepts/codecs/">
+    <strong>Codecs</strong>
+    <span>Both directions under one contract.</span>
+  </a>
+  <a class="qw-panel qw-concept" href="/concepts/decode-and-encode/">
+    <strong>Decoding and encoding</strong>
+    <span>Results, canonical form, and normalization.</span>
+  </a>
+  <a class="qw-panel qw-concept" href="/concepts/defaults-and-absence/">
+    <strong>Defaults and absence</strong>
+    <span>Why an absent key and a default value are the same thing.</span>
+  </a>
+  <a class="qw-panel qw-concept" href="/concepts/issues/">
+    <strong>Issues and recovery</strong>
+    <span>What happens when the outside world sends nonsense.</span>
+  </a>
+</div>

@@ -1,0 +1,158 @@
+---
+title: Issues and recovery
+description: The issue taxonomy, what recovery means, and how to report problems without throwing.
+---
+
+External query values arrive from links, bookmarks, crawlers, and typing. QueryWeave treats invalid
+input as ordinary rather than exceptional: decoding reports what was wrong and recovers to a state
+you can still render.
+
+## The shape of an issue
+
+```ts
+interface QueryIssue {
+  readonly key: string;
+  readonly code: QueryIssueCode;
+  readonly input?: readonly string[] | undefined;
+  readonly message: string;
+  readonly path?: readonly PropertyKey[] | undefined;
+}
+```
+
+- `key` is the external query key, or `$` (`modelIssueKey`) for a model-level problem.
+- `input` is the raw values that caused it, when they are known.
+- `path` locates the value inside a structure — a list item carries its index.
+
+Issues are frozen on creation, and optional members you did not supply are omitted rather than set
+to `undefined`.
+
+## The taxonomy
+
+Seven codes, and they are stable:
+
+| Code                         | Meaning                                     | Typical source                     |
+| ---------------------------- | ------------------------------------------- | ---------------------------------- |
+| `missing`                    | A required key was absent                   | `param.text()` with no value       |
+| `empty`                      | The key was present but carried no value    | `?q=`                              |
+| `invalid`                    | The value is not the right shape            | `?page=abc`                        |
+| `out_of_range`               | The right shape, outside the allowed bounds | `?page=0` with `min: 1`            |
+| `unknown_choice`             | Not one of the declared choices             | `?sort=colour`                     |
+| `unexpected_multiple_values` | Several values for a single-value parameter | `?page=1&page=2`                   |
+| `validation_failed`          | A refinement rejected the value             | Zod, Valibot, ArkType, or your own |
+
+`validation_failed` is the deliberate flattening point. A validator's own error type never reaches
+your code: whatever the vendor reported becomes a QueryWeave issue with the vendor's message, so
+consumers depend on one taxonomy.
+
+## Recovery
+
+Recovery is decided by the parameter's presence, not by the kind of failure:
+
+| Presence   | An invalid value becomes |
+| ---------- | ------------------------ |
+| `default`  | the declared default     |
+| `optional` | `undefined`              |
+| `required` | a failed result          |
+
+```ts
+const products = defineQueryModel({
+  page: param.integer({ min: 1 }).default(1),
+  search: param.text().optional(),
+});
+
+const result = products.decode("?page=0&search=");
+
+result.ok; // true — every key recovered
+result.value.page; // 1
+result.value.search; // undefined
+result.issues.map((issue) => issue.code); // ["out_of_range", "empty"]
+```
+
+The whole decode still succeeds. Only a required parameter can make it fail, because only then is
+there no defined state to fall back to.
+
+## Reading issues
+
+```ts
+import { hasQueryIssueCode } from "@queryweave/core";
+
+if (hasQueryIssueCode(result.issues, "validation_failed")) {
+  // one or more refinements rejected a value
+}
+
+const byKey = new Map(result.issues.map((issue) => [issue.key, issue]));
+byKey.get("page")?.message; // "\"page\" must be at least 1."
+```
+
+In a runtime binding the same list is on the snapshot, alongside a status:
+
+```ts
+const snapshot = runtime.read();
+
+snapshot.status; // "valid" | "invalid"
+snapshot.issues; // the same issues
+snapshot.values; // always present — defaults merged with whatever decoded
+snapshot.result; // the underlying DecodeResult, when you want narrowing
+```
+
+`status` is the honest name for the distinction. `snapshot.values` is always populated, so a
+boolean called `ok` on the snapshot would suggest a narrowing that does not exist. When you do want
+narrowing, `snapshot.result.ok` provides it.
+
+## Creating issues
+
+Custom codecs and refinements build issues with the same helper the built-ins use:
+
+```ts
+import { createQueryIssue } from "@queryweave/core";
+
+createQueryIssue({
+  key: context.key,
+  code: "invalid",
+  input,
+  message: `"${context.key}" must be an ISO date.`,
+  path: context.path,
+});
+```
+
+Keep the message about the value, not about the user. It may end up in a log, an error boundary, or
+a support ticket.
+
+## Showing issues to people
+
+The codes are stable identifiers, not copy. Map them where you present them:
+
+```ts
+const explain = (issue: QueryIssue): string => {
+  switch (issue.code) {
+    case "unknown_choice":
+      return "That sort order no longer exists — showing the newest first.";
+    case "out_of_range":
+      return "That page is outside the results — showing the first page.";
+    default:
+      return "Part of this link was not understood.";
+  }
+};
+```
+
+Because recovery already happened, this is an explanation of what you did, not an error the reader
+has to resolve.
+
+## Edge cases
+
+- **Several issues for one key** are normal. `?page=1&page=abc` reports
+  `unexpected_multiple_values` and then whatever the first value produced.
+- **Model-level issues** use the key `$`. Compare against `modelIssueKey` rather than the literal.
+- **A recovered value still carries its issue.** Do not treat a non-empty `issues` array as
+  failure; check `ok` or `status` for that.
+- **Asynchronous validation reached through synchronous decode** reports `validation_failed` with a
+  message naming `decodeAsync`, and recovers.
+
+## How it is tested
+
+`tests/core/semantics.test.ts` asserts the code emitted for each failure mode, and
+`tests/runtime/failures.test.ts` asserts that a runtime snapshot stays usable while reporting them.
+
+## Next
+
+[The query runtime](/runtime/) puts a model to work against an environment.

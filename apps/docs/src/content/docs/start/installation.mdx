@@ -1,0 +1,88 @@
+---
+title: Installation
+description: Install the QueryWeave engine and the one package that matches your runtime.
+---
+
+import PackageGrid from "../../../components/PackageGrid.astro";
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+<Aside type="caution" title="Not yet published">
+  QueryWeave has not been released to npm. The commands below are the ones that will work once the
+  first version ships; today the packages exist only inside the repository. Nothing on this site
+  documents an API that is not already implemented, but installation is not yet possible.
+</Aside>
+
+## Requirements
+
+- Node.js 24.18.0 or newer for the Node.js integration and for local development.
+- TypeScript 5.5 or newer to get the inferred model types.
+- ESM. Every package is ESM-only and declares `"type": "module"`.
+
+## What to install
+
+<Steps>
+
+1. **Always install the engine.**
+
+   ```sh
+   pnpm add @queryweave/core
+   ```
+
+   `@queryweave/core` has no runtime dependencies and no framework dependency. It compiles against
+   ECMAScript library types alone.
+
+2. **Add the package for the environment that stores the query.**
+
+   ```sh
+   # A browser history stack
+   pnpm add @queryweave/browser
+
+   # A web-standard Request, on any server, edge, or worker runtime
+   pnpm add @queryweave/server
+
+   # Node.js request primitives
+   pnpm add @queryweave/node
+   ```
+
+3. **Add a framework binding if you want one.**
+
+   ```sh
+   pnpm add @queryweave/vue
+   pnpm add @queryweave/vue-router
+   pnpm add @queryweave/nuxt
+   ```
+
+   These are optional. The runtime works without any of them.
+
+4. **Add the test adapter as a development dependency.**
+
+   ```sh
+   pnpm add -D @queryweave/testing
+   ```
+
+</Steps>
+
+## Package manager
+
+QueryWeave itself is developed with pnpm, and the documentation uses `pnpm add` throughout. npm,
+Yarn, and Bun work the same way; only the command word changes.
+
+## Peer dependencies
+
+| Package                       | Peers                   |
+| ----------------------------- | ----------------------- |
+| `@queryweave/vue`             | `vue`                   |
+| `@queryweave/vue-router`      | `vue`, `vue-router`     |
+| `@queryweave/nuxt`            | `nuxt`                  |
+| `@queryweave/standard-schema` | `@standard-schema/spec` |
+
+No other package has a peer dependency, and none of them declares a dependency on a validation
+library or on a frontend framework.
+
+## Every package
+
+<PackageGrid />
+
+## Next
+
+[Quick start](/start/quick-start/) builds a model and runs it in three environments.

@@ -1,0 +1,150 @@
+---
+title: Decoding and encoding
+description: Decode results, canonical encoding, and normalization.
+---
+
+import QueryFlow from "../../../components/QueryFlow.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+## Accepted input
+
+`decode` takes any of three shapes, so you rarely have to convert anything:
+
+```ts
+products.decode("?search=vue&page=2"); // a query string, with or without "?"
+products.decode(new URLSearchParams(location.search)); // any Iterable<[key, value]>
+products.decode({ search: "vue", page: "2" }); // a plain object
+products.decode({ tag: ["a", "b"] }); // repeated values as an array
+```
+
+In the object form, a key whose value is `undefined` is treated as absent rather than as an empty
+value.
+
+## The result
+
+```ts
+type DecodeResult<T> =
+  | { ok: true; value: T; issues: readonly QueryIssue[] }
+  | { ok: false; partial: Partial<T>; issues: readonly QueryIssue[] };
+```
+
+`ok: true` means a complete, usable state was produced. It does **not** mean nothing went wrong —
+a recovered value still reports its issue:
+
+```ts
+const result = products.decode("?page=0"); // page has min: 1
+
+result.ok; // true
+result.value.page; // 1 — recovered to the declared default
+result.issues[0]?.code; // "out_of_range"
+```
+
+`ok: false` means no safe whole could be produced, which happens when a **required** parameter is
+missing or invalid. `partial` then carries the keys that did decode, so a caller can render
+diagnostics without inventing values.
+
+```ts
+const strict = defineQueryModel({ id: param.text(), page: param.integer().default(1) });
+const failed = strict.decode("?page=3");
+
+failed.ok; // false
+failed.partial; // { page: 3 }
+failed.issues[0]?.code; // "missing"
+```
+
+<Aside type="tip" title="The pattern that covers both">
+When you want values regardless of validity — which is most of the time in a UI — merge the
+defaults with whatever decoded:
+
+```ts
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+```
+
+This is exactly what the runtime does to build a snapshot, and why `snapshot.values` is always
+present.
+
+</Aside>
+
+## Encoding
+
+`encode` takes a complete typed state and returns canonical entries:
+
+```ts
+products.encode({ search: "vue", page: 2, sort: "name", tags: [] });
+// [["search", "vue"], ["page", "2"], ["sort", "name"]]
+```
+
+Three rules decide the output:
+
+1. **Definition order.** Keys are emitted in the order the model declares them, not the order they
+   appeared in the input. Two equal states therefore produce byte-identical strings.
+2. **Defaults are omitted.** A value whose encoding equals the encoding of its declared default is
+   dropped. `tags: []` disappears above because `[]` is the declared default.
+3. **Absence emits nothing.** `undefined` produces no entry at all; `null` produces an empty value
+   if the parameter is nullable, and nothing otherwise.
+
+The comparison in rule 2 is made on _encoded_ values rather than on the values themselves, which is
+why it works for arrays and objects without needing a deep-equality helper.
+
+## Canonical form
+
+```ts
+import { formatQueryString } from "@queryweave/core";
+
+formatQueryString(products.encode(values)); // "search=vue&page=2&sort=name"
+```
+
+Canonical output is the shortest encoding that decodes back to the same state. Its practical value
+is that URLs become comparable: caches, analytics, and equality checks all stop seeing three
+spellings of one state.
+
+## Normalization
+
+`normalize` decodes and re-encodes in one step, which is how you clean an incoming URL:
+
+```ts
+products.normalize("?page=1&sort=created_at&search=vue&unknown=1");
+// [["search", "vue"]]
+```
+
+`page` and `sort` were explicitly set to their defaults, so they are dropped. `unknown` is dropped
+too, because `normalize` is pure model output — the model does not manage that key and has nothing
+to say about it. If you need unmanaged keys preserved, use the [runtime](/runtime/) or
+[`createQueryUrl`](/adapters/server/), both of which re-attach them.
+
+When decoding fails, `normalize` still produces output: it merges defaults with the partial values
+and encodes that, so a broken URL normalizes to the closest valid one rather than to nothing.
+
+<QueryFlow caption="Decode recovers and reports; encode canonicalizes and omits. Normalization is the two composed." />
+
+## Asynchronous decoding
+
+```ts
+const result = await products.decodeAsync("?search=vue");
+```
+
+Use it when any parameter or the model itself uses an asynchronous refinement — typically an
+asynchronous Standard Schema validator. Parameters decode concurrently; model-level refinements run
+in sequence, because each one sees the previous one's output.
+
+Calling the synchronous `decode` on a model with asynchronous validation is not a crash: it reports
+a `validation_failed` issue naming `decodeAsync` and recovers.
+
+## Edge cases
+
+- **A malformed percent sequence** such as `?q=%E0%A4%A` is kept verbatim rather than throwing.
+- **A key with no `=`** (`?flag`) decodes as an empty value for that key.
+- **Repeated keys for a single-value parameter** report `unexpected_multiple_values` and use the
+  first.
+- **An empty query** decodes to the model's defaults, with no issues.
+
+## How it is tested
+
+`tests/core/query-input.test.ts` covers parsing and formatting against `URLSearchParams`;
+`tests/core/model.test.ts` covers results, ordering, and omission; `tests/core/round-trip.test.ts`
+asserts decode-encode stability.
+
+## Next
+
+[Defaults and absence](/concepts/defaults-and-absence/) explains why omission is a semantic rule
+rather than a size optimization.

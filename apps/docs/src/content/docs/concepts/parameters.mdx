@@ -1,0 +1,188 @@
+---
+title: Parameters
+description: The seven parameter families, how presence works, and how a parameter is narrowed.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A `QueryParam` is one named value: its type, its presence, its default, and the constraints that
+decide whether external input is acceptable. Parameters are created through the `param` factory and
+narrowed with a small builder.
+
+## The families
+
+`@queryweave/core` implements seven, and no more:
+
+```ts
+import { param } from "@queryweave/core";
+
+param.text({ allowEmpty, maxLength, minLength, trim });
+param.integer({ max, min });
+param.number({ max, min });
+param.boolean({ falsy, truthy });
+param.choice(["name", "created_at"]);
+param.list(param.text(), { maxItems, minItems });
+param.custom(codec, { consumesMultipleValues, kind });
+```
+
+Everything else — dates, JSON, objects, tuples — is expressed today as a `param.custom` codec.
+Dedicated families for those representations are a
+[deferred decision](/project/roadmap/), not a hidden feature.
+
+### text
+
+```ts
+param.text(); // rejects an empty value
+param.text({ allowEmpty: true }); // accepts ""
+param.text({ trim: true, minLength: 2, maxLength: 64 });
+```
+
+Trimming happens before length checks, so `"  ab  "` with `trim` and `minLength: 2` is valid.
+A length violation reports `out_of_range`.
+
+### integer and number
+
+```ts
+param.integer({ min: 1 }); // "2" → 2; "2.5" → invalid; "abc" → invalid
+param.number({ min: 0, max: 1 }); // "0.25" → 0.25
+```
+
+`integer` accepts an optional sign and digits only, and rejects anything outside the safe integer
+range with `out_of_range`. `number` rejects any input that is not finite with `invalid`, which
+includes `NaN` and `Infinity`.
+
+### boolean
+
+```ts
+param.boolean(); // truthy: true, 1, yes, on — falsy: false, 0, no, off
+param.boolean({ truthy: ["yes"], falsy: ["no"] });
+```
+
+Comparison is case-insensitive. Encoding writes the first entry of the matching list, so a custom
+`truthy: ["yes"]` produces `?flag=yes` rather than `?flag=true`.
+
+### choice
+
+```ts
+param.choice(["name", "created_at", "price"]);
+```
+
+The value type narrows to the union of the literals. An unrecognized value reports
+`unknown_choice`, which is distinct from `invalid` so a caller can tell "not one of these" from
+"not the right shape".
+
+### list
+
+```ts
+param.list(param.text());
+param.list(param.integer({ min: 1 }), { minItems: 1, maxItems: 10 });
+```
+
+A list consumes every value stored under its key, so `?tag=a&tag=b` decodes to `["a", "b"]`. Empty
+entries are dropped and reported as `empty` rather than becoming empty strings in the array. Each
+item is decoded by the item parameter's codec, and item issues carry the index in their `path`.
+
+### custom
+
+```ts
+import { createQueryIssue, failValue, okValue, param } from "@queryweave/core";
+
+const isoDate = param.custom<Date>({
+  decode: (input, context) => {
+    const raw = input[0] ?? "";
+    const value = new Date(raw);
+    return Number.isNaN(value.getTime())
+      ? failValue([
+          createQueryIssue({ key: context.key, code: "invalid", message: "Expected an ISO date." }),
+        ])
+      : okValue(value);
+  },
+  encode: (value) => [value.toISOString().slice(0, 10)],
+});
+```
+
+`param.custom` is the extension point. See [Codecs](/concepts/codecs/) for the full contract.
+
+## Presence
+
+Presence is what a parameter does when its key is absent from the query. There are exactly three
+values, and they are visible in the type.
+
+| Presence   | Created by    | Absent key produces | Appears in `defaults()` |
+| ---------- | ------------- | ------------------- | ----------------------- |
+| `required` | the default   | a `missing` issue   | no                      |
+| `optional` | `.optional()` | `undefined`         | yes, as `undefined`     |
+| `default`  | `.default(v)` | the declared value  | yes                     |
+
+```ts
+param.text(); // required
+param.text().optional(); // string | undefined
+param.integer().default(1); // number, always present
+```
+
+A required parameter is the only one that can make a whole decode fail. That is deliberate: if you
+declared that a key must exist, producing a complete state without it would be a lie.
+
+## The builder
+
+Every constructor returns a builder that can be narrowed further:
+
+```ts
+param.text().describe("Free-text product search").nullable().optional();
+```
+
+- `.describe(text)` attaches documentation. It has no effect on decoding.
+- `.nullable()` makes a present-but-empty value decode to `null` instead of reporting `empty`, and
+  encodes `null` back to an empty value. This is how you distinguish "set to nothing" from "not
+  set".
+- `.optional()` sets presence to `optional` and widens the type with `undefined`.
+- `.refine(refinement)` adds validation, and may transform the value's type.
+- `.default(value)` sets presence to `default` and **closes the chain** — it returns a
+  `QueryParam`, not a builder.
+
+<Aside type="caution" title="Order matters at the end">
+  `.default()` returns a parameter rather than a builder, so it must come last. Write
+  `param.text().optional()`, not `param.text().default("a").optional()` — the second does not
+  type-check.
+</Aside>
+
+## Refinement
+
+A refinement validates an already decoded value and may transform it:
+
+```ts
+const slug = param.text().refine({
+  name: "lowercase",
+  refine: (value) =>
+    value === value.toLowerCase()
+      ? { ok: true, value }
+      : { ok: false, issues: [{ message: "Must be lowercase." }] },
+});
+```
+
+Refinements form a pipeline: each one receives the previous one's output. A failure becomes a
+`validation_failed` issue and the parameter recovers according to its presence.
+
+A refinement may return a promise. Synchronous `decode` cannot wait for it, so it reports
+`validation_failed` with a message telling you to use `decodeAsync` — it does not block, and it
+does not silently succeed. This is how [Standard Schema](/validation/) validators with asynchronous
+schemas participate.
+
+## Edge cases
+
+- **Multiple values for a single-value parameter**: reports `unexpected_multiple_values` and uses
+  the first. It does not fail, because dropping the extras is recoverable and predictable.
+- **Present but empty** (`?q=`): reports `empty` and recovers, unless the parameter is
+  `.nullable()` (decodes to `null`) or `text({ allowEmpty: true })` (decodes to `""`).
+- **`undefined` at encode time**: emits nothing, so the key is absent from the URL.
+- **`null` at encode time**: emits an empty value if the parameter is nullable, nothing otherwise.
+
+## How it is tested
+
+`tests/core/semantics.test.ts` covers presence, recovery, and the issue codes each family emits;
+`tests/core/round-trip.test.ts` asserts that decoding an encoded value returns the original for
+every family.
+
+## Next
+
+[Codecs](/concepts/codecs/) describes the contract a parameter's translation must satisfy.
