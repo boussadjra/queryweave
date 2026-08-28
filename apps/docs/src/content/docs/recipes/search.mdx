@@ -1,0 +1,144 @@
+---
+title: Search
+description: A search field that stays shareable without filling the history stack.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+A search box is the hardest simple case: it changes on every keystroke, it must survive a reload,
+and it must not turn the back button into a character-by-character undo.
+
+## The model
+
+```ts
+import { defineQueryModel, param } from "@queryweave/core";
+
+export const products = defineQueryModel({
+  search: param.text({ trim: true }).optional(),
+  page: param.integer({ min: 1 }).default(1),
+});
+```
+
+`optional()` rather than `.default("")`: an absent search and an empty search are the same thing,
+and `undefined` is the value that encodes to nothing.
+
+## Three decisions
+
+### 1. Use replace, not push
+
+```ts
+await runtime.update({ search: value }, { navigation: "replace" });
+```
+
+Each keystroke rewrites the current history entry instead of adding one. Back then leaves the
+search entirely, which is what a reader expects.
+
+### 2. Clear with `undefined`
+
+```ts
+await runtime.update({ search: value === "" ? undefined : value });
+```
+
+Assigning `""` produces `?search=` in the URL and an `empty` issue when it is read back, because
+`param.text()` rejects empty input. `undefined` omits the key.
+
+### 3. Reset the page in the same transition
+
+```ts
+await runtime.transaction(
+  (draft) => {
+    draft.search = value === "" ? undefined : value;
+    draft.page = 1;
+  },
+  { navigation: "replace" },
+);
+```
+
+A new search on page 4 usually has no page 4. Doing both in one transaction produces one write, one
+history entry, and one render.
+
+<BrowserQuerySimulator
+  preset="search"
+  adapter="browser"
+  caption="Type, then clear the field. The key appears and disappears; the page resets with each new term."
+/>
+
+## Debouncing
+
+The runtime writes immediately, so debounce at the call site if you do not want one write per
+keystroke:
+
+```ts
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+function onInput(value: string): void {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    void runtime.transaction(
+      (draft) => {
+        draft.search = value === "" ? undefined : value;
+        draft.page = 1;
+      },
+      { navigation: "replace" },
+    );
+  }, 200);
+}
+```
+
+Even debounced, keep `replace`: a debounce reduces the number of entries, it does not make them
+meaningful.
+
+## In Vue
+
+```vue
+<script setup lang="ts">
+import { useQueryModel } from "@queryweave/vue";
+
+const filters = useQueryModel(products);
+const search = filters.field("search", { navigation: "replace" });
+</script>
+
+<template>
+  <input v-model="search" type="search" />
+</template>
+```
+
+`field` gives you the `v-model` target. For the page reset, use an explicit handler instead:
+
+```ts
+async function onSearch(value: string): Promise<void> {
+  await filters.transaction(
+    (draft) => {
+      draft.search = value === "" ? undefined : value;
+      draft.page = 1;
+    },
+    { navigation: "replace" },
+  );
+}
+```
+
+<Aside type="caution" title="Do not write the input's value back on every snapshot">
+  Assigning `input.value` while the field is focused moves the caret to the end. Compare before
+  writing, and only sync from state when the value genuinely differs — for example after a back
+  navigation.
+</Aside>
+
+## Reading it on the server
+
+```ts
+import { readRequestQuery } from "@queryweave/server";
+
+const result = readRequestQuery(request, products);
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+const rows = await search(values.search, values.page);
+```
+
+The same model, the same defaults, no second parser.
+
+## What this does not solve
+
+Scheduling. If a user types faster than your data source responds, responses can arrive out of
+order — QueryWeave does not cancel or coalesce transitions, so ordering your own requests is your
+responsibility. That capability is [planned](/project/roadmap/).

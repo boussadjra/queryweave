@@ -1,0 +1,107 @@
+---
+title: Pagination
+description: A page number that is a number, bounded, and absent when it is the first page.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+
+## The model
+
+```ts
+const products = defineQueryModel({
+  page: param.integer({ min: 1 }).default(1),
+  perPage: param.integer({ min: 1, max: 100 }).default(20),
+});
+```
+
+Both bounds do real work. `min: 1` turns `?page=0` and `?page=-3` into an `out_of_range` issue with
+a recovery to `1`, and `max: 100` stops `?perPage=100000` from becoming a denial-of-service vector
+against your own database.
+
+## Page one is absent
+
+```ts
+products.encode({ page: 1, perPage: 20 }); // []
+products.encode({ page: 2, perPage: 20 }); // [["page", "2"]]
+```
+
+`/products` and `/products?page=1` are the same state, and only one of them is ever produced. This
+matters more than it looks: it halves the number of URLs your cache, your analytics, and your
+canonical tags have to reconcile.
+
+## Moving between pages
+
+```ts
+await runtime.update({ page: current + 1 });
+await runtime.update({ page: current - 1 });
+await runtime.reset(["page"]); // back to page 1, key removed
+```
+
+Use `push` — the runtime default — so Back returns to the previous page. Pagination is deliberate
+navigation, unlike a search field.
+
+<BrowserQuerySimulator
+  preset="pagination"
+  adapter="browser"
+  caption="Next and Previous push a history entry each, so Back walks the pages. Searching resets to page 1 in a single transaction."
+/>
+
+## Guarding the upper bound
+
+The model cannot know how many pages exist — that depends on data. Clamp after you know:
+
+```ts
+const { rows, total } = await fetchProducts(values);
+const pageCount = Math.max(1, Math.ceil(total / values.perPage));
+
+if (values.page > pageCount) {
+  await runtime.update({ page: pageCount }, { navigation: "replace" });
+}
+```
+
+Use `replace` here. The reader did not ask to visit a page that does not exist, so it should not
+occupy a history entry.
+
+## Resetting on filter changes
+
+Any change that shrinks the result set should return to page one, in the same transaction:
+
+```ts
+await runtime.transaction((draft) => {
+  draft.status = "archived";
+  draft.page = 1;
+});
+```
+
+Two separate `update` calls would produce two history entries and a moment where the page number
+points past the end of the new results.
+
+## On the server
+
+```ts
+const result = readRequestQuery(request, products);
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+const offset = (values.page - 1) * values.perPage;
+```
+
+`values.page` is a bounded number here without any further checking, because the model already
+rejected everything else. That is the point of decoding on both sides with one description.
+
+## Building page links
+
+```ts
+import { createQueryUrl } from "@queryweave/server";
+
+const next = createQueryUrl(request.url, products, { ...values, page: values.page + 1 });
+```
+
+`createQueryUrl` preserves query keys the model does not manage, so tracking parameters survive
+pagination links.
+
+## Edge cases
+
+- **`?page=abc`** reports `invalid` and recovers to `1`.
+- **`?page=1&page=2`** reports `unexpected_multiple_values` and uses the first.
+- **`?page=99999999999999999999`** exceeds the safe integer range and reports `out_of_range`.
+- **A page beyond the results** is not an error to QueryWeave. It is a bound only your data knows.

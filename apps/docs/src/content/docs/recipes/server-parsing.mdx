@@ -1,0 +1,155 @@
+---
+title: Server parsing
+description: Decode a request with the same model the client uses, on any runtime.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+The model is the artifact you share between client and server. Put it in a module both can import,
+and neither side has a parser of its own.
+
+```ts title="shared/products.ts"
+import { defineQueryModel, param } from "@queryweave/core";
+
+export const products = defineQueryModel({
+  search: param.text({ trim: true }).optional(),
+  page: param.integer({ min: 1 }).default(1),
+  status: param.choice(["all", "active", "archived"]).default("all"),
+});
+```
+
+## Web-standard runtimes
+
+Anywhere `Request` exists — Deno, Bun, Cloudflare Workers, Vercel, Netlify, Hono, Nitro:
+
+```ts
+import { readRequestQuery } from "@queryweave/server";
+
+import { products } from "./shared/products";
+
+export async function GET(request: Request): Promise<Response> {
+  const result = readRequestQuery(request, products);
+  const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+  return Response.json({
+    items: await findProducts(values),
+    issues: result.issues,
+  });
+}
+```
+
+## Node.js
+
+```ts
+import { createServer } from "node:http";
+
+import { readNodeQuery } from "@queryweave/node";
+
+createServer((request, response) => {
+  const result = readNodeQuery(request, products);
+  const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+  response.writeHead(200, { "content-type": "application/json" });
+  response.end(JSON.stringify(values));
+});
+```
+
+Behind a trusted proxy, opt in to forwarded headers explicitly:
+
+```ts
+readNodeQuery(request, products, { trustForwardedHeaders: true });
+```
+
+<Aside type="caution" title="Only opt in when a proxy overwrites them">
+  `x-forwarded-host` and `x-forwarded-proto` are attacker-controlled otherwise. They do not affect
+  decoded values — only the URL you build from the result — but that is enough to matter for
+  redirects and canonical links.
+</Aside>
+
+## Express, Fastify, and friends
+
+No adapter package is needed. Both expose a Node request:
+
+```ts
+app.get("/products", (request, response) => {
+  const result = readNodeQuery(request, products);
+  response.json(result.ok ? result.value : result.partial);
+});
+```
+
+## The recovery pattern
+
+Every server example above merges defaults with partial values:
+
+```ts
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+```
+
+Do this rather than returning a 400. A bad query usually comes from a stale link or a crawler, not
+from an attack, and the useful response is the page with recovered values plus a note — not an
+error. Keep `result.issues` for logs.
+
+If a parameter genuinely must be present, declare it `required` and the decode will fail as a
+whole, giving you a real decision point.
+
+## Canonical redirects
+
+Because encoding is deterministic, you can detect a non-canonical URL by comparing strings:
+
+```ts
+import { encodeQuery } from "@queryweave/server";
+
+const canonical = encodeQuery(products, values);
+const incoming = new URL(request.url).search.replace(/^\?/u, "");
+
+if (incoming !== canonical) {
+  // ?page=1&status=all arrived; the canonical form is empty
+}
+```
+
+QueryWeave does not perform the redirect. Server response contribution is an
+[open decision](/project/roadmap/), so the response is yours to write — and skipping the redirect
+is a legitimate choice, since decoding already recovered.
+
+## Building links back
+
+```ts
+import { createQueryUrl } from "@queryweave/server";
+
+const nextPage = createQueryUrl(request.url, products, { ...values, page: values.page + 1 });
+```
+
+Unmanaged keys in the incoming URL are preserved after the managed ones, so tracking parameters
+survive.
+
+<BrowserQuerySimulator
+  preset="server"
+  adapter="server"
+  showNavigation={false}
+  caption="Server mode: a request URL comes in, is decoded, and produces a canonical form. There is no history, so there are no history controls."
+/>
+
+## Asynchronous validation
+
+```ts
+const result = await readRequestQueryAsync(request, products);
+const result2 = await readNodeQueryAsync(request, products);
+```
+
+Use these when any parameter or the model uses an asynchronous refinement.
+
+## Testing it
+
+`readUrlQuery` takes a string, so a server test needs no server:
+
+```ts
+import { readUrlQuery } from "@queryweave/server";
+
+expect(readUrlQuery("/products?page=2", products)).toMatchObject({
+  ok: true,
+  value: { page: 2 },
+});
+```
+
+A relative string is resolved against `relativeUrlBase`, which is exported for exactly this.

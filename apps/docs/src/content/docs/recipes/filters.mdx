@@ -1,0 +1,146 @@
+---
+title: Filters
+description: Single-select, multi-select, and clearing — with URLs that stay canonical.
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+## Single-select
+
+`param.choice` gives you a union type and a distinct issue code for an unrecognized value.
+
+```ts
+const products = defineQueryModel({
+  status: param.choice(["all", "active", "archived"]).default("all"),
+  page: param.integer({ min: 1 }).default(1),
+});
+```
+
+Making `"all"` the default is what keeps the URL clean: selecting "All" removes the key rather than
+writing `?status=all`.
+
+```ts
+await runtime.transaction((draft) => {
+  draft.status = "archived";
+  draft.page = 1;
+});
+```
+
+<BrowserQuerySimulator
+  preset="filters"
+  adapter="browser"
+  caption="Switching to Active adds the key; switching back to All removes it, because All is the declared default."
+/>
+
+## Multi-select
+
+`param.list` consumes every value stored under its key, so repeated keys become an array.
+
+```ts
+const products = defineQueryModel({
+  tags: param.list(param.text()).default([]),
+});
+
+products.decode("?tags=vue&tags=nuxt"); // { tags: ["vue", "nuxt"] }
+products.encode({ tags: ["vue", "nuxt"] }); // [["tags", "vue"], ["tags", "nuxt"]]
+products.encode({ tags: [] }); // [] — equals the default
+```
+
+Toggling one value:
+
+```ts
+async function toggleTag(tag: string): Promise<void> {
+  await runtime.transaction((draft) => {
+    draft.tags = draft.tags.includes(tag)
+      ? draft.tags.filter((entry) => entry !== tag)
+      : [...draft.tags, tag];
+    draft.page = 1;
+  });
+}
+```
+
+Assign a new array rather than mutating in place. The draft's arrays are copies, so mutation would
+work — but treating them as immutable keeps the intent obvious and survives a refactor to `replace`.
+
+<Aside type="note" title="Repeated keys, not comma-separated values">
+  QueryWeave's list family uses `?tags=a&tags=b`, which is what `URLSearchParams` produces and what
+  most servers expect. A comma-separated encoding is expressible with `param.custom`, but you then
+  own the escaping rules for values that contain commas.
+</Aside>
+
+### Constraining a list
+
+```ts
+param.list(param.choice(["vue", "nuxt", "node"]), { minItems: 1, maxItems: 3 });
+```
+
+Item-level validation runs per entry, and item issues carry their index in `path`. Count violations
+report `out_of_range` against the list itself.
+
+## Clearing everything
+
+```ts
+await runtime.reset(); // every managed key back to its default
+await runtime.reset(["status", "tags"]); // just these
+await runtime.remove(["status", "tags"]); // omit the keys entirely
+```
+
+For parameters with defaults the three produce the same URL. Prefer `reset` when the intent is
+"back to the initial view" — it reads correctly even for parameters you add later.
+
+## Boolean toggles
+
+```ts
+const products = defineQueryModel({
+  inStock: param.boolean().default(false),
+});
+```
+
+Decoding accepts `true`, `1`, `yes`, `on` and their negatives, case-insensitively. Encoding writes
+the first entry of the truthy or falsy list, so the output is always `?inStock=true` rather than
+whichever spelling arrived.
+
+A valueless flag — `?inStock` with no `=` — is **not** supported as `true`. An empty value is
+rejected before the boolean codec ever sees it: the parameter reports `empty` and recovers to its
+default. Custom `truthy` entries cannot change that, because the emptiness check happens first.
+Write `?inStock=true`, which is what encoding produces anyway.
+
+## Distinguishing "cleared" from "untouched"
+
+If your application must tell "the user removed this filter" from "the user never set it", the
+default cannot express both. Use `.nullable()`:
+
+```ts
+const filters = defineQueryModel({
+  category: param.text().nullable().optional(),
+});
+
+filters.decode(""); // { category: undefined } — untouched
+filters.decode("?category="); // { category: null } — explicitly cleared
+```
+
+## Server-side filtering
+
+```ts
+const result = readRequestQuery(request, products);
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+const rows = await db.products.findMany({
+  where: {
+    status: values.status === "all" ? undefined : values.status,
+    tags: values.tags.length > 0 ? { hasSome: values.tags } : undefined,
+  },
+});
+```
+
+`values.status` is a narrow union here, so the comparison is exhaustive and a new status added to
+the model becomes a compile error in this file.
+
+## Edge cases
+
+- **An unknown choice** reports `unknown_choice` and recovers to the default — the page renders
+  with "All" rather than breaking on a stale bookmark.
+- **Empty entries in a list** (`?tags=&tags=vue`) are dropped and reported as `empty`.
+- **Order within a list is preserved** exactly as it appeared in the query.
+- **A list default of `[]`** is compared by encoded form, so it is correctly omitted.

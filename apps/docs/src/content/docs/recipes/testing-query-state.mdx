@@ -1,0 +1,179 @@
+---
+title: Testing query state
+description: Test models as pure functions and runtimes against the memory adapter — no browser required.
+integration:
+  kind: runtime
+  context: testing
+  concept: testing
+---
+
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+Query state is unusually testable in QueryWeave, because the parts that decide meaning are pure and
+the part that touches an environment is swappable.
+
+## Test the model as a function
+
+No adapter, no runtime, no DOM:
+
+```ts
+import { expect, test } from "vitest";
+
+import { products } from "../shared/products";
+
+test("page recovers to its default when out of range", () => {
+  const result = products.decode("?page=0");
+
+  expect(result.ok).toBe(true);
+  expect(result.ok && result.value.page).toBe(1);
+  expect(result.issues.map((issue) => issue.code)).toStrictEqual(["out_of_range"]);
+});
+
+test("defaults are omitted from canonical output", () => {
+  expect(products.encode({ search: undefined, page: 1, status: "all" })).toStrictEqual([]);
+});
+```
+
+These are the tests worth writing most often. They are fast, they need no setup, and they assert
+the thing that actually varies: what a URL means.
+
+## Test round-tripping
+
+For any custom codec, assert the property that makes canonical URLs work:
+
+```ts
+test("a decoded value encodes back to the same input", () => {
+  const decoded = products.decode("?search=vue&page=2");
+
+  expect(decoded.ok).toBe(true);
+  if (decoded.ok) {
+    expect(products.encode(decoded.value)).toStrictEqual([
+      ["search", "vue"],
+      ["page", "2"],
+    ]);
+  }
+});
+```
+
+## Test the runtime with the memory adapter
+
+```ts
+import { createQueryRuntime } from "@queryweave/core";
+import { createMemoryQueryAdapter } from "@queryweave/testing";
+
+test("changing the search resets the page in one entry", async () => {
+  const adapter = createMemoryQueryAdapter({ initial: "?search=nuxt&page=4" });
+  const runtime = createQueryRuntime({ model: products, adapter });
+
+  await runtime.transaction((draft) => {
+    draft.search = "vue";
+    draft.page = 1;
+  });
+
+  expect(adapter.current()).toBe("search=vue");
+  expect(adapter.canGoBack()).toBe(true);
+});
+```
+
+`adapter.current()` gives you the query as a string, so assertions read like the URL.
+
+## Test history semantics
+
+```ts
+test("replace does not add a history entry", async () => {
+  const adapter = createMemoryQueryAdapter();
+  const runtime = createQueryRuntime({ model: products, adapter });
+
+  await runtime.update({ page: 2 });
+  await runtime.update({ page: 3 }, { navigation: "replace" });
+
+  adapter.back();
+  expect(runtime.read().values.page).toBe(1);
+  expect(adapter.canGoBack()).toBe(false);
+});
+```
+
+## Test notifications
+
+The single-notification rule is worth asserting whenever you write a subscriber:
+
+```ts
+test("one transaction notifies once", async () => {
+  const adapter = createMemoryQueryAdapter();
+  const runtime = createQueryRuntime({ model: products, adapter });
+  const seen: string[] = [];
+
+  runtime.subscribe((snapshot) => {
+    seen.push(snapshot.values.search ?? "");
+  });
+
+  await runtime.transaction((draft) => {
+    draft.search = "vue";
+    draft.page = 1;
+  });
+
+  expect(seen).toStrictEqual(["vue"]);
+});
+```
+
+## Test a Vue component
+
+Provide the memory adapter in a parent, then mount normally:
+
+```ts
+import { createMemoryQueryAdapter } from "@queryweave/testing";
+import { provideQueryAdapter } from "@queryweave/vue";
+import { mount } from "@vue/test-utils";
+import { defineComponent, h } from "vue";
+
+const adapter = createMemoryQueryAdapter({ initial: "?page=2" });
+
+const Host = defineComponent({
+  setup() {
+    provideQueryAdapter(adapter);
+    return () => h(ProductList);
+  },
+});
+
+const wrapper = mount(Host);
+```
+
+The binding does not care which adapter it received, so a component test never needs a router or a
+browser. Passing `{ adapter }` directly to `useQueryModel` works too.
+
+## Test the server path
+
+`readUrlQuery` accepts a string, so no server is required:
+
+```ts
+import { readUrlQuery } from "@queryweave/server";
+
+test("a stale sort recovers", () => {
+  const result = readUrlQuery("/products?sort=colour", products);
+
+  expect(result.ok && result.value.sort).toBe("created_at");
+  expect(result.issues[0]?.code).toBe("unknown_choice");
+});
+```
+
+<Aside type="tip" title="Assert on codes, not on messages">
+  Issue codes are stable API; messages are prose and may be reworded. Tests that match on message
+  text break for reasons that are not regressions.
+</Aside>
+
+## When you do need a real browser
+
+Only for behavior the History API itself owns: that `popstate` fires, that path and hash survive,
+that a real back button produces one notification. QueryWeave tests those in real Chromium through
+Vitest Browser Mode and everything else against the memory adapter — a reasonable split for an
+application too.
+
+## What QueryWeave's own suite does
+
+Twelve Vitest projects, one per boundary, plus a Playwright suite and seven consumer fixtures that
+install packed archives into clean projects outside the workspace. The
+[architecture page](/project/architecture/) describes the three repository checks that sit outside
+the test suite.
+
+<IntegrationNav />
