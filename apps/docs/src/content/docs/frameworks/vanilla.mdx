@@ -1,0 +1,129 @@
+---
+title: Vanilla TypeScript
+description: The runtime on its own, with no framework anywhere in the dependency graph.
+integration:
+  kind: framework
+  context: vanilla
+  concept: overview
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+
+<IntegrationHeader context="vanilla" />
+
+This is not a fallback. It is the baseline every other integration is built on: a model, an adapter,
+a runtime, and a render function you write yourself.
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/browser
+```
+
+## Example
+
+```ts title="filters.ts"
+import { createBrowserAdapter } from "@queryweave/browser";
+import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
+
+const products = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+  status: param.choice(["all", "active", "archived"]).default("all"),
+});
+
+const runtime = createQueryRuntime({
+  model: products,
+  adapter: createBrowserAdapter(),
+});
+
+const searchInput = document.querySelector<HTMLInputElement>("#search");
+const results = document.querySelector<HTMLElement>("#results");
+
+function render(values: ReturnType<typeof runtime.read>["values"]): void {
+  if (searchInput !== null && searchInput.value !== (values.search ?? "")) {
+    searchInput.value = values.search ?? "";
+  }
+  if (results !== null) {
+    results.textContent = `Page ${String(values.page)} · ${values.status}`;
+  }
+}
+
+runtime.subscribe((snapshot) => {
+  render(snapshot.values);
+});
+
+render(runtime.read().values);
+
+searchInput?.addEventListener("input", () => {
+  void runtime.update({ search: searchInput.value || undefined }, { navigation: "replace" });
+});
+```
+
+Three details are worth naming:
+
+- **Render on subscribe _and_ once immediately.** Subscribing does not deliver the current state;
+  it delivers changes. Read once to paint the first frame.
+- **Guard the input assignment.** Writing the same value back into a focused field moves the
+  caret. Compare first.
+- **`|| undefined` clears the key.** An empty string would produce `?search=` and an `empty` issue;
+  `undefined` omits it. See [defaults and absence](/concepts/defaults-and-absence/).
+
+## Reacting to the back button
+
+Nothing extra is needed. The adapter listens for `popstate`, and your subscriber receives the same
+snapshot it would after a programmatic transition.
+
+<BrowserQuerySimulator
+  preset="filters"
+  adapter="browser"
+  caption="No framework is involved here either — the simulator on this page is plain TypeScript over the same runtime."
+/>
+
+## Debouncing
+
+The runtime applies every transition immediately. For a search field, that is one history entry per
+keystroke unless you either use `navigation: "replace"` or debounce:
+
+```ts
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+searchInput?.addEventListener("input", () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    void runtime.update({ search: searchInput.value || undefined });
+  }, 200);
+});
+```
+
+Scheduling inside the runtime is [planned](/project/roadmap/) and deliberately absent today, so this
+stays your decision.
+
+## Cleanup
+
+```ts
+const unsubscribe = runtime.subscribe(handler);
+
+// later
+unsubscribe();
+runtime.dispose();
+```
+
+In a page-lifetime application you can skip this. In anything that mounts and unmounts, do not.
+
+## Server rendering without a framework
+
+The same model reads the request:
+
+```ts
+import { readRequestQuery } from "@queryweave/server";
+
+const result = readRequestQuery(request, products);
+```
+
+The client then creates its runtime and immediately reads the same URL, so the first client render
+matches what the server produced — no state transfer required, because the URL _is_ the transfer.
+
+<IntegrationNav />

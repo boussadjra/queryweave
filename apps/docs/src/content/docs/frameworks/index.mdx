@@ -1,0 +1,64 @@
+---
+title: Frameworks
+description: QueryWeave's framework integrations are bindings over one shared runtime, not separate implementations.
+---
+
+import ContextCards from "../../../components/ContextCards.astro";
+import QueryFlow from "../../../components/QueryFlow.astro";
+
+Every integration on this page is a binding. None of them re-implements decoding, encoding,
+defaults, or transitions — they all drive the same `@queryweave/core` runtime, and they can all be
+removed without changing what a query means.
+
+## The relationship
+
+<QueryFlow
+  stages={[
+    { label: "Query model", value: "@queryweave/core", kind: "input" },
+    { label: "Query runtime", kind: "operation" },
+    { label: "Adapter", value: "browser · router · memory", kind: "state" },
+    { label: "Binding", kind: "operation" },
+    { label: "Your components", kind: "output" },
+  ]}
+  caption="A framework enters at the last two stages. Everything before them is identical in a plain TypeScript application."
+/>
+
+Read that from the left: you can stop after any stage. A server stops at the model. A vanilla
+client stops at the runtime. A Vue application takes one more step, and that step adds reactivity —
+nothing else.
+
+## The integrations
+
+<ContextCards kind="framework" />
+
+## Which one do you need?
+
+- **No framework?** [Vanilla TypeScript](/frameworks/vanilla/). This is the baseline, and it is a
+  complete story on its own.
+- **Vue, no router?** [Vue](/frameworks/vue/) with the [browser adapter](/adapters/browser/).
+- **Vue with Vue Router?** [Vue Router](/frameworks/vue-router/) supplies the adapter;
+  [Vue](/frameworks/vue/) supplies the binding. They are separate packages because the adapter is
+  useful without the binding.
+- **Nuxt?** [Nuxt](/frameworks/nuxt/) wires both, per request.
+
+## What a binding is allowed to add
+
+Only what the framework itself requires:
+
+- a reactive view of the values,
+- lifecycle-aware cleanup,
+- an idiomatic way to connect a value to an input.
+
+A binding may not add a second way to decode, a different default rule, or its own navigation
+policy. If you can observe a behavioral difference between `useQueryModel(model)` and
+`createQueryRuntime({ model, adapter })`, that is a bug.
+
+## Adding a new framework
+
+The core contracts were designed to be implemented from outside. An adapter is four methods, and a
+binding is a thin layer over `QueryBinding`. See
+[writing an adapter](/adapters/writing-an-adapter/) for the rules, and the
+[architecture page](/project/architecture/) for the dependency direction to preserve.
+
+Additional framework adapters are on the [roadmap](/project/roadmap/) as work designed against
+these contracts rather than as a rewrite of them.

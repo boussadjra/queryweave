@@ -1,0 +1,168 @@
+---
+title: Vue
+description: Vue-native reactive bindings for QueryWeave models, with readonly values and explicit operations.
+integration:
+  kind: framework
+  context: vue
+  concept: overview
+---
+
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="vue" />
+
+`useQueryModel` binds one model to Vue reactivity. It adds reactivity and lifecycle cleanup. It
+does not add a second way to decode, a different default rule, or a navigation policy of its own.
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/vue
+```
+
+Vue is a peer dependency. This package does not depend on Vue Router, on Nuxt, or on browser
+globals.
+
+## Example
+
+```vue
+<script setup lang="ts">
+import { createBrowserAdapter } from "@queryweave/browser";
+import { defineQueryModel, param } from "@queryweave/core";
+import { provideQueryAdapter, useQueryModel } from "@queryweave/vue";
+
+const products = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+});
+
+provideQueryAdapter(createBrowserAdapter());
+
+const filters = useQueryModel(products);
+const search = filters.field("search", { navigation: "replace" });
+</script>
+
+<template>
+  <input v-model="search" type="search" />
+
+  <p>Page {{ filters.values.page }}</p>
+  <button @click="filters.update({ page: filters.values.page + 1 })">Next</button>
+
+  <ul v-if="filters.status === 'invalid'">
+    <li v-for="issue in filters.issues" :key="issue.key">{{ issue.message }}</li>
+  </ul>
+</template>
+```
+
+## Supplying the adapter
+
+Three ways, in order of preference:
+
+```ts
+// 1. Provide once, high in the tree. Every binding below finds it.
+provideQueryAdapter(createBrowserAdapter());
+const filters = useQueryModel(products);
+
+// 2. Pass one directly.
+const filters = useQueryModel(products, { adapter });
+
+// 3. Reuse a runtime you already own.
+const filters = useQueryModel(products, { runtime });
+```
+
+If none of the three is available, `useQueryModel` throws with a message naming all three. It never
+silently falls back to a global.
+
+## The binding
+
+```ts
+const filters = useQueryModel(products);
+
+filters.values; // readonly reactive state
+filters.status; // "valid" | "invalid"
+filters.issues; // readonly QueryIssue[]
+filters.runtime; // the underlying QueryRuntime
+
+await filters.update({ page: 2 });
+await filters.replace(next);
+await filters.remove(["search"]);
+await filters.reset();
+await filters.transaction((draft) => {
+  draft.search = "vue";
+  draft.page = 1;
+});
+```
+
+The operations are the runtime's, with the binding's default navigation applied.
+
+<Aside type="caution" title="values, status, and issues are plain properties">
+They are not refs, so templates read `filters.values.page` directly without `.value`. In a watcher
+you therefore need a getter:
+
+```ts
+watch(
+  () => filters.status,
+  (status) => {
+    /* ... */
+  },
+);
+```
+
+Watching `filters.status` directly watches a static value and will never fire.
+
+</Aside>
+
+## Field bindings
+
+`field` returns a writable computed for one key — a `v-model` target:
+
+```ts
+const search = filters.field("search", { navigation: "replace" });
+const page = filters.field("page");
+```
+
+Reading it reads the current value. Writing it runs `update` for that key with the navigation mode
+you gave. This is the only place mutation-shaped syntax exists, and it is still one named operation
+underneath.
+
+There is deliberately no per-key hook and no tuple setter. One model produces one binding; see
+[ADR 0006](https://github.com/queryweave/queryweave/blob/main/docs/adr/0006-vue-binding-shape.md).
+
+## Why values are readonly
+
+`filters.values` is `readonly(reactive(...))`. Direct assignment is rejected, so there is exactly
+one path from a user action to a URL change, and it is greppable. Every change goes through a named
+operation.
+
+## Lifecycle
+
+When called inside a component or an effect scope, the binding registers `onScopeDispose` to
+unsubscribe — and to dispose the runtime if it created one. A binding given an existing `runtime`
+never disposes it, because it does not own it.
+
+Outside a scope, nothing is registered automatically; hold `filters.runtime` and dispose it
+yourself.
+
+## Server rendering
+
+`@queryweave/vue` never touches browser globals, so it is safe to import during server rendering.
+What is _not_ safe is creating a browser adapter there — see [Nuxt](/frameworks/nuxt/) for
+request-scoped wiring, or provide a source-backed adapter of your own.
+
+## Edge cases
+
+- **Two bindings on the same model** each create their own runtime unless you pass one. They stay
+  consistent because both read the same adapter, but they are two subscriptions.
+- **`field` on a required key** returns the decoded value, which may be a recovered default when
+  the query is invalid.
+- **Reassigning `filters.values`** is a type error, and at runtime a no-op with a Vue warning.
+
+## How it is tested
+
+The `vue` Vitest project mounts real components against the memory adapter and asserts reactivity,
+field bindings, issue propagation, and scope cleanup. The `vue` consumer fixture type-checks the
+published archive against a Vue application outside the workspace.
+
+<IntegrationNav />

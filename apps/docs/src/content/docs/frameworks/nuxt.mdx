@@ -1,0 +1,150 @@
+---
+title: Nuxt
+description: A Nuxt module plus a request-scoped runtime plugin, safe for server rendering.
+integration:
+  kind: framework
+  context: nuxt
+  concept: overview
+---
+
+import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.astro";
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="nuxt" />
+
+The Nuxt package does two separable things: it configures your application at build time, and it
+creates one adapter per Vue application instance at runtime. Those live in different entry points
+because they run at different times.
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/vue @queryweave/nuxt
+```
+
+```ts title="nuxt.config.ts"
+export default defineNuxtConfig({
+  modules: ["@queryweave/nuxt"],
+});
+```
+
+Requires Nuxt 4.
+
+## Example
+
+```vue title="app/pages/products.vue"
+<script setup lang="ts">
+import { defineQueryModel, param } from "@queryweave/core";
+
+const products = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+});
+
+// useQueryModel is auto-imported by the module.
+const filters = useQueryModel(products);
+const search = filters.field("search", { navigation: "replace" });
+</script>
+
+<template>
+  <input v-model="search" type="search" />
+  <p>Page {{ filters.values.page }}</p>
+</template>
+```
+
+No adapter is provided by hand. The module registers a plugin that installs one for you, and the
+Vue binding finds it through injection.
+
+## Module options
+
+```ts title="nuxt.config.ts"
+export default defineNuxtConfig({
+  modules: ["@queryweave/nuxt"],
+  queryweave: {
+    autoImports: true, // register useQueryModel and provideQueryAdapter — default true
+    enabled: true, // register the runtime plugin at all — default true
+  },
+});
+```
+
+Setting `enabled: false` disables the module entirely, which is useful when you want to install an
+adapter yourself.
+
+## Request scoping
+
+This is the part that matters for server rendering.
+
+Nuxt creates a fresh Vue application for every server-rendered request. The QueryWeave plugin
+creates its adapter inside that application's setup and installs it on that instance:
+
+```ts
+// packages/nuxt/src/runtime/plugin.ts, in essence
+const adapter = createNuxtQueryAdapter(nuxtApp.$router);
+installQueryAdapter(nuxtApp.vueApp, adapter);
+```
+
+Nothing is stored at module scope. A server handling two requests concurrently therefore has two
+adapters, each bound to its own router, and neither can observe the other.
+
+<Aside type="caution" title="Why module-scope state would break">
+  A module-level `let adapter` is initialized once per process, not once per request. Under
+  concurrent server rendering the second request would read the first request's query — a data leak
+  that only appears under load. The repository's Nuxt consumer fixture asserts request isolation by
+  rendering two different URLs concurrently and comparing the output.
+</Aside>
+
+## SSR and hydration
+
+The adapter is backed by Vue Router, which Nuxt initializes from the request URL on the server and
+from `location` on the client. Both sides therefore decode the same query with the same model, and
+the first client render matches the server's.
+
+There is no state-transfer payload for query state, and none is needed: the URL is the transfer.
+
+<BrowserQuerySimulator
+  preset="filters"
+  adapter="nuxt"
+  caption="Nuxt mode names the three parts that make hydration safe: the SSR initial query, the Vue Router runtime, and per-request state."
+/>
+
+## Runtime exports
+
+For applications that want to wire things themselves:
+
+```ts
+import { createNuxtQueryAdapter, installQueryAdapter } from "@queryweave/nuxt/runtime";
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const adapter = createNuxtQueryAdapter(nuxtApp.$router as Router);
+  installQueryAdapter(nuxtApp.vueApp, adapter);
+});
+```
+
+`installQueryAdapter` accepts any `QueryAdapter`, so an application can substitute its own — a
+memory adapter in a test, for example — without leaving the module.
+
+The plugin also exposes the adapter as `$queryWeaveAdapter` on the Nuxt app, for code that needs it
+outside a component.
+
+## Edge cases
+
+- **`useQueryModel` outside a component** cannot use injection. Pass an adapter or a runtime
+  explicitly.
+- **Static generation** decodes the query at request time in the browser; a pre-rendered page has
+  no query of its own.
+- **Disabling auto-imports** means importing `useQueryModel` from `@queryweave/vue` yourself; the
+  behavior is identical.
+- **`isolatedDeclarations` is off for this package alone**, because the Nuxt module type cannot be
+  expressed without it. This is recorded in
+  [ADR 0007](https://github.com/queryweave/queryweave/blob/main/docs/adr/0007-api-consistency-and-packaging.md).
+
+## How it is tested
+
+`tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup and plugin
+registration. The stronger check is the `nuxt` consumer fixture, which installs the packed archive
+into a clean project, builds it, server-renders two concurrent requests with different queries,
+asserts they do not leak into each other, and then hydrates.
+
+<IntegrationNav />

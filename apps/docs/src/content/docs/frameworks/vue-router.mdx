@@ -1,0 +1,119 @@
+---
+title: Vue Router
+description: Turn a Vue Router instance into a QueryWeave adapter, preserving path and hash.
+integration:
+  kind: framework
+  context: vue-router
+  concept: runtime
+---
+
+import AdapterDiagram from "../../../components/AdapterDiagram.astro";
+import IntegrationHeader from "../../../components/IntegrationHeader.astro";
+import IntegrationNav from "../../../components/IntegrationNav.astro";
+import { Aside } from "@astrojs/starlight/components";
+
+<IntegrationHeader context="vue-router" />
+
+This package produces an adapter and nothing else. It depends on `@queryweave/core` alone — not on
+`@queryweave/vue` — so router synchronization can be adopted without the Vue binding.
+
+## What it owns
+
+- Reading `route.query` and converting it to entries, preserving repeated keys.
+- Navigating with `router.push` and `router.replace`, keeping the current path and hash.
+- Watching `route.fullPath` and reporting changes.
+- Reporting navigation failures instead of throwing.
+
+## What it does not own
+
+Decoding, validation, defaults, and the Vue binding. Those belong to the model and to
+[`@queryweave/vue`](/frameworks/vue/).
+
+<AdapterDiagram
+  mode="adapter"
+  environment="Vue Router"
+  caption="The router owns navigation. QueryWeave owns meaning. The adapter is the seam."
+/>
+
+## Install
+
+```sh
+pnpm add @queryweave/core @queryweave/vue-router
+```
+
+## Example
+
+```ts
+import { createVueRouterAdapter } from "@queryweave/vue-router";
+import { provideQueryAdapter } from "@queryweave/vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+const adapter = createVueRouterAdapter(router);
+
+provideQueryAdapter(adapter);
+```
+
+Without the Vue binding, drive it directly:
+
+```ts
+import { createQueryRuntime } from "@queryweave/core";
+
+const runtime = createQueryRuntime({
+  model: products,
+  adapter: createVueRouterAdapter(router),
+});
+```
+
+## Handling refused navigation
+
+Router navigation can be cancelled by a guard or redirected. That is an environment condition, not
+a programming error, so the adapter reports it rather than throwing into your transition:
+
+```ts
+const adapter = createVueRouterAdapter(router, {
+  onNavigationFailure: (outcome) => {
+    if (!outcome.ok) {
+      console.warn("Query navigation was refused", outcome.failure);
+    }
+  },
+});
+```
+
+`outcome.failure` is Vue Router's own `NavigationFailure`, or an `Error` if the router threw.
+
+<Aside type="caution" title="A refused navigation still resolves the transition">
+  `await runtime.update(...)` resolves normally when the router refuses, because the transition did
+  what it was asked to do — the environment declined. If a refusal must change your control flow,
+  observe it through `onNavigationFailure` and act there.
+</Aside>
+
+## Which adapter should you use?
+
+If your application already has Vue Router, use this one rather than
+[`@queryweave/browser`](/adapters/browser/). Two writers on one history stack — the router and the
+History API — will fight, and the router will not know about writes it did not make.
+
+| Situation                       | Adapter                                          |
+| ------------------------------- | ------------------------------------------------ |
+| Vue Router present              | `@queryweave/vue-router`                         |
+| Vue without a router            | `@queryweave/browser`                            |
+| Nuxt                            | [Nuxt](/frameworks/nuxt/) wires this one for you |
+| Tests, or no environment at all | `@queryweave/testing`                            |
+
+## Edge cases
+
+- **Path and hash survive** every transition; only the query is rewritten.
+- **A `null` query value** — Vue Router's representation of `?flag` — becomes an empty string entry.
+- **Repeated keys** round-trip through the router's array form.
+- **Notification comes from the route watcher**, not from `push`, because the router already
+  reports its own changes. This is why one transition still produces exactly one notification.
+- **After `dispose`**, the watcher stops and later navigation throws.
+
+## How it is tested
+
+`tests/vue-router/adapter.test.ts` drives a real router through push, replace, guard-refused
+navigation, and repeated keys. The `vue-router` consumer fixture runs the packed archive against a
+router outside the workspace.
+
+<IntegrationNav />
