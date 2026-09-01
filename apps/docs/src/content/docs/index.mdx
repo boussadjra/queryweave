@@ -60,9 +60,9 @@ if (result.ok) {
 
 </FeatureStep>
 
-<FeatureStep index="03" title="Synchronize through adapters">
+<FeatureStep index="03" title="Connect an adapter">
 
-A runtime connects your model to a specific environment. The adapter handles navigation and reports
+A runtime wires your model to a specific environment. The adapter handles navigation and reports
 URL changes. Validation stays in the model, not the adapter.
 
 ```ts
@@ -101,9 +101,8 @@ const filters = useQueryModel(products);
 
 ## One engine, many environments
 
-QueryWeave keeps model logic separate from environment code. The model defines parameters,
-defaults, validation, and canonical encoding. Adapters handle where the query lives and how
-navigation works.
+The model defines parameters, defaults, validation, and canonical encoding. Adapters handle where
+the query lives and how navigation works. You pick the adapter; the model stays the same.
 
 <ArchitectureMap />
 

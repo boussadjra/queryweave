@@ -7,9 +7,9 @@ import QueryFlow from "../../../components/QueryFlow.astro";
 import { currentPackageVersion } from "../../../data/release";
 import { Aside } from "@astrojs/starlight/components";
 
-QueryWeave is a framework-independent, type-safe URL state engine. It gives one description of what
-a query means, and reuses that description everywhere the query travels: a browser history stack, an
-incoming request, a router, a test.
+QueryWeave is a framework-independent, type-safe URL state engine. You define your query parameters
+once and reuse that definition everywhere the query appears: in the browser, on the server, in a
+router, or in a test.
 
 ## The problem
 
@@ -28,8 +28,8 @@ differently. Nothing is broken enough to fail loudly, and everything is slightly
 
 ## What QueryWeave does
 
-A **query model** describes a complete query state once. Every parameter in it owns both directions
-of translation, so decoding and encoding cannot drift apart.
+A **query model** describes your query parameters once. Each parameter defines how to decode and
+encode its value, so parsing and serialization cannot drift apart.
 
 ```ts
 import { defineQueryModel, param } from "@queryweave/core";
@@ -41,11 +41,11 @@ const products = defineQueryModel({
 });
 ```
 
-That model is a value. It has no environment, no reactivity, and no navigation policy. It can be
-decoded on a server, encoded into a link, bound to a component, or asserted against in a test —
-without changing.
+That model is a plain value. It has no environment, no reactivity, and no navigation policy. Decode
+it on a server, encode it into a link, bind it to a component, or assert against it in a test — the
+model itself does not change.
 
-<QueryFlow caption="One model, both directions. Decoding recovers typed state and reports issues; encoding produces one canonical form." />
+<QueryFlow caption="The same model decodes a query string into typed values (with issues for invalid input) and encodes typed values back into a canonical query string." />
 
 ## What QueryWeave guarantees
 
