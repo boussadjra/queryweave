@@ -85,18 +85,6 @@ onBeforeUnmount(() => {
     0 8px 20px -16px rgb(0 0 0 / 45%);
 }
 
-/* The tone reads as a segment of the path running through the card, not as a decorative stripe. */
-.card::before {
-  content: "";
-  position: absolute;
-  inset-block: -1px;
-  inset-inline-start: -1px;
-  width: 3px;
-  border-start-start-radius: var(--qw-radius);
-  border-end-start-radius: var(--qw-radius);
-  background: var(--tone);
-}
-
 .label {
   color: var(--qw-heading);
   font-size: var(--qw-text-small);
