@@ -1,6 +1,6 @@
 ---
 title: QueryWeave
-description: QueryWeave is a framework-independent, type-safe URL state engine for browsers, servers, Node.js, and modern frontend frameworks.
+description: A framework-independent, type-safe URL state engine for browsers, servers, Node.js, Vue, and Nuxt.
 template: splash
 tableOfContents: false
 editUrl: false
@@ -26,8 +26,8 @@ import { currentPackageVersion } from "../../data/release";
 
 <FeatureStep index="01" title="Model your URL state">
 
-A model names every parameter the URL is allowed to carry, and each parameter owns both directions
-of translation. There is no separate parser to keep in step with a separate serializer.
+Define the query parameters your page accepts. Each one describes how to decode and encode its
+value, so you never maintain a separate parser and serializer.
 
 ```ts
 import { defineQueryModel, param } from "@queryweave/core";
@@ -43,8 +43,9 @@ const products = defineQueryModel({
 
 <FeatureStep index="02" title="Decode into real types">
 
-Decoding produces a result, not an exception. `page` is a number, an out-of-range value recovers to
-its declared default, and the problem is reported rather than hidden.
+Call `decode()` with a query string and you get typed values back. `page` is a number here, not
+the string `"2"`. An invalid value recovers to its default and is reported as an issue — it never
+throws and never disappears silently.
 
 ```ts
 const result = products.decode("?search=vue&page=2");
@@ -61,8 +62,8 @@ if (result.ok) {
 
 <FeatureStep index="03" title="Synchronize through adapters">
 
-A runtime binds one model to one environment. The adapter moves canonical output into that
-environment and reports changes back; it never decodes, validates, or applies defaults.
+A runtime connects your model to a specific environment. The adapter handles navigation and reports
+URL changes. Validation stays in the model, not the adapter.
 
 ```ts
 import { createBrowserAdapter } from "@queryweave/browser";
@@ -81,8 +82,8 @@ await runtime.update({ page: 2 }, { navigation: "replace" });
 
 <FeatureStep index="04" title="Reuse it everywhere">
 
-The same model reads a server request, drives a browser history stack, and backs a Vue component.
-Nothing about it is framework-shaped, so nothing has to be rewritten at a runtime boundary.
+Use the same model on the server, in the browser, and in Vue. The model has no framework
+dependencies, so you define it once and import it wherever the query appears.
 
 ```ts
 // A request, on any web-standard runtime.
@@ -100,17 +101,19 @@ const filters = useQueryModel(products);
 
 ## One engine, many environments
 
-QueryWeave separates what a query _means_ from where it is _stored_. The engine decides parameters,
-defaults, validity, and canonical form. Adapters decide navigation. Neither reaches into the other.
+QueryWeave keeps model logic separate from environment code. The model defines parameters,
+defaults, validation, and canonical encoding. Adapters handle where the query lives and how
+navigation works.
 
-<ArchitectureMap caption="Deep Forest carries the engine, blue the environments, yellow the active transformation, and green a valid decoded state." />
+<ArchitectureMap />
 
 ## The packages
 
 <PackageGrid />
 
 <p class="qw-home-footnote">
-  QueryWeave {currentPackageVersion} is experimental and pre-1.0. The public API is provisional,
-  every breaking change is recorded in an architecture decision record, and the packages are not on
-  npm yet. See the <a href="/project/roadmap/">roadmap</a> for what is deliberately absent.
+  QueryWeave {currentPackageVersion} is experimental and pre-1.0. The public API may change between
+  minor versions, every breaking change is recorded in an architecture decision record, and the
+  packages are not on npm yet. See the <a href="/project/roadmap/">roadmap</a> for what is
+  deliberately absent.
 </p>

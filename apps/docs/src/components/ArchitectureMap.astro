@@ -3,11 +3,11 @@ import type { DiagramEdge, DiagramNode } from "../diagrams/types";
 import DiagramFigure from "./DiagramFigure.astro";
 
 /**
- * How every environment reaches the engine.
+ * The dependency graph implemented by the nine published packages.
  *
- * The figure stays within a documentation column: four stages across, environments stacked on
- * the right. Framework bindings such as Vue Router or Nuxt sit on top of these adapters in
- * their own pages rather than in this map.
+ * This is deliberately a package map rather than a data-flow diagram. QueryFlow explains what
+ * happens to one query, while this figure explains which package owns each responsibility and
+ * which packages build on another package.
  */
 
 interface Props {
@@ -18,85 +18,117 @@ const { caption } = Astro.props;
 
 const nodes: readonly DiagramNode[] = [
   {
-    id: "model",
-    label: "Query Model",
-    note: "parameters, codecs, defaults",
-    tone: "core",
+    id: "nuxt",
+    label: "Nuxt integration",
+    value: "@queryweave/nuxt",
+    note: "Combines Vue bindings with a router adapter for each app",
+    tone: "neutral",
     col: 0,
     row: 0,
-    rowSpan: 3,
+    colSpan: 2,
+    stackOrder: 0,
   },
   {
-    id: "decode",
-    label: "decode",
-    note: "raw query → typed state",
-    tone: "operation",
-    col: 1,
-    row: 0,
-    rowSpan: 2,
-  },
-  {
-    id: "encode",
-    label: "encode",
-    note: "typed state → canonical query",
-    tone: "operation",
-    col: 1,
-    row: 2,
-    rowSpan: 1,
-  },
-  {
-    id: "runtime",
-    label: "Query Runtime",
-    note: "encode once, navigate once, notify once",
-    tone: "core",
+    id: "node",
+    label: "Node request bridge",
+    value: "@queryweave/node",
+    note: "Turns a Node.js request into a URL and reuses server helpers",
+    tone: "environment",
     col: 2,
     row: 0,
-    rowSpan: 3,
+    stackOrder: 3,
   },
   {
-    id: "browser",
-    label: "Browser",
-    note: "History API",
+    id: "vue",
+    label: "Vue bindings",
+    value: "@queryweave/vue",
+    note: "Makes runtime state reactive and exposes named updates",
+    tone: "neutral",
+    col: 0,
+    row: 1,
+    stackOrder: 1,
+  },
+  {
+    id: "vue-router",
+    label: "Vue Router adapter",
+    value: "@queryweave/vue-router",
+    note: "Reads and changes the query through the router",
     tone: "environment",
-    col: 3,
-    row: 0,
+    col: 1,
+    row: 1,
+    stackOrder: 2,
   },
   {
     id: "server",
-    label: "Server",
-    note: "Request and URL",
+    label: "Web server helpers",
+    value: "@queryweave/server",
+    note: "Reads a Request or URL and decodes it with a model",
     tone: "environment",
-    col: 3,
+    col: 2,
     row: 1,
+    stackOrder: 4,
+  },
+  {
+    id: "browser",
+    label: "Browser adapter",
+    value: "@queryweave/browser",
+    note: "Reads and changes the URL with the History API",
+    tone: "environment",
+    col: 0,
+    row: 2,
+    stackOrder: 5,
   },
   {
     id: "testing",
-    label: "Testing",
-    note: "memory stack",
+    label: "Memory adapter",
+    value: "@queryweave/testing",
+    note: "Simulates query navigation in tests",
     tone: "environment",
-    col: 3,
+    col: 1,
     row: 2,
+    stackOrder: 6,
+  },
+  {
+    id: "standard-schema",
+    label: "Validation bridge",
+    value: "@queryweave/standard-schema",
+    note: "Connects Standard Schema validators without choosing a vendor",
+    tone: "operation",
+    col: 2,
+    row: 2,
+    colSpan: 2,
+    stackOrder: 7,
+  },
+  {
+    id: "core",
+    label: "Core engine",
+    value: "@queryweave/core",
+    note: "Defines query rules and owns decoding, encoding, and state updates",
+    tone: "core",
+    col: 0,
+    row: 3,
+    colSpan: 4,
+    stackOrder: 8,
   },
 ];
 
 const edges: readonly DiagramEdge[] = [
-  { from: "model", to: "decode", active: true },
-  { from: "model", to: "encode", active: true },
-  { from: "decode", to: "runtime", tone: "core" },
-  { from: "encode", to: "runtime", tone: "core" },
-  { from: "runtime", to: "browser" },
-  { from: "runtime", to: "server" },
-  { from: "runtime", to: "testing" },
+  { from: "node", to: "server", label: "also uses", hideWhenStacked: true },
+  { from: "nuxt", to: "vue", label: "also uses", hideWhenStacked: true },
+  { from: "nuxt", to: "vue-router", label: "also uses", hideWhenStacked: true },
 ];
+
+const defaultCaption =
+  "The core is the shared foundation for every package. The arrows show the extra package relationships: Node reuses the server helpers, while Nuxt combines the Vue bindings and Vue Router adapter.";
 ---
 
 <DiagramFigure
   nodes={nodes}
   edges={edges}
   orientation="horizontal"
-  unit={148}
-  gapX={36}
-  gapY={16}
-  caption={caption}
-  label="Every environment reaches the engine through the same model and runtime."
+  unit={158}
+  gapX={28}
+  gapY={20}
+  caption={caption ?? defaultCaption}
+  label="QueryWeave package dependency map. Core is the shared foundation. Node builds on the server package. Nuxt builds on the Vue and Vue Router packages."
 />

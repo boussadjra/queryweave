@@ -43,6 +43,8 @@ export interface DiagramNode {
   readonly colSpan?: number | undefined;
   /** Rows the node is centred across. Defaults to 1. */
   readonly rowSpan?: number | undefined;
+  /** Optional reading order after a horizontal graph collapses to one column. */
+  readonly stackOrder?: number | undefined;
 }
 
 /** One connection. Direction is always `from` → `to`. */
@@ -54,6 +56,8 @@ export interface DiagramEdge {
   /** Marks the edge as the one carrying the transformation. */
   readonly active?: boolean | undefined;
   readonly label?: string | undefined;
+  /** Removes a cross-branch connector when a graph collapses to one column. */
+  readonly hideWhenStacked?: boolean | undefined;
 }
 
 /** Every tone's CSS custom property, so one table decides the palette for all diagrams. */

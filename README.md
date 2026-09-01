@@ -1,7 +1,7 @@
 # QueryWeave
 
-> QueryWeave is a framework-independent, type-safe URL state engine with first-class browser,
-> server, Node.js, Vue, Vue Router, and Nuxt integrations.
+> A framework-independent, type-safe URL state engine with packages for the browser, server,
+> Node.js, Vue, Vue Router, and Nuxt.
 
 ## Status
 
@@ -10,17 +10,11 @@
 > between minor versions. Transition scheduling, throttling, coalescing, and cancellation are
 > deliberately absent. Every breaking change is recorded in an ADR and a changeset.
 
-QueryWeave is in **Phase 3: hardening, packaging, and release readiness**. The engine is
-implemented, tested, and validated as published archives: parameters, codecs, models, decode
-results, canonical encoding, runtime transitions, and the browser, server, Node.js, Standard
-Schema, Vue, Vue Router, and Nuxt integrations.
+The engine is implemented, tested, and validated as published archives — parameters, codecs,
+models, decode results, canonical encoding, runtime transitions, and integrations for the browser,
+server, Node.js, Standard Schema, Vue, Vue Router, and Nuxt.
 
-What that means concretely: 302 tests across twelve Vitest projects, real-Chromium browser tests,
-type tests that assert both inference and rejection, coverage thresholds, and seven consumer
-fixtures that install packed archives into clean projects outside the workspace and verify them —
-including a Nuxt fixture that builds, server-renders, isolates concurrent requests, and hydrates.
-
-What it does not mean: a stable API, or a published release.
+Nothing has been published to npm yet, and the API is not stable.
 
 ## A first model
 
@@ -63,41 +57,43 @@ There is no hook per key, no tuple setter, and no direct mutation as the primary
 
 ## Why QueryWeave
 
-URL state crosses more runtime boundaries than a framework-specific helper can model cleanly.
-QueryWeave treats query state as a domain model and keeps synchronization in environment-specific
-adapters:
+URL state shows up in the browser, on the server, in tests, and in shared links. Most codebases
+describe it more than once — a client parser, a server parser, a serializer, defaults repeated in
+each — and those copies drift.
+
+QueryWeave defines query state once in a model and syncs it through adapters:
 
 ```text
-External query input
+Query string
     ↓
 Decode
     ↓
 Validate
     ↓
-Typed application state
+Typed state
     ↓
-State transition
+Update
     ↓
 Canonical encoding
     ↓
-Runtime adapter
+Adapter
 ```
 
-Vue and Nuxt are the first frontend integrations, but neither shapes the core architecture.
+Vue and Nuxt are the first frontend integrations, but neither shapes the core.
 
 ## Packages
 
 | Package                       | Responsibility                                       |
 | ----------------------------- | ---------------------------------------------------- |
-| `@queryweave/core`            | Universal models, codecs, results, and contracts     |
-| `@queryweave/browser`         | Browser History API synchronization                  |
+| `@queryweave/core`            | Models, codecs, decode/encode, and runtime contracts |
+| `@queryweave/browser`         | Browser History API adapter                          |
 | `@queryweave/server`          | Web-standard server helpers                          |
 | `@queryweave/node`            | Node.js request integration                          |
 | `@queryweave/standard-schema` | Standard Schema interoperability                     |
-| `@queryweave/testing`         | Framework-independent test utilities                 |
-| `@queryweave/vue`             | Vue-native readonly bindings                         |
+| `@queryweave/testing`         | Memory adapter and test utilities                    |
+| `@queryweave/vue`             | Vue bindings for query models                        |
 | `@queryweave/vue-router`      | Vue Router adapter                                   |
-| `@queryweave/nuxt`            | Nuxt module-time and per-request runtime integration |
+| `@queryweave/nuxt`            | Nuxt module and per-request runtime                  |
 
 ## Bundle sizes
 

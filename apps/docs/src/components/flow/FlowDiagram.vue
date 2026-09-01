@@ -79,7 +79,12 @@ const layoutNodes = computed(() => {
   if (!stacked.value) {
     return props.nodes;
   }
-  return [...props.nodes].sort((left, right) => left.row - right.row || left.col - right.col);
+  return [...props.nodes].sort(
+    (left, right) =>
+      (left.stackOrder ?? left.row) - (right.stackOrder ?? right.row) ||
+      left.row - right.row ||
+      left.col - right.col,
+  );
 });
 
 interface Placed {
@@ -194,25 +199,27 @@ const flowEdges = computed<Edge[]>(() => {
     return colDelta >= 0 ? { source: "r", target: "l" } : { source: "l", target: "r" };
   };
 
-  return props.edges.map((edge) => {
-    const color = toneColors[edge.tone ?? tones.get(edge.from) ?? "neutral"];
-    const { source, target } = handlesFor(edge.from, edge.to);
-    return {
-      id: `${edge.from}--${edge.to}`,
-      source: edge.from,
-      target: edge.to,
-      sourceHandle: source,
-      targetHandle: target,
-      type: "smoothstep",
-      animated: edge.active === true && !reducedMotion.value,
-      label: edge.label,
-      pathOptions: { borderRadius: 14 },
-      style: { stroke: color, strokeWidth: 1.75 },
-      markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
-      labelBgStyle: { fill: "var(--qw-panel)" },
-      labelStyle: { fill: "var(--qw-muted)", fontSize: "11px" },
-    } satisfies Edge;
-  });
+  return props.edges
+    .filter((edge) => !(stacked.value && edge.hideWhenStacked === true))
+    .map((edge) => {
+      const color = toneColors[edge.tone ?? tones.get(edge.from) ?? "neutral"];
+      const { source, target } = handlesFor(edge.from, edge.to);
+      return {
+        id: `${edge.from}--${edge.to}`,
+        source: edge.from,
+        target: edge.to,
+        sourceHandle: source,
+        targetHandle: target,
+        type: "smoothstep",
+        animated: edge.active === true && !reducedMotion.value,
+        label: edge.label,
+        pathOptions: { borderRadius: 14 },
+        style: { stroke: color, strokeWidth: 1.75 },
+        markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
+        labelBgStyle: { fill: "var(--qw-panel)" },
+        labelStyle: { fill: "var(--qw-muted)", fontSize: "11px" },
+      } satisfies Edge;
+    });
 });
 
 /**
