@@ -20,6 +20,7 @@
     "@queryweave/testing": "workspace:*",
     "@vue-flow/core": "catalog:documentation",
     "astro": "catalog:documentation",
+    "astro-expressive-code": "catalog:documentation",
     "vue": "catalog:vue"
   },
   "devDependencies": {

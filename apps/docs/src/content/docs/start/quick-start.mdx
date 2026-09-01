@@ -24,22 +24,28 @@ Five steps, none of which mention a framework until the last one.
    });
    ```
 
-   `search` may be absent. The other three always have a value, because a default makes a
-   parameter total.
+   `search` is optional: when its key is absent, the decoded value is `undefined`. The other three
+   have defaults, so they always decode to a concrete value even when the key is missing from the
+   URL.
 
 2. ### Decode a URL
 
    ```ts
    const result = products.decode("?search=vue&page=2");
 
-   if (result.ok) {
-     result.value.page; // 2 — a number, not a string
-     result.value.sort; // "created_at" — the declared default
-   }
+   result.ok; // true for this input
+   result.value;
+   // {
+   //   search: "vue",        — from the URL
+   //   page: 2,              — from the URL, typed as number
+   //   sort: "created_at",   — not in the URL; the default fills it in
+   //   status: "all",        — same
+   // }
    ```
 
-   `decode` accepts a query string, an iterable of entries (which includes `URLSearchParams`), or a
-   plain object. It never throws.
+   `decode` returns **complete** typed state: every key in the model, with defaults used when a key
+   is missing from the URL. It accepts a query string, an iterable of entries (including
+   `URLSearchParams`), or a plain object, and it never throws.
 
 3. ### Handle what did not decode
 

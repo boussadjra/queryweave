@@ -1,0 +1,27 @@
+---
+import { Code } from "astro-expressive-code/components";
+
+/**
+ * Syntax-highlighted code for custom Astro components.
+ *
+ * MDX fences get Expressive Code automatically; components that render code as strings need this
+ * wrapper so install commands and examples match the rest of the site.
+ */
+
+interface Props {
+  readonly code: string;
+  readonly lang: string;
+}
+
+const { code, lang } = Astro.props;
+---
+
+<div class="highlighted-code">
+  <Code code={code.trim()} lang={lang} />
+</div>
+
+<style>
+  .highlighted-code :global(.expressive-code) {
+    margin: 0;
+  }
+</style>

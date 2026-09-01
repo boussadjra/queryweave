@@ -49,6 +49,7 @@ catalogs:
     "@astrojs/vue": 7.0.2
     "@vue-flow/core": 1.48.2
     astro: 7.2.0
+    astro-expressive-code: 0.44.1
     sharp: 0.35.3
 
 autoInstallPeers: false

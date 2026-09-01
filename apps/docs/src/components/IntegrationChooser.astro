@@ -1,5 +1,7 @@
 ---
 import { findContext, type DocsContext } from "../data/docs-contexts";
+import HighlightedCode from "./HighlightedCode.astro";
+import PackageBadge from "./PackageBadge.astro";
 
 /**
  * "Where are you using QueryWeave?"
@@ -109,22 +111,32 @@ const options = order
           <h3>{option.context.label}</h3>
           <p class="summary">{option.context.summary}</p>
 
-          <dl>
-            <div>
-              <dt>Package</dt>
-              <dd class="mono">{option.context.packageName}</dd>
-            </div>
-            <div>
-              <dt>Install</dt>
-              <dd class="mono">{option.context.install}</dd>
-            </div>
-          </dl>
+          <div class="meta">
+            {
+              option.context.packageName !== undefined && (
+                <div class="meta-row">
+                  <span class="meta-label">Package</span>
+                  <PackageBadge tone="package">{option.context.packageName}</PackageBadge>
+                </div>
+              )
+            }
+            {
+              option.context.install !== undefined && (
+                <div class="meta-row">
+                  <span class="meta-label">Install</span>
+                  <HighlightedCode code={option.context.install} lang="bash" />
+                </div>
+              )
+            }
+          </div>
 
-          {option.example !== undefined && (
-            <pre class={`language-${option.example.language}`}>
-              <code>{option.example.code}</code>
-            </pre>
-          )}
+          {
+            option.example !== undefined && (
+              <div class="example">
+                <HighlightedCode code={option.example.code} lang={option.example.language} />
+              </div>
+            )
+          }
 
           <a class="qw-btn qw-btn--secondary" href={option.context.basePath}>
             Read the {option.context.label} guide
@@ -291,44 +303,33 @@ const options = order
     font-size: var(--qw-text-small);
   }
 
-  dl {
-    display: grid;
-    gap: 0.75rem 1.5rem;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     margin: 1rem 0;
   }
 
-  dt {
+  .meta-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .meta-label {
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  dd {
-    margin: 0.15rem 0 0;
-    font-size: var(--qw-text-small);
-    overflow-wrap: anywhere;
-  }
-
-  dd.mono {
-    font-family: var(--qw-font-mono);
-  }
-
-  pre {
-    border: 1px solid var(--qw-code-border);
-    border-radius: var(--qw-radius);
-    background: var(--qw-code-surface);
-    padding: 0.85rem 1rem;
+  .example {
     margin: 0 0 1.1rem;
-    overflow-x: auto;
+    min-width: 0;
   }
 
-  code {
-    color: var(--qw-body);
-    font-family: var(--qw-font-mono);
-    font-size: 0.8125rem;
-    line-height: 1.6;
-    white-space: pre;
+  .example :global(.highlighted-code) {
+    margin: 0;
   }
 </style>

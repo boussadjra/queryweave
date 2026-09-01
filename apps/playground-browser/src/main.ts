@@ -1,8 +1,25 @@
 import { createBrowserAdapter } from "@queryweave/browser";
-import { createQueryRuntime, defineQueryModel, formatQueryString, param } from "@queryweave/core";
+import {
+  createQueryRuntime,
+  defineQueryModel,
+  formatQueryString,
+  param,
+} from "@queryweave/core";
 
-const categories = ["all", "electronics", "home", "outdoors", "beauty"] as const;
-const sorts = ["featured", "price_asc", "price_desc", "rating", "newest"] as const;
+const categories = [
+  "all",
+  "electronics",
+  "home",
+  "outdoors",
+  "beauty",
+] as const;
+const sorts = [
+  "featured",
+  "price_asc",
+  "price_desc",
+  "rating",
+  "newest",
+] as const;
 const brandOptions = ["Aster", "Northstar", "Orbit", "Solis"] as const;
 
 const productFilters = defineQueryModel({
@@ -17,11 +34,16 @@ const productFilters = defineQueryModel({
   on_sale: param.boolean().default(false),
   sort: param.choice(sorts).default("featured"),
   page: param.integer({ min: 1 }).default(1),
-  tags: param.list(param.text({ trim: true, maxLength: 24 }), { maxItems: 6 }).default([]),
+  tags: param
+    .list(param.text({ trim: true, maxLength: 24 }), { maxItems: 6 })
+    .default([]),
   per_page: param.integer({ min: 12, max: 60 }).default(24),
 });
 
-const runtime = createQueryRuntime({ model: productFilters, adapter: createBrowserAdapter() });
+const runtime = createQueryRuntime({
+  model: productFilters,
+  adapter: createBrowserAdapter(),
+});
 const application = document.querySelector<HTMLElement>("#app");
 if (!application) throw new Error("Browser playground mount point is missing.");
 const root = application;
@@ -125,17 +147,24 @@ function setControlValue(key: string, value: unknown): void {
 function render(): void {
   const snapshot = runtime.read();
   const query = formatQueryString(productFilters.encode(snapshot.values));
-  if (queryOutput) queryOutput.textContent = query === "" ? "(empty)" : `?${query}`;
-  if (stateOutput) stateOutput.textContent = JSON.stringify(snapshot.values, undefined, 2);
+  if (queryOutput)
+    queryOutput.textContent = query === "" ? "(empty)" : `?${query}`;
+  if (stateOutput)
+    stateOutput.textContent = JSON.stringify(snapshot.values, undefined, 2);
   if (statusOutput)
     statusOutput.textContent = `${snapshot.status} · ${String(snapshot.issues.length)} issue(s)`;
   if (issueOutput)
     issueOutput.textContent =
       snapshot.issues.length === 0
         ? "No decoding issues. Try ?rating=9 to see typed recovery."
-        : snapshot.issues.map((issue) => `${issue.key}: ${issue.message}`).join("\n");
-  for (const [key, value] of Object.entries(snapshot.values)) setControlValue(key, value);
-  for (const checkbox of root.querySelectorAll<HTMLInputElement>('[data-list="brands"]'))
+        : snapshot.issues
+            .map((issue) => `${issue.key}: ${issue.message}`)
+            .join("\n");
+  for (const [key, value] of Object.entries(snapshot.values))
+    setControlValue(key, value);
+  for (const checkbox of root.querySelectorAll<HTMLInputElement>(
+    '[data-list="brands"]',
+  ))
     checkbox.checked = snapshot.values.brands.includes(
       checkbox.value as (typeof brandOptions)[number],
     );
@@ -151,7 +180,9 @@ function render(): void {
       snapshot.values.on_sale && "On sale",
     ].filter(Boolean);
     chipOutput.replaceChildren();
-    for (const chip of chips.length === 0 ? ["No active filters beyond defaults"] : chips) {
+    for (const chip of chips.length === 0
+      ? ["No active filters beyond defaults"]
+      : chips) {
       const element = document.createElement("span");
       element.className = chips.length === 0 ? "empty-chip" : "";
       element.textContent = String(chip);
@@ -165,7 +196,11 @@ render();
 
 root.addEventListener("input", (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLInputElement) || target.dataset["filter"] !== "search") return;
+  if (
+    !(target instanceof HTMLInputElement) ||
+    target.dataset["filter"] !== "search"
+  )
+    return;
   void runtime.update(
     { search: target.value === "" ? undefined : target.value, page: 1 },
     { navigation: "replace" },
@@ -174,10 +209,19 @@ root.addEventListener("input", (event) => {
 
 root.addEventListener("change", (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
-  if (target instanceof HTMLInputElement && target.dataset["list"] === "brands") {
+  if (
+    !(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)
+  )
+    return;
+  if (
+    target instanceof HTMLInputElement &&
+    target.dataset["list"] === "brands"
+  ) {
     const brands = target.checked
-      ? [...runtime.read().values.brands, target.value as (typeof brandOptions)[number]]
+      ? [
+          ...runtime.read().values.brands,
+          target.value as (typeof brandOptions)[number],
+        ]
       : runtime.read().values.brands.filter((brand) => brand !== target.value);
     void runtime.update({ brands, page: 1 });
     return;
@@ -194,14 +238,19 @@ root.addEventListener("change", (event) => {
 });
 
 root.addEventListener("click", (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+    "button[data-action]",
+  );
   if (!button) return;
   switch (button.dataset["action"]) {
     case "next-page":
       void runtime.update({ page: runtime.read().values.page + 1 });
       break;
     case "search":
-      void runtime.update({ search: "vue", page: 1 }, { navigation: "replace" });
+      void runtime.update(
+        { search: "vue", page: 1 },
+        { navigation: "replace" },
+      );
       break;
     case "tags":
       void runtime.transaction((draft) => {
