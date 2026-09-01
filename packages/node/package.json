@@ -9,14 +9,14 @@
     "state",
     "url"
   ],
-  "homepage": "https://github.com/queryweave/queryweave#readme",
+  "homepage": "https://github.com/boussadjra/queryweave#readme",
   "bugs": {
-    "url": "https://github.com/queryweave/queryweave/issues"
+    "url": "https://github.com/boussadjra/queryweave/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/queryweave/queryweave.git",
+    "url": "git+https://github.com/boussadjra/queryweave.git",
     "directory": "packages/node"
   },
   "files": [

@@ -15,7 +15,7 @@ import { defineConfig } from "astro/config";
  */
 
 const site = "https://queryweave.dev";
-const repository = "https://github.com/queryweave/queryweave";
+const repository = "https://github.com/boussadjra/queryweave";
 
 const description =
   "QueryWeave is a framework-independent, type-safe URL state engine for browsers, servers, " +
@@ -54,8 +54,14 @@ export default defineConfig({
       },
       head: [
         { tag: "meta", attrs: { property: "og:type", content: "website" } },
-        { tag: "meta", attrs: { property: "og:site_name", content: "QueryWeave" } },
-        { tag: "meta", attrs: { property: "og:image", content: `${site}/og.png` } },
+        {
+          tag: "meta",
+          attrs: { property: "og:site_name", content: "QueryWeave" },
+        },
+        {
+          tag: "meta",
+          attrs: { property: "og:image", content: `${site}/og.png` },
+        },
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
         {
@@ -65,8 +71,14 @@ export default defineConfig({
             content: "QueryWeave — type-safe URL state, woven together.",
           },
         },
-        { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
-        { tag: "meta", attrs: { name: "twitter:image", content: `${site}/og.png` } },
+        {
+          tag: "meta",
+          attrs: { name: "twitter:card", content: "summary_large_image" },
+        },
+        {
+          tag: "meta",
+          attrs: { name: "twitter:image", content: `${site}/og.png` },
+        },
         {
           tag: "meta",
           attrs: {
@@ -77,7 +89,11 @@ export default defineConfig({
         },
         {
           tag: "meta",
-          attrs: { name: "theme-color", content: "#131514", media: "(prefers-color-scheme: dark)" },
+          attrs: {
+            name: "theme-color",
+            content: "#131514",
+            media: "(prefers-color-scheme: dark)",
+          },
         },
       ],
       expressiveCode: {
@@ -113,8 +129,14 @@ export default defineConfig({
             { label: "Query models", link: "/concepts/query-models/" },
             { label: "Parameters", link: "/concepts/parameters/" },
             { label: "Codecs", link: "/concepts/codecs/" },
-            { label: "Decoding and encoding", link: "/concepts/decode-and-encode/" },
-            { label: "Defaults and absence", link: "/concepts/defaults-and-absence/" },
+            {
+              label: "Decoding and encoding",
+              link: "/concepts/decode-and-encode/",
+            },
+            {
+              label: "Defaults and absence",
+              link: "/concepts/defaults-and-absence/",
+            },
             { label: "Issues and recovery", link: "/concepts/issues/" },
           ],
         },
@@ -133,7 +155,10 @@ export default defineConfig({
             { label: "Server", link: "/adapters/server/" },
             { label: "Node.js", link: "/adapters/node/" },
             { label: "Testing", link: "/adapters/testing/" },
-            { label: "Writing an adapter", link: "/adapters/writing-an-adapter/" },
+            {
+              label: "Writing an adapter",
+              link: "/adapters/writing-an-adapter/",
+            },
           ],
         },
         {
@@ -162,7 +187,10 @@ export default defineConfig({
             { label: "Pagination", link: "/recipes/pagination/" },
             { label: "Filters", link: "/recipes/filters/" },
             { label: "Server parsing", link: "/recipes/server-parsing/" },
-            { label: "Testing query state", link: "/recipes/testing-query-state/" },
+            {
+              label: "Testing query state",
+              link: "/recipes/testing-query-state/",
+            },
           ],
         },
         {
