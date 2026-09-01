@@ -6,13 +6,13 @@ description: How to set up the repository, what the quality gate runs, and the r
 import { Aside, Steps } from "@astrojs/starlight/components";
 
 The full guide lives in
-[CONTRIBUTING.md](https://github.com/boussadjra/queryweave/blob/main/CONTRIBUTING.md). This page is
+[CONTRIBUTING.md](https://github.com/boussadjra/query-weave/blob/main/CONTRIBUTING.md). This page is
 the orientation.
 
 ## Before changing code
 
 Read the [architecture page](/project/architecture/), the relevant
-[ADR](https://github.com/boussadjra/queryweave/tree/main/docs/adr), and the package's README. Most
+[ADR](https://github.com/boussadjra/query-weave/tree/main/docs/adr), and the package's README. Most
 review comments on this repository are about a boundary, not about style — and the boundaries are
 written down.
 
@@ -80,7 +80,7 @@ needs network access and takes about two minutes.
 
 6. **Do not add a rejected identity.** `useQueryState`, `useQueryStates`, `parseAs*`,
    `createParser`, `createLoader`, `createSerializer`, `withDefault`, and tuple setters are rejected
-   by [ADR 0001](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0001-public-api-model.md)
+   by [ADR 0001](https://github.com/boussadjra/query-weave/blob/main/docs/adr/0001-public-api-model.md)
    and by a test.
 
 7. **Write an ADR** for a cross-package architectural decision or any breaking public API change.
@@ -122,4 +122,4 @@ pnpm docs:dev
 ## Reporting a security issue
 
 Do not open a public issue. Follow
-[SECURITY.md](https://github.com/boussadjra/queryweave/blob/main/SECURITY.md).
+[SECURITY.md](https://github.com/boussadjra/query-weave/blob/main/SECURITY.md).

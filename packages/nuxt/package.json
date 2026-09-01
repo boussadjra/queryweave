@@ -9,14 +9,14 @@
     "url",
     "vue"
   ],
-  "homepage": "https://github.com/boussadjra/queryweave#readme",
+  "homepage": "https://github.com/boussadjra/query-weave#readme",
   "bugs": {
-    "url": "https://github.com/boussadjra/queryweave/issues"
+    "url": "https://github.com/boussadjra/query-weave/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/boussadjra/queryweave.git",
+    "url": "git+https://github.com/boussadjra/query-weave.git",
     "directory": "packages/nuxt"
   },
   "files": [

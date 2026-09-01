@@ -15,7 +15,7 @@ import { defineConfig } from "astro/config";
  */
 
 const site = "https://queryweave.dev";
-const repository = "https://github.com/boussadjra/queryweave";
+const repository = "https://github.com/boussadjra/query-weave";
 
 const description =
   "QueryWeave is a framework-independent, type-safe URL state engine for browsers, servers, " +
