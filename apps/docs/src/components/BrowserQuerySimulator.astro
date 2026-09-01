@@ -80,15 +80,47 @@ const initialValidity = validity(initial.status, initial.issues.length);
     data-initial-query={initialQuery}
   >
     <div class="chrome">
+      <div class="chrome-dots" aria-hidden="true">
+        <span class="chrome-dot chrome-dot--close"></span>
+        <span class="chrome-dot chrome-dot--minimize"></span>
+        <span class="chrome-dot chrome-dot--maximize"></span>
+      </div>
+
       <div class="chrome-buttons">
         <button type="button" data-action="back" disabled aria-label="Back" title="Back">
-          <span aria-hidden="true">←</span>
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path
+              d="M8.5 3L4.5 7l4 4"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </button>
         <button type="button" data-action="forward" disabled aria-label="Forward" title="Forward">
-          <span aria-hidden="true">→</span>
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path
+              d="M5.5 3l4 4-4 4"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </button>
         <button type="button" data-action="reload" aria-label="Reload" title="Reload">
-          <span aria-hidden="true">↻</span>
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path
+              d="M11.5 7A4.5 4.5 0 1 1 7 2.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"></path>
+            <path
+              d="M7 2.5V5.5M7 2.5L9.5 2.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </button>
       </div>
 
@@ -96,6 +128,14 @@ const initialValidity = validity(initial.status, initial.issues.length);
           including something the model rejects, and watch what decoding makes of it. Only the
           query is editable — the origin and path belong to the application, not to QueryWeave. */}
       <form class="address" data-address-form>
+        <svg class="address-lock" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <rect x="2" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.2"></rect>
+          <path
+            d="M4 5V3.5a2 2 0 0 1 4 0V5"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"></path>
+        </svg>
         {/* The host is split out so it can drop away on a phone, the way a mobile browser's
             address bar does, leaving the path and the query — the part this figure is about. */}
         <span class="address-origin" aria-hidden="true"
@@ -121,9 +161,12 @@ const initialValidity = validity(initial.status, initial.issues.length);
       {
         showNavigation && (
           <p class="history" data-history>
-            {mode.navigates
-              ? `History ${String(initial.historyIndex + 1)} / ${String(initial.historyLength)}`
-              : "Single request"}
+            <span class="history-label">History</span>
+            <span class="history-count" data-history-count>
+              {mode.navigates
+                ? `${String(initial.historyIndex + 1)} / ${String(initial.historyLength)}`
+                : "—"}
+            </span>
           </p>
         )
       }
@@ -137,14 +180,20 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
       <label class="field" for={searchId}>
         <span>Search products</span>
-        <input
-          id={searchId}
-          type="search"
-          data-search
-          value={initial.values.search ?? ""}
-          placeholder="Try “vue”"
-          autocomplete="off"
-        />
+        <span class="field-input-wrap">
+          <svg class="field-icon" aria-hidden="true" width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"></circle>
+            <path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+          </svg>
+          <input
+            id={searchId}
+            type="search"
+            data-search
+            value={initial.values.search ?? ""}
+            placeholder="Try “vue”"
+            autocomplete="off"
+          />
+        </span>
       </label>
 
       {
@@ -165,14 +214,21 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
       <ul class="results" data-results>
         {
-          initial.rows.map((row) => (
-            <li>
-              <span class="result-name">{row.name}</span>
-              <span class="result-meta">
-                {row.status} · ${row.price}
-              </span>
+          initial.rows.length === 0 ? (
+            <li class="result-empty">
+              <span>No products match the current filters.</span>
             </li>
-          ))
+          ) : (
+            initial.rows.map((row) => (
+              <li>
+                <span class="result-name">{row.name}</span>
+                <span class="result-meta">
+                  <span class={`result-status result-status--${row.status}`}>{row.status}</span>
+                  <span class="result-price">${row.price}</span>
+                </span>
+              </li>
+            ))
+          )
         }
       </ul>
 
@@ -198,17 +254,19 @@ const initialValidity = validity(initial.status, initial.issues.length);
         showNavigation && (
           <fieldset class="navigation" data-navigation-control>
             <legend>Navigation</legend>
-            {(["push", "replace"] as const).map((option) => (
-              <label>
-                <input
-                  type="radio"
-                  name={`qw-sim-navigation-${instance}`}
-                  value={option}
-                  checked={initial.navigation === option}
-                />
-                <span>{option === "push" ? "Push" : "Replace"}</span>
-              </label>
-            ))}
+            <div class="segmented">
+              {(["push", "replace"] as const).map((option) => (
+                <label class="segmented-option">
+                  <input
+                    type="radio"
+                    name={`qw-sim-navigation-${instance}`}
+                    value={option}
+                    checked={initial.navigation === option}
+                  />
+                  <span>{option === "push" ? "Push" : "Replace"}</span>
+                </label>
+              ))}
+            </div>
           </fieldset>
         )
       }
@@ -264,13 +322,15 @@ const initialValidity = validity(initial.status, initial.issues.length);
           </section>
 
           <section class="panel panel--canonical">
-            <p class="panel-label">Canonical URL</p>
-            <code data-canonical>{initial.canonicalUrl}</code>
-            {/* `data-validity`, not `data-status`: the status filter chips already carry
-                `data-status`, and they come first in the document. */}
-            <p class="validity" data-validity data-state={initialValidity}>
-              {validityLabels[initialValidity]}
-            </p>
+            <div class="panel-head">
+              <p class="panel-label">Canonical URL</p>
+              {/* `data-validity`, not `data-status`: the status filter chips already carry
+                  `data-status`, and they come first in the document. */}
+              <span class="validity" data-validity data-state={initialValidity}>
+                {validityLabels[initialValidity]}
+              </span>
+            </div>
+            <code class="canonical-url" data-canonical>{initial.canonicalUrl}</code>
             <ul class="issues" data-issues>
               {
                 initial.issues.map((issue) => (
@@ -304,7 +364,8 @@ const initialValidity = validity(initial.status, initial.issues.length);
   class QueryWeaveBrowserSimulator extends HTMLElement {
     private controller: ReturnType<typeof createSimulator> | undefined;
     private unsubscribe: (() => void) | undefined;
-    private highlightTimer: ReturnType<typeof setTimeout> | undefined;
+    private highlightDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+    private highlightFadeTimer: ReturnType<typeof setTimeout> | undefined;
     private announceTimer: ReturnType<typeof setTimeout> | undefined;
 
     connectedCallback(): void {
@@ -324,8 +385,11 @@ const initialValidity = validity(initial.status, initial.issues.length);
     disconnectedCallback(): void {
       this.unsubscribe?.();
       this.controller?.dispose();
-      if (this.highlightTimer !== undefined) {
-        clearTimeout(this.highlightTimer);
+      if (this.highlightDebounceTimer !== undefined) {
+        clearTimeout(this.highlightDebounceTimer);
+      }
+      if (this.highlightFadeTimer !== undefined) {
+        clearTimeout(this.highlightFadeTimer);
       }
       if (this.announceTimer !== undefined) {
         clearTimeout(this.announceTimer);
@@ -452,10 +516,10 @@ const initialValidity = validity(initial.status, initial.issues.length);
       this.text("[data-canonical]", snapshot.canonicalUrl);
       this.text("[data-total]", `${String(snapshot.total)} matching`);
       this.text(
-        "[data-history]",
+        "[data-history-count]",
         snapshot.mode.navigates
-          ? `History ${String(snapshot.historyIndex + 1)} / ${String(snapshot.historyLength)}`
-          : "Single request",
+          ? `${String(snapshot.historyIndex + 1)} / ${String(snapshot.historyLength)}`
+          : "—",
       );
       this.text("[data-mode-note]", snapshot.mode.note);
       this.text("[data-page-label]", `Page ${String(snapshot.values.page)} of ${String(snapshot.pageCount)}`);
@@ -502,19 +566,36 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
       const results = this.querySelector<HTMLElement>("[data-results]");
       if (results !== null) {
-        results.replaceChildren(
-          ...snapshot.rows.map((row) => {
+        if (snapshot.rows.length === 0) {
+          results.replaceChildren((() => {
             const item = document.createElement("li");
-            const name = document.createElement("span");
-            name.className = "result-name";
-            name.textContent = row.name;
-            const meta = document.createElement("span");
-            meta.className = "result-meta";
-            meta.textContent = `${row.status} · $${String(row.price)}`;
-            item.append(name, meta);
+            item.className = "result-empty";
+            const message = document.createElement("span");
+            message.textContent = "No products match the current filters.";
+            item.append(message);
             return item;
-          }),
-        );
+          })());
+        } else {
+          results.replaceChildren(
+            ...snapshot.rows.map((row) => {
+              const item = document.createElement("li");
+              const name = document.createElement("span");
+              name.className = "result-name";
+              name.textContent = row.name;
+              const meta = document.createElement("span");
+              meta.className = "result-meta";
+              const status = document.createElement("span");
+              status.className = `result-status result-status--${row.status}`;
+              status.textContent = row.status;
+              const price = document.createElement("span");
+              price.className = "result-price";
+              price.textContent = `$${String(row.price)}`;
+              meta.append(status, price);
+              item.append(name, meta);
+              return item;
+            }),
+          );
+        }
       }
 
       for (const chip of this.querySelectorAll<HTMLButtonElement>("[data-status]")) {
@@ -542,22 +623,58 @@ const initialValidity = validity(initial.status, initial.issues.length);
       this.announce(snapshot);
     }
 
-    /** Mark the panels a transition touched, then let the mark fade on its own. */
+    /**
+     * Mark the panels a transition touched, then let the mark fade on its own.
+     *
+     * Search commits on every keystroke, so an undebounced highlight would flash the inspector
+     * three times while someone types "vue". Waiting out the same pause the announce line uses
+     * means the flash lands on the state the reader stopped on.
+     */
     private highlight(snapshot: SimulatorSnapshot): void {
-      const changed = snapshot.changedKeys.length > 0;
-      for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
-        panel.classList.toggle("panel--changed", changed);
-      }
-      if (!changed) {
+      if (snapshot.changedKeys.length === 0) {
         return;
       }
-      if (this.highlightTimer !== undefined) {
-        clearTimeout(this.highlightTimer);
+
+      const debounce =
+        snapshot.changedKeys.length === 1 && snapshot.changedKeys[0] === "search";
+
+      if (this.highlightDebounceTimer !== undefined) {
+        clearTimeout(this.highlightDebounceTimer);
+        this.highlightDebounceTimer = undefined;
       }
-      this.highlightTimer = globalThis.setTimeout(() => {
-        for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
-          panel.classList.remove("panel--changed");
-        }
+
+      if (debounce) {
+        this.clearHighlight();
+        this.highlightDebounceTimer = globalThis.setTimeout(() => {
+          this.highlightDebounceTimer = undefined;
+          this.applyHighlight();
+        }, 500);
+        return;
+      }
+
+      this.applyHighlight();
+    }
+
+    private clearHighlight(): void {
+      if (this.highlightFadeTimer !== undefined) {
+        clearTimeout(this.highlightFadeTimer);
+        this.highlightFadeTimer = undefined;
+      }
+      for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
+        panel.classList.remove("panel--changed");
+      }
+    }
+
+    private applyHighlight(): void {
+      for (const panel of this.querySelectorAll<HTMLElement>(".panel")) {
+        panel.classList.add("panel--changed");
+      }
+      if (this.highlightFadeTimer !== undefined) {
+        clearTimeout(this.highlightFadeTimer);
+      }
+      this.highlightFadeTimer = globalThis.setTimeout(() => {
+        this.highlightFadeTimer = undefined;
+        this.clearHighlight();
       }, 900);
     }
 
@@ -611,6 +728,9 @@ const initialValidity = validity(initial.status, initial.issues.length);
     border: 1px solid var(--qw-panel-border-strong);
     border-radius: var(--qw-radius-lg);
     background: var(--qw-panel);
+    box-shadow:
+      0 1px 2px color-mix(in srgb, var(--qw-heading) 4%, transparent),
+      0 8px 24px color-mix(in srgb, var(--qw-heading) 6%, transparent);
     overflow: hidden;
   }
 
@@ -619,60 +739,114 @@ const initialValidity = validity(initial.status, initial.issues.length);
   .chrome {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.65rem;
     border-bottom: 1px solid var(--qw-panel-border);
-    background: var(--qw-code-chrome);
-    padding: 0.6rem 0.85rem;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--qw-code-chrome) 92%, var(--qw-heading)) 0%,
+      var(--qw-code-chrome) 100%
+    );
+    padding: 0.55rem 0.85rem;
+  }
+
+  .chrome-dots {
+    display: flex;
+    gap: 0.35rem;
+    flex: none;
+    padding-inline-end: 0.15rem;
+  }
+
+  .chrome-dot {
+    display: block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    opacity: 0.85;
+  }
+
+  .chrome-dot--close {
+    background: #ff5f57;
+  }
+
+  .chrome-dot--minimize {
+    background: #febc2e;
+  }
+
+  .chrome-dot--maximize {
+    background: #28c840;
   }
 
   .chrome-buttons {
     display: flex;
-    gap: 0.25rem;
+    gap: 0.15rem;
     flex: none;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: color-mix(in srgb, var(--qw-panel) 60%, transparent);
+    padding: 0.15rem;
   }
 
   .chrome-buttons button {
     display: grid;
     place-items: center;
-    border: 1px solid transparent;
-    border-radius: var(--qw-radius-sm);
+    border: 0;
+    border-radius: calc(var(--qw-radius-sm) - 2px);
     background: transparent;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.65rem;
+    height: 1.65rem;
     color: var(--qw-body);
-    font-size: 0.9rem;
     cursor: pointer;
-    transition: background-color var(--qw-duration-control) var(--qw-ease);
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      color var(--qw-duration-control) var(--qw-ease);
   }
 
   .chrome-buttons button:hover:not(:disabled) {
     background: var(--qw-panel);
+    color: var(--qw-heading);
+  }
+
+  .chrome-buttons button:active:not(:disabled) {
+    transform: scale(0.94);
   }
 
   .chrome-buttons button:disabled {
     color: var(--qw-muted);
-    opacity: 0.45;
+    opacity: 0.35;
     cursor: not-allowed;
   }
 
   .address {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     flex: 1 1 auto;
+    gap: 0.45rem;
     border: 1px solid var(--qw-panel-border);
     border-radius: 999px;
     background: var(--qw-panel);
-    padding: 0.3rem 0.85rem;
+    padding: 0.35rem 0.85rem;
     margin: 0;
     min-width: 0;
     font-family: var(--qw-font-mono);
     font-size: 0.78rem;
     line-height: 1.6;
-    transition: border-color var(--qw-duration-control) var(--qw-ease);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--qw-heading) 5%, transparent);
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      box-shadow var(--qw-duration-control) var(--qw-ease);
   }
 
   .address:focus-within {
     border-color: var(--qw-accent);
+    box-shadow:
+      inset 0 1px 2px color-mix(in srgb, var(--qw-heading) 5%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--qw-accent) 20%, transparent);
+  }
+
+  .address-lock {
+    flex: none;
+    color: var(--qw-muted);
+    opacity: 0.7;
   }
 
   /* The origin and path belong to the application, so they read as fixed chrome and give way
@@ -688,8 +862,8 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
   .address-separator {
     flex: none;
-    padding-inline: 0.1rem;
     color: var(--qw-muted);
+    opacity: 0.6;
   }
 
   /* The query is what the figure is about, so it is the last thing allowed to shrink: the origin
@@ -716,7 +890,7 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
   .address-query::placeholder {
     color: var(--qw-muted);
-    opacity: 0.7;
+    opacity: 0.6;
   }
 
   /* The field already signals focus through the bar it sits in, so a second ring inside would
@@ -726,18 +900,38 @@ const initialValidity = validity(initial.status, initial.issues.length);
   }
 
   .history {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     flex: none;
     margin: 0;
-    color: var(--qw-muted);
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: color-mix(in srgb, var(--qw-panel) 50%, transparent);
+    padding: 0.25rem 0.55rem;
     font-family: var(--qw-font-mono);
     font-size: var(--qw-text-label);
     white-space: nowrap;
   }
 
+  .history-label {
+    color: var(--qw-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.65rem;
+  }
+
+  .history-count {
+    color: var(--qw-heading);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ------------------------------------------------------------- viewport */
 
   .viewport {
-    padding: 1.1rem 1.15rem;
+    padding: 1.25rem 1.25rem 1.1rem;
+    background: var(--qw-page-bg);
   }
 
   .page-head {
@@ -745,71 +939,109 @@ const initialValidity = validity(initial.status, initial.issues.length);
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.15rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--qw-panel-border);
   }
 
   .page-title {
     margin: 0;
     color: var(--qw-heading);
-    font-size: 1.05rem;
-    font-weight: 600;
+    font-size: 1.125rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
   }
 
   .page-count {
     margin: 0;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: 999px;
+    background: var(--qw-panel);
+    padding: 0.15rem 0.6rem;
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
+    font-variant-numeric: tabular-nums;
   }
 
   .field {
     display: block;
   }
 
-  .field span {
+  .field > span:first-child {
     display: block;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.35rem;
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+  }
+
+  .field-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.45rem 0.7rem;
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      box-shadow var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .field-input-wrap:focus-within {
+    border-color: var(--qw-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--qw-accent) 18%, transparent);
+  }
+
+  .field-icon {
+    flex: none;
+    color: var(--qw-muted);
+    opacity: 0.65;
   }
 
   /* The simulated product search is a square field on the warm canvas surface, deliberately unlike
      the rounded, muted docs search trigger in the site header. */
   .field input {
-    width: 100%;
-    border: 1px solid var(--qw-panel-border-strong);
-    border-radius: var(--qw-radius-sm);
-    background: var(--qw-page-bg);
-    padding: 0.5rem 0.7rem;
+    flex: 1;
+    border: 0;
+    background: transparent;
+    padding: 0;
     color: var(--qw-body);
     font-family: inherit;
     font-size: var(--qw-text-small);
   }
 
   .field input:focus-visible {
-    border-color: var(--qw-accent);
+    outline: none;
   }
 
   .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    margin-top: 0.85rem;
+    margin-top: 0.9rem;
   }
 
   .chips button {
     border: 1px solid var(--qw-panel-border-strong);
     border-radius: 999px;
-    background: transparent;
-    padding: 0.2rem 0.75rem;
+    background: var(--qw-panel);
+    padding: 0.25rem 0.8rem;
     color: var(--qw-body);
     font-family: inherit;
     font-size: var(--qw-text-label);
     cursor: pointer;
     transition:
       background-color var(--qw-duration-control) var(--qw-ease),
-      border-color var(--qw-duration-control) var(--qw-ease);
+      border-color var(--qw-duration-control) var(--qw-ease),
+      transform var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .chips button:hover:not([aria-pressed="true"]) {
+    border-color: var(--qw-accent);
+    background: color-mix(in srgb, var(--qw-accent) 8%, transparent);
   }
 
   /* Selection carries aria-pressed and a weight change as well as the fill. */
@@ -818,13 +1050,13 @@ const initialValidity = validity(initial.status, initial.issues.length);
     background: var(--qw-accent);
     color: var(--qw-accent-contrast);
     font-weight: 600;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--qw-accent) 30%, transparent);
   }
 
   .results {
     list-style: none;
     padding: 0;
-    margin: 1rem 0 0;
-    border-top: 1px solid var(--qw-panel-border);
+    margin: 1.1rem 0 0;
   }
 
   /**
@@ -836,30 +1068,85 @@ const initialValidity = validity(initial.status, initial.issues.length);
    */
   .results :global(li) {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    border-bottom: 1px solid var(--qw-panel-border);
-    padding: 0.55rem 0;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.65rem 0.85rem;
+    transition: border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .results :global(li + li) {
+    margin-top: 0.4rem;
+  }
+
+  .results :global(li:hover:not(.result-empty)) {
+    border-color: var(--qw-panel-border-strong);
+  }
+
+  .results :global(.result-empty) {
+    justify-content: center;
+    border-style: dashed;
+    background: transparent;
+    padding: 1.25rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-small);
+    font-style: italic;
   }
 
   .results :global(.result-name) {
-    color: var(--qw-body);
+    color: var(--qw-heading);
     font-size: var(--qw-text-small);
+    font-weight: 500;
   }
 
   .results :global(.result-meta) {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: none;
+  }
+
+  .results :global(.result-status) {
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    font-family: var(--qw-font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .results :global(.result-status--active) {
+    border: 1px solid color-mix(in srgb, var(--qw-valid) 40%, transparent);
+    background: color-mix(in srgb, var(--qw-valid) 12%, transparent);
+    color: var(--qw-valid);
+  }
+
+  .results :global(.result-status--archived) {
+    border: 1px solid var(--qw-panel-border-strong);
+    background: color-mix(in srgb, var(--qw-muted) 10%, transparent);
+    color: var(--qw-muted);
+  }
+
+  .results :global(.result-price) {
     color: var(--qw-muted);
     font-family: var(--qw-font-mono);
     font-size: var(--qw-text-label);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
   .pager {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.75rem;
-    margin-top: 0.9rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--qw-panel-border);
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
   }
@@ -867,12 +1154,25 @@ const initialValidity = validity(initial.status, initial.issues.length);
   .pager button {
     border: 1px solid var(--qw-panel-border-strong);
     border-radius: var(--qw-radius-sm);
-    background: transparent;
-    padding: 0.2rem 0.7rem;
+    background: var(--qw-panel);
+    padding: 0.3rem 0.75rem;
     color: var(--qw-body);
     font-family: inherit;
     font-size: var(--qw-text-label);
     cursor: pointer;
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .pager button:hover:not(:disabled) {
+    border-color: var(--qw-accent);
+    background: color-mix(in srgb, var(--qw-accent) 8%, transparent);
+  }
+
+  .pager button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   /* ------------------------------------------------------------- controls */
@@ -903,21 +1203,62 @@ const initialValidity = validity(initial.status, initial.issues.length);
     color: var(--qw-muted);
     font-family: var(--qw-font-mono);
     font-size: var(--qw-text-label);
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  fieldset label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    color: var(--qw-body);
-    font-size: var(--qw-text-small);
+  fieldset:disabled label,
+  fieldset:disabled .segmented-option {
+    opacity: 0.45;
+    pointer-events: none;
   }
 
-  fieldset:disabled label {
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--qw-panel-border-strong);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel);
+    padding: 0.15rem;
+    gap: 0.1rem;
+  }
+
+  .segmented-option {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+  }
+
+  .segmented-option input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .segmented-option span {
+    display: block;
+    border-radius: calc(var(--qw-radius-sm) - 2px);
+    padding: 0.2rem 0.65rem;
     color: var(--qw-muted);
-    opacity: 0.55;
+    font-size: var(--qw-text-label);
+    font-weight: 500;
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .segmented-option input:checked + span {
+    background: var(--qw-accent);
+    color: var(--qw-accent-contrast);
+    font-weight: 600;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--qw-accent) 25%, transparent);
+  }
+
+  .segmented-option input:focus-visible + span {
+    outline: 2px solid var(--qw-accent);
+    outline-offset: 1px;
   }
 
   .adapter {
@@ -930,10 +1271,17 @@ const initialValidity = validity(initial.status, initial.issues.length);
     border: 1px solid var(--qw-panel-border-strong);
     border-radius: var(--qw-radius-sm);
     background: var(--qw-panel);
-    padding: 0.25rem 0.4rem;
+    padding: 0.3rem 0.5rem;
     color: var(--qw-body);
     font-family: inherit;
     font-size: var(--qw-text-small);
+    cursor: pointer;
+    transition: border-color var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .adapter select:focus-visible {
+    border-color: var(--qw-accent);
+    outline: none;
   }
 
   .api {
@@ -946,9 +1294,10 @@ const initialValidity = validity(initial.status, initial.issues.length);
   }
 
   .api :global(li) {
-    border: 1px solid color-mix(in srgb, var(--qw-technical) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--qw-technical) 35%, transparent);
     border-radius: var(--qw-radius-sm);
-    padding: 0.1rem 0.5rem;
+    background: color-mix(in srgb, var(--qw-technical) 6%, transparent);
+    padding: 0.15rem 0.55rem;
     color: var(--qw-technical);
     font-family: var(--qw-font-mono);
     font-size: var(--qw-text-label);
@@ -972,7 +1321,7 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
   .panel {
     border-inline-start: 1px solid var(--qw-panel-border);
-    padding: 0.85rem 1rem;
+    padding: 0.9rem 1rem;
     min-width: 0;
     transition: background-color var(--qw-duration-panel) var(--qw-ease);
   }
@@ -981,13 +1330,25 @@ const initialValidity = validity(initial.status, initial.issues.length);
     border-inline-start: 0;
   }
 
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .panel-head .panel-label {
+    margin: 0;
+  }
+
   .panel-label {
     display: block;
     margin: 0 0 0.5rem;
     color: var(--qw-muted);
     font-family: var(--qw-font-mono);
     font-size: var(--qw-text-label);
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
@@ -1002,6 +1363,26 @@ const initialValidity = validity(initial.status, initial.issues.length);
     line-height: 1.6;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+  }
+
+  .panel pre {
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-code-surface);
+    padding: 0.55rem 0.65rem;
+  }
+
+  .canonical-url {
+    display: block;
+    border: 1px solid color-mix(in srgb, var(--qw-path-valid) 30%, transparent);
+    border-radius: var(--qw-radius-sm);
+    background: color-mix(in srgb, var(--qw-path-valid) 6%, transparent);
+    padding: 0.45rem 0.6rem;
+    color: var(--qw-valid);
+    font-family: var(--qw-font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
   }
 
   /* Raw input sits on the warm canvas, the typed state carries the engine's colour, and the
@@ -1030,21 +1411,27 @@ const initialValidity = validity(initial.status, initial.issues.length);
     border: 1px solid var(--qw-panel-border-strong);
     border-radius: var(--qw-radius-sm);
     background: var(--qw-panel);
-    padding: 0.35rem 0.5rem;
+    padding: 0.4rem 0.55rem;
     color: var(--qw-body);
     font-family: var(--qw-font-mono);
     font-size: 0.78rem;
     line-height: 1.6;
+    transition:
+      border-color var(--qw-duration-control) var(--qw-ease),
+      box-shadow var(--qw-duration-control) var(--qw-ease);
   }
 
   .raw-editor:focus-visible {
     border-color: var(--qw-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--qw-accent) 18%, transparent);
+    outline: none;
   }
 
   .hint {
     margin: 0.45rem 0 0;
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
+    opacity: 0.8;
   }
 
   label.panel-label {
@@ -1052,43 +1439,55 @@ const initialValidity = validity(initial.status, initial.issues.length);
   }
 
   .validity {
-    margin: 0.6rem 0 0;
-    font-size: var(--qw-text-label);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+    font-family: var(--qw-font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
   }
 
   .validity[data-state="valid"] {
+    border: 1px solid color-mix(in srgb, var(--qw-valid) 40%, transparent);
+    background: color-mix(in srgb, var(--qw-valid) 12%, transparent);
     color: var(--qw-valid);
   }
 
   /* Recovery is the interesting outcome — usable values, and a record of what was replaced — so it
      carries the active-transformation colour rather than an alarm. */
   .validity[data-state="recovered"] {
-    color: var(--qw-heading);
-    font-weight: 600;
+    border: 1px solid color-mix(in srgb, var(--qw-signal) 45%, transparent);
+    background: color-mix(in srgb, var(--qw-signal) 12%, transparent);
+    color: var(--qw-signal);
   }
 
   .validity[data-state="recovered"]::before {
     content: "";
     display: inline-block;
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 0.4rem;
+    height: 0.4rem;
     border-radius: 50%;
-    margin-inline-end: 0.4rem;
     background: var(--qw-signal);
   }
 
   .validity[data-state="invalid"] {
-    color: var(--qw-heading);
-    font-weight: 600;
+    border: 1px solid color-mix(in srgb, #e05252 40%, transparent);
+    background: color-mix(in srgb, #e05252 10%, transparent);
+    color: #e05252;
   }
 
   .issues {
     list-style: none;
     padding: 0;
-    margin: 0.4rem 0 0;
+    margin: 0.55rem 0 0;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.35rem;
   }
 
   .issues :global(li) {
@@ -1096,7 +1495,9 @@ const initialValidity = validity(initial.status, initial.issues.length);
     align-items: baseline;
     gap: 0.4rem;
     border-inline-start: 2px solid var(--qw-signal);
-    padding-inline-start: 0.5rem;
+    border-radius: 0 var(--qw-radius-sm) var(--qw-radius-sm) 0;
+    background: color-mix(in srgb, var(--qw-signal) 6%, transparent);
+    padding: 0.35rem 0.5rem 0.35rem 0.55rem;
     color: var(--qw-muted);
     font-size: var(--qw-text-label);
     line-height: 1.5;
@@ -1110,6 +1511,7 @@ const initialValidity = validity(initial.status, initial.issues.length);
     color: var(--qw-heading);
     font-family: var(--qw-font-mono);
     font-size: inherit;
+    font-weight: 600;
   }
 
   @media (max-width: 50rem) {
@@ -1143,6 +1545,10 @@ const initialValidity = validity(initial.status, initial.issues.length);
       row-gap: 0.5rem;
     }
 
+    .chrome-dots {
+      display: none;
+    }
+
     .address {
       order: 1;
       flex-basis: 100%;
@@ -1154,6 +1560,12 @@ const initialValidity = validity(initial.status, initial.issues.length);
 
     .address-host {
       display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chrome-buttons button:active:not(:disabled) {
+      transform: none;
     }
   }
 </style>
