@@ -55,9 +55,15 @@ model itself does not change.
   disappears silently and never throws.
 - **Repeated keys survive.** A query is never reduced to `Record<string, string>`, because
   `?tag=a&tag=b` carries meaning.
-- **A transition encodes once, navigates once, and notifies once.**
-- **Query keys the model does not manage are preserved** by the runtime, so QueryWeave can be
-  adopted for part of a URL.
+- **One `update()` means one encode, one navigation write, and one subscriber notification.**
+  Calling `runtime.update()` or `runtime.transaction()` does not encode the URL twice, create
+  duplicate history entries, or fire your listener multiple times for that single call. A
+  `transaction()` can change several fields in its callback, but the runtime still commits once at
+  the end.
+- **Keys your model does not define stay in the URL.** If the current URL is
+  `?page=2&utm_source=newsletter` and your model only manages `page`, updating `page` writes
+  `?page=3&utm_source=newsletter`. You do not have to model every query parameter before you can
+  manage some of them.
 
 ## What QueryWeave does not do
 
