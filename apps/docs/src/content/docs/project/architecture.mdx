@@ -3,8 +3,8 @@ title: Architecture
 description: QueryWeave separates query semantics from runtime integration, and enforces the separation.
 ---
 
-import AdapterDiagram from "../../../components/AdapterDiagram.astro";
-import ArchitectureMap from "../../../components/ArchitectureMap.astro";
+import EnvironmentShapesDiagram from "../../../components/EnvironmentShapesDiagram.astro";
+import LayersDiagram from "../../../components/LayersDiagram.astro";
 import { Aside } from "@astrojs/starlight/components";
 
 QueryWeave separates query semantics from runtime integration. Everything else on this page follows
@@ -12,7 +12,7 @@ from that sentence.
 
 ## The layers
 
-<ArchitectureMap caption="Definition, transformation, transitions, environment. Each layer knows only the one below it." />
+<LayersDiagram caption="Definition, transformation, transitions, environment. Each layer knows only the one below it." />
 
 Written as a dependency direction:
 
@@ -32,9 +32,7 @@ contract.
 
 ## Two environment shapes
 
-<AdapterDiagram mode="adapter" environment="Browser, router, memory" />
-
-<AdapterDiagram mode="source" environment="Request" />
+<EnvironmentShapesDiagram />
 
 A request-scoped environment implements `QuerySource` — one method. A mutable environment implements
 `QueryAdapter`, which extends it with `push`, `replace`, and `subscribe`.

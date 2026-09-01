@@ -74,6 +74,14 @@ const stacked = computed(
     props.orientation === "vertical" || (available.value > 0 && gridWidth.value > available.value),
 );
 
+/** When the grid collapses, follow authored row and column order instead of declaration order. */
+const layoutNodes = computed(() => {
+  if (!stacked.value) {
+    return props.nodes;
+  }
+  return [...props.nodes].sort((left, right) => left.row - right.row || left.col - right.col);
+});
+
 interface Placed {
   readonly node: DiagramNode;
   readonly x: number;
@@ -89,7 +97,7 @@ const placed = computed<readonly Placed[]>(() => {
     const width = Math.max(Math.min(room, stackedMaxWidth), 1);
     const x = Math.max((room - width) / 2, 0);
     let y = 0;
-    return props.nodes.map((node) => {
+    return layoutNodes.value.map((node) => {
       const entry = { node, x, y, width };
       y += heightOf(node.id) + props.gapY;
       return entry;
@@ -153,11 +161,42 @@ const flowNodes = computed<Node[]>(() =>
 
 const flowEdges = computed<Edge[]>(() => {
   const tones = new Map(props.nodes.map((node) => [node.id, node.tone]));
-  const source = stacked.value ? "b" : "r";
-  const target = stacked.value ? "t" : "l";
+  const byId = new Map(props.nodes.map((node) => [node.id, node]));
+
+  const handlesFor = (from: string, to: string): { source: string; target: string } => {
+    if (stacked.value) {
+      return { source: "b", target: "t" };
+    }
+
+    const sourceNode = byId.get(from);
+    const targetNode = byId.get(to);
+    if (sourceNode === undefined || targetNode === undefined) {
+      return { source: "r", target: "l" };
+    }
+
+    const colDelta = targetNode.col - sourceNode.col;
+    const rowDelta = targetNode.row - sourceNode.row;
+
+    // A column of boxes shares one grid index: connect through the bottom and top handles.
+    if (colDelta === 0) {
+      return rowDelta >= 0 ? { source: "b", target: "t" } : { source: "t", target: "b" };
+    }
+
+    // A row of stages reads left to right: connect through the side handles.
+    if (rowDelta === 0) {
+      return colDelta >= 0 ? { source: "r", target: "l" } : { source: "l", target: "r" };
+    }
+
+    // Diagonal edges follow whichever axis moves farther on the grid.
+    if (Math.abs(rowDelta) >= Math.abs(colDelta)) {
+      return rowDelta >= 0 ? { source: "b", target: "t" } : { source: "t", target: "b" };
+    }
+    return colDelta >= 0 ? { source: "r", target: "l" } : { source: "l", target: "r" };
+  };
 
   return props.edges.map((edge) => {
     const color = toneColors[edge.tone ?? tones.get(edge.from) ?? "neutral"];
+    const { source, target } = handlesFor(edge.from, edge.to);
     return {
       id: `${edge.from}--${edge.to}`,
       source: edge.from,

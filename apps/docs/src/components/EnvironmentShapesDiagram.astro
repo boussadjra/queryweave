@@ -1,0 +1,102 @@
+---
+import type { DiagramEdge, DiagramNode } from "../diagrams/types";
+import DiagramFigure from "./DiagramFigure.astro";
+
+/**
+ * The two shapes an environment can take, in one figure.
+ *
+ * Mutable environments get the full adapter chain; request-scoped sources stop at decoding.
+ * Placing both chains in one canvas lets a reader compare them without scrolling past an
+ * empty lazy-load slot.
+ */
+
+interface Props {
+  readonly caption?: string | undefined;
+}
+
+const { caption } = Astro.props;
+
+const nodes: readonly DiagramNode[] = [
+  {
+    id: "adapter-model",
+    label: "QueryModel",
+    value: "Mutable environment",
+    note: "meaning",
+    tone: "core",
+    col: 0,
+    row: 0,
+  },
+  {
+    id: "adapter-runtime",
+    label: "QueryRuntime",
+    note: "transitions",
+    tone: "core",
+    col: 0,
+    row: 1,
+  },
+  {
+    id: "adapter",
+    label: "QueryAdapter",
+    note: "reads, navigates, notifies",
+    tone: "environment",
+    col: 0,
+    row: 2,
+  },
+  {
+    id: "adapter-env",
+    label: "Browser, router, memory",
+    note: "mutable environment",
+    tone: "terminal",
+    col: 0,
+    row: 3,
+  },
+  {
+    id: "source-env",
+    label: "Request",
+    value: "Request-scoped source",
+    note: "incoming",
+    tone: "terminal",
+    col: 1,
+    row: 0,
+  },
+  {
+    id: "source",
+    label: "QuerySource",
+    note: "read-only",
+    tone: "environment",
+    col: 1,
+    row: 1,
+  },
+  {
+    id: "source-decode",
+    label: "QueryModel.decode()",
+    note: "typed result",
+    tone: "core",
+    col: 1,
+    row: 2,
+  },
+];
+
+const edges: readonly DiagramEdge[] = [
+  { from: "adapter-model", to: "adapter-runtime" },
+  { from: "adapter-runtime", to: "adapter" },
+  { from: "adapter", to: "adapter-env" },
+  { from: "source-env", to: "source" },
+  { from: "source", to: "source-decode" },
+];
+
+const defaultCaption =
+  "Left: a mutable environment implements QueryAdapter and can navigate. Right: a request-scoped source implements QuerySource and stops at decode.";
+---
+
+<DiagramFigure
+  nodes={nodes}
+  edges={edges}
+  orientation="horizontal"
+  unit={168}
+  gapX={56}
+  gapY={18}
+  caption={caption ?? defaultCaption}
+  breakout={false}
+  label="Mutable adapter chain on the left; read-only source chain on the right."
+/>

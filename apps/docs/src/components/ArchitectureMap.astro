@@ -3,14 +3,11 @@ import type { DiagramEdge, DiagramNode } from "../diagrams/types";
 import DiagramFigure from "./DiagramFigure.astro";
 
 /**
- * The whole architecture in one figure.
+ * How every environment reaches the engine.
  *
- * It is drawn left to right, in the same direction as the decode and encode path, so the two
- * figures read as one story: definition, transformation, transitions, environment, binding. Each
- * layer knows only the one before it, and that is exactly what the edges say.
- *
- * No framework colour appears anywhere: the map has to read as QueryWeave even where it names Vue
- * Router or Nuxt.
+ * The figure stays within a documentation column: four stages across, environments stacked on
+ * the right. Framework bindings such as Vue Router or Nuxt sit on top of these adapters in
+ * their own pages rather than in this map.
  */
 
 interface Props {
@@ -27,7 +24,7 @@ const nodes: readonly DiagramNode[] = [
     tone: "core",
     col: 0,
     row: 0,
-    rowSpan: 4,
+    rowSpan: 3,
   },
   {
     id: "decode",
@@ -45,7 +42,7 @@ const nodes: readonly DiagramNode[] = [
     tone: "operation",
     col: 1,
     row: 2,
-    rowSpan: 2,
+    rowSpan: 1,
   },
   {
     id: "runtime",
@@ -54,7 +51,7 @@ const nodes: readonly DiagramNode[] = [
     tone: "core",
     col: 2,
     row: 0,
-    rowSpan: 4,
+    rowSpan: 3,
   },
   {
     id: "browser",
@@ -63,13 +60,23 @@ const nodes: readonly DiagramNode[] = [
     tone: "environment",
     col: 3,
     row: 0,
-    rowSpan: 2,
   },
-  { id: "server", label: "Server", note: "Request and URL", tone: "environment", col: 3, row: 2 },
-  { id: "testing", label: "Testing", note: "memory stack", tone: "environment", col: 3, row: 3 },
-  { id: "vue-router", label: "Vue Router", note: "router navigation", tone: "neutral", col: 4, row: 0 },
-  { id: "nuxt", label: "Nuxt", note: "request-scoped", tone: "neutral", col: 4, row: 1 },
-  { id: "node", label: "Node.js", note: "IncomingMessage", tone: "neutral", col: 4, row: 2 },
+  {
+    id: "server",
+    label: "Server",
+    note: "Request and URL",
+    tone: "environment",
+    col: 3,
+    row: 1,
+  },
+  {
+    id: "testing",
+    label: "Testing",
+    note: "memory stack",
+    tone: "environment",
+    col: 3,
+    row: 2,
+  },
 ];
 
 const edges: readonly DiagramEdge[] = [
@@ -80,9 +87,6 @@ const edges: readonly DiagramEdge[] = [
   { from: "runtime", to: "browser" },
   { from: "runtime", to: "server" },
   { from: "runtime", to: "testing" },
-  { from: "browser", to: "vue-router", tone: "environment" },
-  { from: "browser", to: "nuxt", tone: "environment" },
-  { from: "server", to: "node", tone: "environment" },
 ];
 ---
 
@@ -90,9 +94,9 @@ const edges: readonly DiagramEdge[] = [
   nodes={nodes}
   edges={edges}
   orientation="horizontal"
-  unit={168}
-  gapX={44}
-  gapY={18}
+  unit={148}
+  gapX={36}
+  gapY={16}
   caption={caption}
   label="Every environment reaches the engine through the same model and runtime."
 />

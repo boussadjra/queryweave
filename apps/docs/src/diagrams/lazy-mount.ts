@@ -55,7 +55,9 @@ export function mountWhenVisible(canvas: HTMLElement): void {
       resize.disconnect();
       void mount(canvas, props);
     },
-    { rootMargin: "480px 0px" },
+    // Preload diagrams that sit just below the fold so a section never shows an empty panel
+    // while the reader is still reading the prose above it.
+    { rootMargin: "0px 0px 120% 0px" },
   );
   observer.observe(canvas);
 }

@@ -1,0 +1,69 @@
+---
+import type { DiagramEdge, DiagramNode } from "../diagrams/types";
+import DiagramFigure from "./DiagramFigure.astro";
+
+/**
+ * The four architectural layers, drawn as one vertical chain.
+ *
+ * The figure matches the prose block beneath it on the architecture page: definition,
+ * transformation, runtime transitions, and environment. Keeping it vertical means it reads
+ * clearly at the width documentation pages actually have.
+ */
+
+interface Props {
+  readonly caption?: string | undefined;
+}
+
+const { caption } = Astro.props;
+
+const nodes: readonly DiagramNode[] = [
+  {
+    id: "definition",
+    label: "Definition layer",
+    note: "param, QueryCodec, QueryModel",
+    tone: "core",
+    col: 0,
+    row: 0,
+  },
+  {
+    id: "transformation",
+    label: "Transformation",
+    note: "decode, encode, normalize",
+    tone: "operation",
+    col: 0,
+    row: 1,
+  },
+  {
+    id: "runtime",
+    label: "Runtime transitions",
+    note: "QueryRuntime",
+    tone: "core",
+    col: 0,
+    row: 2,
+  },
+  {
+    id: "environment",
+    label: "Environment",
+    note: "QueryAdapter / QuerySource",
+    tone: "environment",
+    col: 0,
+    row: 3,
+  },
+];
+
+const edges: readonly DiagramEdge[] = [
+  { from: "definition", to: "transformation", active: true },
+  { from: "transformation", to: "runtime", active: true },
+  { from: "runtime", to: "environment" },
+];
+---
+
+<DiagramFigure
+  nodes={nodes}
+  edges={edges}
+  orientation="vertical"
+  gapY={18}
+  caption={caption}
+  breakout={false}
+  label="Definition, transformation, runtime transitions, and environment, top to bottom."
+/>
