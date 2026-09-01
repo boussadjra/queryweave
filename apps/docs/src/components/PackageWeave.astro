@@ -1,0 +1,1009 @@
+---
+import { packages, type PackageEntry } from "../data/packages";
+import { currentPackageVersion } from "../data/release";
+
+/**
+ * The landing-page package ecosystem, drawn as a loom rather than a dependency graph.
+ *
+ * Every package starts at core. Server continues into Node, while the independent Vue and Vue
+ * Router strands join at Nuxt. Package descriptions and links come from the canonical package
+ * registry; the coordinates below only art-direct those real relationships.
+ */
+
+type PackageId =
+  | "core"
+  | "browser"
+  | "server"
+  | "node"
+  | "testing"
+  | "standard-schema"
+  | "vue"
+  | "vue-router"
+  | "nuxt";
+
+interface PositionedPackage {
+  readonly entry: PackageEntry;
+  readonly id: PackageId;
+  readonly related: readonly PackageId[];
+  readonly tone: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+}
+
+interface Thread {
+  readonly id: string;
+  readonly d: string;
+  readonly packages: readonly PackageId[];
+  readonly tone: string;
+  readonly delay: number;
+}
+
+const ids: readonly PackageId[] = [
+  "core",
+  "browser",
+  "server",
+  "node",
+  "testing",
+  "standard-schema",
+  "vue",
+  "vue-router",
+  "nuxt",
+];
+
+const packageById = new Map<PackageId, PackageEntry>(
+  packages.map((entry) => [entry.name.replace("@queryweave/", "") as PackageId, entry]),
+);
+
+const positions: Record<PackageId, Omit<PositionedPackage, "entry" | "id">> = {
+  core: {
+    related: ids,
+    tone: "var(--qw-path-core)",
+    x: 38,
+    y: 4,
+    width: 24,
+  },
+  browser: {
+    related: ["core", "browser"],
+    tone: "var(--qw-path-runtime)",
+    x: 2,
+    y: 40,
+    width: 14,
+  },
+  server: {
+    related: ["core", "server", "node"],
+    tone: "var(--qw-path-core)",
+    x: 18,
+    y: 40,
+    width: 14,
+  },
+  node: {
+    related: ["core", "server", "node"],
+    tone: "var(--qw-path-core)",
+    x: 18,
+    y: 74,
+    width: 14,
+  },
+  testing: {
+    related: ["core", "testing"],
+    tone: "var(--qw-path-active)",
+    x: 54,
+    y: 40,
+    width: 14,
+  },
+  "standard-schema": {
+    related: ["core", "standard-schema"],
+    tone: "var(--qw-path-valid)",
+    x: 34,
+    y: 40,
+    width: 18,
+  },
+  vue: {
+    related: ["core", "vue", "nuxt"],
+    tone: "var(--qw-path-valid)",
+    x: 70,
+    y: 40,
+    width: 12,
+  },
+  "vue-router": {
+    related: ["core", "vue-router", "nuxt"],
+    tone: "var(--qw-path-runtime)",
+    x: 84,
+    y: 40,
+    width: 14,
+  },
+  nuxt: {
+    related: ["core", "vue", "vue-router", "nuxt"],
+    tone: "var(--qw-path-active)",
+    x: 76,
+    y: 74,
+    width: 16,
+  },
+};
+
+const revealDelays: Record<PackageId, number> = {
+  core: 0,
+  browser: 260,
+  server: 340,
+  node: 560,
+  testing: 420,
+  "standard-schema": 520,
+  vue: 620,
+  "vue-router": 760,
+  nuxt: 920,
+};
+
+const ecosystem = ids.map((id): PositionedPackage => {
+  const entry = packageById.get(id);
+  if (entry === undefined) {
+    throw new Error(`Missing package metadata for @queryweave/${id}`);
+  }
+  return { entry, id, ...positions[id] };
+});
+
+const threads: readonly Thread[] = [
+  {
+    id: "nuxt-core",
+    d: "M 600 150 C 600 210 773 212 773 280 C 773 398 838 466 941 518",
+    packages: ["nuxt"],
+    tone: "var(--qw-path-active)",
+    delay: 80,
+  },
+  {
+    id: "browser",
+    d: "M 615 150 C 615 214 100 208 100 280",
+    packages: ["browser"],
+    tone: "var(--qw-path-runtime)",
+    delay: 140,
+  },
+  {
+    id: "server",
+    d: "M 570 150 C 570 218 280 210 280 280",
+    packages: ["server", "node"],
+    tone: "var(--qw-path-core)",
+    delay: 200,
+  },
+  {
+    id: "standard-schema",
+    d: "M 650 150 C 650 220 482 212 482 280",
+    packages: ["standard-schema"],
+    tone: "var(--qw-path-valid)",
+    delay: 260,
+  },
+  {
+    id: "testing",
+    d: "M 470 150 C 470 220 683 212 683 280",
+    packages: ["testing"],
+    tone: "var(--qw-path-active)",
+    delay: 320,
+  },
+  {
+    id: "vue",
+    d: "M 530 150 C 530 220 851 212 851 280",
+    packages: ["vue", "nuxt"],
+    tone: "var(--qw-path-valid)",
+    delay: 380,
+  },
+  {
+    id: "vue-router",
+    d: "M 490 150 C 490 220 1019 206 1019 280",
+    packages: ["vue-router", "nuxt"],
+    tone: "var(--qw-path-runtime)",
+    delay: 440,
+  },
+  {
+    id: "node",
+    d: "M 280 344 C 280 404 280 458 280 518",
+    packages: ["server", "node"],
+    tone: "var(--qw-path-core)",
+    delay: 500,
+  },
+  {
+    id: "vue-nuxt",
+    d: "M 851 344 C 851 408 902 456 941 518",
+    packages: ["vue", "nuxt"],
+    tone: "var(--qw-path-valid)",
+    delay: 560,
+  },
+  {
+    id: "router-nuxt",
+    d: "M 1019 344 C 1019 410 974 462 941 518",
+    packages: ["vue-router", "nuxt"],
+    tone: "var(--qw-path-runtime)",
+    delay: 620,
+  },
+];
+
+function dependencyLabel(entry: PackageEntry): string {
+  if (entry.dependsOn.length === 0) {
+    return "Shared foundation";
+  }
+  const names = entry.dependsOn.map((name) => name.replace("@queryweave/", ""));
+  if (names.length === 1) {
+    return `Builds on ${names[0]}`;
+  }
+  if (names.length === 2) {
+    return `Builds on ${names[0]} and ${names[1]}`;
+  }
+  return `Builds on ${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+}
+---
+
+<qw-package-weave class="package-weave not-content" data-active="core">
+  <div class="weave-heading">
+    <p>
+      One framework-independent foundation, eight focused integrations. Choose a package to trace
+      the thread it adds.
+    </p>
+    <span class="weave-key" aria-hidden="true">
+      <i></i>
+      trace a package
+    </span>
+  </div>
+
+  <div class="interactive">
+    <div class="desktop-loom" role="group" aria-label="Interactive map of QueryWeave packages">
+      <svg
+        class="weave-svg"
+        viewBox="0 0 1120 700"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        {
+          threads.map((thread) => (
+            <g
+              class="thread-group"
+              data-thread={thread.packages.join(" ")}
+              style={`--thread: ${thread.tone}; --delay: ${String(thread.delay)}ms`}
+            >
+              <path class="thread-gap" d={thread.d} pathLength="1" />
+              <path class="thread-line" d={thread.d} pathLength="1" />
+            </g>
+          ))
+        }
+      </svg>
+
+      {
+        ecosystem.map(({ entry, id, related, tone, x, y, width }) => (
+          <button
+            class:list={["package-control", { "core-control": id === "core" }]}
+            type="button"
+            data-package-control
+            data-package={id}
+            data-related={related.join(" ")}
+            aria-controls="qw-package-weave-details"
+            aria-pressed={id === "core" ? "true" : "false"}
+            style={`--x: ${String(x)}%; --y: ${String(y)}%; --w: ${String(width)}%; --thread: ${tone}; --node-delay: ${String(revealDelays[id])}ms`}
+          >
+            {id === "core" && <img src="/favicon.png" alt="" width="42" height="42" />}
+            <span class="package-label">
+              <span class="package-scope">@queryweave/</span>
+              <strong>{id}</strong>
+            </span>
+            {id === "core" && <span class="core-note">every thread starts here</span>}
+            <span class="qw-sr-only">. {entry.responsibility}</span>
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="mobile-loom" role="group" aria-label="Interactive map of QueryWeave packages">
+      <span class="mobile-rail rail-core" aria-hidden="true"></span>
+      <span class="mobile-rail rail-runtime" aria-hidden="true"></span>
+      <span class="mobile-rail rail-valid" aria-hidden="true"></span>
+      <span class="mobile-rail rail-active" aria-hidden="true"></span>
+
+      <div class="mobile-controls">
+        {
+          ecosystem.map(({ entry, id, related, tone }) => (
+            <button
+              class:list={["mobile-control", { "mobile-core": id === "core" }]}
+              type="button"
+              data-package-control
+              data-package={id}
+              data-related={related.join(" ")}
+              aria-controls="qw-package-weave-details"
+              aria-pressed={id === "core" ? "true" : "false"}
+              style={`--thread: ${tone}; --node-delay: ${String(revealDelays[id])}ms`}
+            >
+              {id === "core" && <img src="/favicon.png" alt="" width="36" height="36" />}
+              <span class="package-label">
+                <span class="package-scope">@queryweave/</span>
+                <strong>{id}</strong>
+              </span>
+              {
+                id === "node" && <span class="mobile-relation">uses server</span>
+              }
+              {
+                id === "nuxt" && (
+                  <span class="mobile-relation">core + Vue + router</span>
+                )
+              }
+              <span class="qw-sr-only">. {entry.responsibility}</span>
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="package-details" id="qw-package-weave-details">
+      {
+        ecosystem.map(({ entry, id }) => (
+          <article data-package-detail={id} hidden={id !== "core"}>
+            <div class="detail-copy">
+              <h3>{entry.name}</h3>
+              <p>{entry.responsibility}</p>
+            </div>
+            <div class="detail-meta">
+              <span>v{currentPackageVersion}</span>
+              <span>{entry.runtime}</span>
+              <span>{dependencyLabel(entry)}</span>
+              <a href={entry.docs}>Open package guide <span aria-hidden="true">→</span></a>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+
+  <nav class="fallback" aria-label="QueryWeave package documentation">
+    <ul>
+      {
+        ecosystem.map(({ entry }) => (
+          <li>
+            <a href={entry.docs}>{entry.name}</a>
+            <span>{entry.responsibility}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <noscript>
+    <style is:inline>
+      .package-weave .interactive {
+        display: none;
+      }
+
+      .package-weave .fallback {
+        display: block;
+      }
+    </style>
+  </noscript>
+</qw-package-weave>
+
+<script>
+  class QueryWeavePackageWeave extends HTMLElement {
+    private controls: HTMLButtonElement[] = [];
+    private details: HTMLElement[] = [];
+    private selected = "core";
+    private observer: IntersectionObserver | undefined;
+
+    connectedCallback(): void {
+      this.controls = [...this.querySelectorAll<HTMLButtonElement>("[data-package-control]")];
+      this.details = [...this.querySelectorAll<HTMLElement>("[data-package-detail]")];
+      if (this.controls.length === 0) {
+        return;
+      }
+
+      this.dataset["enhanced"] = "true";
+      this.render("core");
+
+      for (const control of this.controls) {
+        control.addEventListener("pointerenter", () => this.preview(control));
+        control.addEventListener("focus", () => this.preview(control));
+        control.addEventListener("click", () => {
+          const id = control.dataset["package"];
+          if (id !== undefined) {
+            this.selected = id;
+            this.render(id);
+          }
+        });
+      }
+
+      this.addEventListener("pointerleave", () => {
+        if (!this.matches(":focus-within")) {
+          this.render(this.selected);
+        }
+      });
+      this.addEventListener("focusout", () => {
+        globalThis.setTimeout(() => {
+          if (!this.contains(document.activeElement)) {
+            this.render(this.selected);
+          }
+        }, 0);
+      });
+      this.addEventListener("keydown", (event: KeyboardEvent) => {
+        if (event.key !== "Escape") {
+          return;
+        }
+        this.selected = "core";
+        this.render("core");
+        this.controls.find(
+          (control) => control.dataset["package"] === "core" && control.offsetParent !== null,
+        )?.focus();
+      });
+
+      if (!("IntersectionObserver" in globalThis)) {
+        this.dataset["revealed"] = "true";
+        return;
+      }
+      this.observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) {
+            return;
+          }
+          this.dataset["revealed"] = "true";
+          this.observer?.disconnect();
+        },
+        { rootMargin: "0px 0px -12% 0px", threshold: 0.2 },
+      );
+      this.observer.observe(this);
+    }
+
+    disconnectedCallback(): void {
+      this.observer?.disconnect();
+    }
+
+    private preview(control: HTMLButtonElement): void {
+      const id = control.dataset["package"];
+      if (id !== undefined) {
+        this.render(id);
+      }
+    }
+
+    private render(id: string): void {
+      const source = this.controls.find((control) => control.dataset["package"] === id);
+      const related = new Set((source?.dataset["related"] ?? id).split(" "));
+      this.dataset["active"] = id;
+
+      for (const control of this.controls) {
+        const packageId = control.dataset["package"] ?? "";
+        control.setAttribute("aria-pressed", String(packageId === id));
+        control.toggleAttribute("data-dimmed", id !== "core" && !related.has(packageId));
+      }
+      for (const thread of this.querySelectorAll<SVGGElement>("[data-thread]")) {
+        const packages = new Set((thread.dataset["thread"] ?? "").split(" "));
+        thread.toggleAttribute("data-dimmed", id !== "core" && !packages.has(id));
+      }
+      for (const detail of this.details) {
+        detail.hidden = detail.dataset["packageDetail"] !== id;
+      }
+    }
+  }
+
+  if (customElements.get("qw-package-weave") === undefined) {
+    customElements.define("qw-package-weave", QueryWeavePackageWeave);
+  }
+</script>
+
+<style>
+  .package-weave {
+    display: block;
+    margin-block: 1.5rem 2.25rem;
+  }
+
+  .weave-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .weave-heading p {
+    max-width: 66ch;
+    margin: 0;
+    color: var(--qw-body);
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .weave-key {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  .weave-key i {
+    width: 1.8rem;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: var(--qw-path-runtime);
+  }
+
+  .interactive {
+    overflow: hidden;
+    border: 1px solid var(--qw-panel-border);
+    border-radius: var(--qw-radius-lg);
+    background: var(--qw-panel);
+  }
+
+  .desktop-loom {
+    position: relative;
+    aspect-ratio: 1120 / 700;
+    min-height: 39rem;
+    overflow: hidden;
+  }
+
+  .weave-svg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .thread-group {
+    transition:
+      opacity var(--qw-duration-panel) var(--qw-ease),
+      filter var(--qw-duration-panel) var(--qw-ease);
+  }
+
+  .thread-gap,
+  .thread-line {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .thread-gap {
+    stroke: var(--qw-panel);
+    stroke-width: 20;
+  }
+
+  .thread-line {
+    stroke: var(--thread);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1400;
+    stroke-dashoffset: 0;
+  }
+
+  .package-weave[data-revealed="true"] .thread-line {
+    animation: qw-thread-arrive 720ms var(--qw-ease) var(--delay) both;
+  }
+
+  .thread-group[data-dimmed] {
+    opacity: 0.14;
+    filter: saturate(0.4);
+  }
+
+  @keyframes qw-thread-arrive {
+    from {
+      stroke-dashoffset: 1400;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .package-control {
+    position: absolute;
+    inset-block-start: var(--y);
+    inset-inline-start: var(--x);
+    z-index: 2;
+    width: var(--w);
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 3.65rem;
+    border: 0;
+    border-radius: var(--qw-radius-sm);
+    background: var(--qw-panel-raised);
+    padding: 0.8rem 0.7rem 0.6rem;
+    color: var(--qw-heading);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition:
+      background-color var(--qw-duration-control) var(--qw-ease),
+      box-shadow var(--qw-duration-control) var(--qw-ease),
+      filter var(--qw-duration-control) var(--qw-ease),
+      transform var(--qw-duration-control) var(--qw-ease);
+  }
+
+  .package-weave[data-revealed="true"] .package-control,
+  .package-weave[data-revealed="true"] .mobile-control {
+    animation: qw-package-arrive 460ms var(--qw-ease) var(--node-delay) both;
+  }
+
+  @keyframes qw-package-arrive {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .package-control::before {
+    content: "";
+    position: absolute;
+    inset-block-start: -0.34rem;
+    inset-inline-start: 50%;
+    width: 0.68rem;
+    height: 0.68rem;
+    background: var(--thread);
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .package-control:hover,
+  .package-control:focus-visible,
+  .package-control[aria-pressed="true"] {
+    background: var(--qw-panel-raised);
+    box-shadow: 0 0 0 1px var(--thread);
+    transform: translateY(-1px);
+  }
+
+  .package-control:focus-visible,
+  .mobile-control:focus-visible {
+    outline: 2px solid var(--qw-focus);
+    outline-offset: 3px;
+  }
+
+  .package-control[data-dimmed],
+  .mobile-control[data-dimmed] {
+    filter: saturate(0.45);
+  }
+
+  .package-control[data-dimmed] .package-label,
+  .mobile-control[data-dimmed] .package-label {
+    color: var(--qw-muted);
+  }
+
+  .package-label {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+
+  .package-scope {
+    color: var(--qw-muted);
+    font-family: var(--qw-font-mono);
+    font-size: 0.65rem;
+  }
+
+  .package-label strong {
+    color: inherit;
+    font-family: var(--qw-font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .core-control {
+    min-height: 7.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    border-radius: var(--qw-radius);
+    background: var(--qw-deep-forest);
+    padding: 1rem;
+    color: var(--qw-dark-text);
+  }
+
+  .core-control::before {
+    display: none;
+  }
+
+  .core-control:hover,
+  .core-control:focus-visible,
+  .core-control[aria-pressed="true"] {
+    background: var(--qw-forest-hover);
+    box-shadow: 0 0 0 1px var(--qw-path-valid);
+  }
+
+  .core-control img {
+    flex: 0 0 auto;
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .core-control .package-scope,
+  .core-note {
+    color: rgb(245 246 239 / 78%);
+  }
+
+  .core-control .package-label strong {
+    color: var(--qw-dark-text);
+    font-size: 1rem;
+  }
+
+  .core-note {
+    flex-basis: 100%;
+    font-size: var(--qw-text-label);
+  }
+
+  .mobile-loom {
+    display: none;
+  }
+
+  .mobile-relation {
+    display: none;
+  }
+
+  .package-details {
+    border-top: 1px solid var(--qw-panel-border);
+    background: var(--qw-panel-raised);
+    padding: 1.1rem 1.25rem;
+  }
+
+  .package-details article {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(16rem, 0.75fr);
+    gap: 1.5rem 2rem;
+    align-items: center;
+    min-height: 6.5rem;
+    animation: qw-detail-arrive var(--qw-duration-panel) var(--qw-ease);
+  }
+
+  .package-details article[hidden] {
+    display: none;
+  }
+
+  @keyframes qw-detail-arrive {
+    from {
+      transform: translateY(4px);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .detail-copy h3 {
+    margin: 0 0 0.35rem;
+    color: var(--qw-heading);
+    font-family: var(--qw-font-mono);
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+  }
+
+  .detail-copy p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+    line-height: 1.6;
+  }
+
+  .detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.8rem;
+    color: var(--qw-muted);
+    font-size: var(--qw-text-label);
+  }
+
+  .detail-meta > span + span::before {
+    content: "·";
+    margin-inline-end: 0.8rem;
+    color: var(--qw-panel-border-strong);
+  }
+
+  .detail-meta a {
+    flex-basis: 100%;
+    width: fit-content;
+    margin-top: 0.25rem;
+    color: var(--qw-accent);
+    font-size: var(--qw-text-small);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .detail-meta a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .fallback {
+    display: none;
+  }
+
+  .fallback ul {
+    display: grid;
+    gap: 1rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .fallback li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--qw-panel-border);
+    padding-block: 0.75rem;
+  }
+
+  .fallback a {
+    color: var(--qw-accent);
+    font-family: var(--qw-font-mono);
+  }
+
+  .fallback span {
+    color: var(--qw-body);
+    font-size: var(--qw-text-small);
+  }
+
+  @media (max-width: 52rem) {
+    .weave-heading {
+      align-items: start;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .desktop-loom {
+      display: none;
+    }
+
+    .mobile-loom {
+      position: relative;
+      display: block;
+      padding: 0.85rem 0.9rem 1rem;
+    }
+
+    .mobile-rail {
+      position: absolute;
+      inset-block: 6.5rem 1.8rem;
+      width: 3px;
+      border-radius: 999px;
+    }
+
+    .rail-core {
+      inset-inline-start: 1.2rem;
+      background: var(--qw-path-core);
+    }
+
+    .rail-runtime {
+      inset-inline-start: 1.6rem;
+      background: var(--qw-path-runtime);
+    }
+
+    .rail-valid {
+      inset-inline-start: 2rem;
+      background: var(--qw-path-valid);
+    }
+
+    .rail-active {
+      inset-inline-start: 2.4rem;
+      background: var(--qw-path-active);
+    }
+
+    .mobile-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .mobile-control {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      min-height: 3.6rem;
+      border: 0;
+      border-bottom: 1px solid var(--qw-panel-border);
+      background: transparent;
+      padding: 0.5rem 0.65rem;
+      margin-inline-start: 3.4rem;
+      color: var(--qw-heading);
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+      transition:
+        background-color var(--qw-duration-control) var(--qw-ease),
+        filter var(--qw-duration-control) var(--qw-ease);
+    }
+
+    .mobile-control:not(.mobile-core)::before {
+      content: "";
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: -2.35rem;
+      width: 2.35rem;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--thread);
+      transform: translateY(-50%);
+    }
+
+    .mobile-control:not(.mobile-core)::after {
+      content: "";
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-start: -0.3rem;
+      width: 0.6rem;
+      height: 0.6rem;
+      background: var(--thread);
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .mobile-control:is([data-package="node"], [data-package="nuxt"]) {
+      margin-inline-start: 4.35rem;
+    }
+
+    .mobile-control:is([data-package="node"], [data-package="nuxt"])::before {
+      inset-inline-start: -3.3rem;
+      width: 3.3rem;
+    }
+
+    .mobile-relation {
+      display: block;
+      margin-inline-start: auto;
+      color: var(--qw-muted);
+      font-size: 0.66rem;
+      line-height: 1.3;
+      text-align: end;
+    }
+
+    .mobile-control[data-package="nuxt"]::before {
+      box-shadow:
+        0 5px 0 var(--qw-path-runtime),
+        0 10px 0 var(--qw-path-valid);
+    }
+
+    .mobile-control:hover,
+    .mobile-control[aria-pressed="true"] {
+      background: var(--qw-panel-raised);
+    }
+
+    .mobile-core {
+      min-height: 5rem;
+      border: 0;
+      border-radius: var(--qw-radius);
+      background: var(--qw-deep-forest);
+      padding: 0.8rem 1rem;
+      margin: 0 0 0.55rem;
+      color: var(--qw-dark-text);
+    }
+
+    .mobile-core .package-scope {
+      color: rgb(245 246 239 / 78%);
+    }
+
+    .mobile-core .package-label strong {
+      color: var(--qw-dark-text);
+      font-size: 0.95rem;
+    }
+
+    .package-details article {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+    }
+  }
+
+  @media (max-width: 32rem) {
+    .weave-key {
+      display: none;
+    }
+
+    .package-details {
+      padding-inline: 1rem;
+    }
+
+    .detail-meta > span {
+      flex-basis: 100%;
+    }
+
+    .detail-meta > span + span::before {
+      content: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .package-weave[data-revealed="true"] .thread-line,
+    .package-weave[data-revealed="true"] .package-control,
+    .package-weave[data-revealed="true"] .mobile-control,
+    .package-details article {
+      animation: none;
+    }
+
+    .thread-group,
+    .package-control,
+    .mobile-control {
+      transition: none;
+    }
+  }
+</style>
