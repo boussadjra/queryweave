@@ -1,5 +1,5 @@
 {
-  "name": "queryweave-monorepo",
+  "name": "queryweave",
   "version": "0.1.0-alpha.1",
   "private": true,
   "description": "Framework-independent, type-safe URL state infrastructure.",
