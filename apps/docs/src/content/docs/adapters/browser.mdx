@@ -34,7 +34,7 @@ pnpm add @queryweave/core @queryweave/browser
 
 ## Example
 
-```ts
+```ts {9-10,16-18}
 import { createBrowserAdapter } from "@queryweave/browser";
 import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
 
@@ -52,6 +52,7 @@ runtime.subscribe((snapshot) => {
 
 await runtime.update({ search: "vue" }); // ?search=vue
 await runtime.update({ page: 2 }, { navigation: "replace" });
+// ?search=vue&page=2 — the current entry was replaced
 ```
 
 <BrowserQuerySimulator
@@ -67,7 +68,7 @@ attaches the `popstate` listener only when something subscribes. Importing
 `@queryweave/browser` in a server bundle is therefore harmless; calling `createBrowserAdapter()`
 there is what fails, and it fails with a clear message rather than a `ReferenceError`.
 
-```ts
+```ts {2-4}
 // Server rendering: create the adapter on the client only.
 if (typeof window !== "undefined") {
   adapter = createBrowserAdapter();
@@ -76,8 +77,17 @@ if (typeof window !== "undefined") {
 
 ## An explicit target
 
-```ts
-const adapter = createBrowserAdapter({ target: iframe.contentWindow });
+```ts {5-7,9-10}
+const iframe = document.querySelector<HTMLIFrameElement>("#product-preview");
+const target = iframe?.contentWindow;
+if (target === null || target === undefined) throw new Error("Product preview is missing.");
+
+// This runtime reads and writes the preview frame, not the parent page.
+const adapter = createBrowserAdapter({ target });
+const runtime = createQueryRuntime({ model: products, adapter });
+
+await runtime.update({ search: "books", page: 2 });
+// iframe URL: /preview?search=books&page=2
 ```
 
 Useful for tests, for multi-frame applications, and for any case where the ambient window is not

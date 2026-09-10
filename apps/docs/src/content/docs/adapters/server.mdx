@@ -44,7 +44,7 @@ Cloudflare Workers, and any other runtime with `Request` and `URL`.
 
 ## Example
 
-```ts
+```ts {4-5,8-9}
 import { readRequestQuery } from "@queryweave/server";
 
 export async function handler(request: Request): Promise<Response> {
@@ -75,13 +75,16 @@ A relative URL string is accepted. It is resolved against `relativeUrlBase`
 (`http://queryweave.invalid`), which is exported so tests can assert against it. Only the query is
 ever read, so the base is irrelevant to the result.
 
-```ts
-readUrlQuery("/products?page=2", products); // works
+```ts {1-4}
+const result = readUrlQuery("/products?search=vue&page=2", products);
+
+result.ok; // true
+if (result.ok) result.value; // { search: "vue", page: 2, ...defaults }
 ```
 
 ## A request-scoped source
 
-```ts
+```ts {3,5-6}
 import { createRequestQuerySource } from "@queryweave/server";
 
 const source = createRequestQuerySource(request);
@@ -95,7 +98,7 @@ should work with any read-only environment.
 
 ## Building links
 
-```ts
+```ts {3-4,6-7}
 import { createQueryUrl, encodeQuery } from "@queryweave/server";
 
 encodeQuery(products, { search: "vue", page: 2, sort: "created_at", status: "all" });

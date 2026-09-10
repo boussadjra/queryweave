@@ -39,7 +39,7 @@ pnpm add @queryweave/core @queryweave/server @queryweave/node
 
 ## Example
 
-```ts
+```ts {6-7,9-10}
 import { createServer } from "node:http";
 
 import { readNodeQuery } from "@queryweave/node";
@@ -57,7 +57,7 @@ createServer((request, response) => {
 
 A Node request carries a path, not an absolute URL, so the authority has to come from somewhere:
 
-```ts
+```ts {3-4,6-7}
 import { resolveNodeRequestUrl } from "@queryweave/node";
 
 resolveNodeRequestUrl(request);
@@ -75,8 +75,11 @@ The order of precedence is: explicit options, then forwarded headers _if you opt
 They are ignored unless you pass `trustForwardedHeaders: true`, which you should do only when a
 proxy you control is guaranteed to overwrite them.
 
-```ts
-readNodeQuery(request, products, { trustForwardedHeaders: true });
+```ts {1,3-4}
+const result = readNodeQuery(request, products, { trustForwardedHeaders: true });
+
+result.ok; // true for ?search=vue&page=2
+if (result.ok) result.value.page; // 2
 ```
 
 Only the query is decoded, so the authority does not affect the values — but it does affect any URL
@@ -86,7 +89,7 @@ you build from the result.
 
 ## A request-scoped source
 
-```ts
+```ts {3-5}
 import { createNodeQuerySource } from "@queryweave/node";
 
 const source = createNodeQuerySource(request);
@@ -96,8 +99,12 @@ source.request; // the original IncomingMessage
 
 ## Asynchronous validation
 
-```ts
+```ts {1,3-5}
 const result = await readNodeQueryAsync(request, products);
+
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+const rows = await searchProducts(values);
+result.issues; // keep normalized validation issues for logging
 ```
 
 Same rule as everywhere else: use the asynchronous form when a parameter or the model uses an

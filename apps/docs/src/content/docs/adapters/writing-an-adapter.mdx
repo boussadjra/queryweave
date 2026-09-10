@@ -60,13 +60,13 @@ An adapter must:
 1. **Read.** Return whatever raw shape you have. Anything `QueryInput` accepts is fine — a string,
    entries, or an object — so you rarely need to convert.
 
-   ```ts
+   ```ts {1}
    const read = (): QueryOutput => parseQueryString(store.query);
    ```
 
 2. **Write.** Format the canonical output and hand it to the environment.
 
-   ```ts
+   ```ts {2-4}
    const write = (next: QueryOutput, mode: "push" | "replace"): void => {
      const search = formatQueryString(next);
      store.navigate(search === "" ? path : `${path}?${search}`, mode);
@@ -75,7 +75,7 @@ An adapter must:
 
 3. **Notify.** Tell subscribers once, with the new raw input.
 
-   ```ts
+   ```ts {2-5}
    const notify = (): void => {
      const input = read();
      for (const listener of [...listeners]) {
@@ -90,7 +90,7 @@ An adapter must:
 4. **Subscribe lazily.** Attach the environment listener on the first subscription, not on
    creation.
 
-   ```ts
+   ```ts {2-7}
    const subscribe = (listener: QueryChangeListener): (() => void) => {
      attach();
      listeners.add(listener);
@@ -134,7 +134,7 @@ condition, not a programming error.
 
 Test it against the engine, not on its own. The behaviors worth asserting are:
 
-```ts
+```ts {2,5,8-12,15-17}
 // It reports what it stores.
 expect(adapter.read()).toStrictEqual([["page", "2"]]);
 
