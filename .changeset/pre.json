@@ -1,0 +1,23 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@queryweave/docs": "0.0.0",
+    "@queryweave/playground-browser": "0.0.0",
+    "@queryweave/playground-node": "0.0.0",
+    "@queryweave/playground-nuxt": "0.0.0",
+    "@queryweave/playground-vue": "0.0.0",
+    "@queryweave/browser": "0.1.0-alpha.1",
+    "@queryweave/core": "0.1.0-alpha.1",
+    "@queryweave/node": "0.1.0-alpha.1",
+    "@queryweave/nuxt": "0.1.0-alpha.1",
+    "@queryweave/server": "0.1.0-alpha.1",
+    "@queryweave/standard-schema": "0.1.0-alpha.1",
+    "@queryweave/testing": "0.1.0-alpha.1",
+    "@queryweave/vue": "0.1.0-alpha.1",
+    "@queryweave/vue-router": "0.1.0-alpha.1",
+    "@queryweave/typescript-config": "0.0.0",
+    "@queryweave/vitest-config": "0.0.0"
+  },
+  "changesets": []
+}
