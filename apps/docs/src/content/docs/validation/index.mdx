@@ -60,7 +60,7 @@ build if one ever becomes one.
 
 ## Validating one parameter
 
-```ts
+```ts {5-10,12-13,15-17}
 import { defineQueryModel, param } from "@queryweave/core";
 import { fromStandardSchema } from "@queryweave/standard-schema";
 import { z } from "zod";
@@ -72,7 +72,8 @@ const products = defineQueryModel({
     .optional(),
 });
 
-products.decode("?search=vue"); // ok, search: "vue"
+const accepted = products.decode("?search=vue");
+if (accepted.ok) accepted.value.search; // "vue"
 
 const rejected = products.decode("?search=v");
 rejected.issues[0]?.code; // "validation_failed"
@@ -86,16 +87,19 @@ you change validators later without touching anything that reads issues.
 
 Rules that involve more than one key belong to the model:
 
-```ts
-const range = defineQueryModel(
+```ts {7-12}
+const priceFilters = defineQueryModel(
   {
-    from: param.integer(),
-    to: param.integer(),
+    minPrice: param.number({ min: 0 }),
+    maxPrice: param.number({ min: 0 }),
   },
   {
-    refine: [fromStandardSchema(orderedRangeSchema)],
+    refine: [fromStandardSchema(orderedPriceRangeSchema)],
   },
 );
+
+const result = priceFilters.decode("?minPrice=200&maxPrice=100");
+result.issues[0]?.key; // "$" — this rule involves both values
 ```
 
 Model refinements run only after every parameter decoded, and their issues are reported under the
@@ -105,7 +109,7 @@ key `$` (`modelIssueKey`).
 
 A Standard Schema that transforms changes the parameter's value type, and QueryWeave follows it:
 
-```ts
+```ts {2-4}
 const model = defineQueryModel({
   search: param.text().refine(fromStandardSchema(z.string().transform((value) => value.length))),
 });
@@ -122,8 +126,11 @@ const model = defineQueryModel({
 
 ## Asynchronous schemas
 
-```ts
-const result = await products.decodeAsync("?search=vue");
+```ts {1,3-4}
+const result = await products.decodeAsync("?search=wireless");
+
+result.ok; // true after the asynchronous schema resolves
+result.issues; // any rejection is normalized to QueryWeave issues
 ```
 
 A refinement may return a promise. Synchronous `decode` cannot wait, so it reports
@@ -132,8 +139,12 @@ block and does not silently pass.
 
 ## Naming a refinement
 
-```ts
-fromStandardSchema(schema, { name: "product-search" });
+```ts {1,3-5}
+const productSearch = fromStandardSchema(schema, { name: "product-search" });
+
+const products = defineQueryModel({
+  search: param.text().refine(productSearch).optional(),
+});
 ```
 
 The name defaults to the validator's own vendor string and is used for diagnostics only.
