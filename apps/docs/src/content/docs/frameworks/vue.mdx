@@ -27,7 +27,7 @@ globals.
 
 ## Example
 
-```vue
+```vue {13-14,19,22-23}
 <script setup lang="ts">
 import { createBrowserAdapter } from "@queryweave/browser";
 import { defineQueryModel, param } from "@queryweave/core";
@@ -60,7 +60,7 @@ const search = filters.field("search", { navigation: "replace" });
 
 Three ways, in order of preference:
 
-```ts
+```ts {2-3,6,9}
 // 1. Provide once, high in the tree. Every binding below finds it.
 provideQueryAdapter(createBrowserAdapter());
 const filters = useQueryModel(products);
@@ -77,7 +77,7 @@ silently falls back to a global.
 
 ## The binding
 
-```ts
+```ts {1,8-15}
 const filters = useQueryModel(products);
 
 filters.values; // readonly reactive state
@@ -118,7 +118,7 @@ Watching `filters.status` directly watches a static value and will never fire.
 
 `field` returns a writable computed for one key — a `v-model` target:
 
-```ts
+```ts {1-2}
 const search = filters.field("search", { navigation: "replace" });
 const page = filters.field("page");
 ```

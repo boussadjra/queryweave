@@ -43,20 +43,29 @@ pnpm add @queryweave/core @queryweave/vue-router
 
 ## Example
 
-```ts
+```ts {8,10-11,13-16}
 import { createVueRouterAdapter } from "@queryweave/vue-router";
-import { provideQueryAdapter } from "@queryweave/vue";
+import { provideQueryAdapter, useQueryModel } from "@queryweave/vue";
 import { useRouter } from "vue-router";
+
+import { products } from "./products";
 
 const router = useRouter();
 const adapter = createVueRouterAdapter(router);
 
 provideQueryAdapter(adapter);
+const filters = useQueryModel(products);
+
+async function showNextPage(): Promise<void> {
+  // current route: /products#results, page defaults to 1
+  await filters.update({ page: filters.values.page + 1 });
+  // /products?page=2#results — the current path and hash are preserved
+}
 ```
 
 Without the Vue binding, drive it directly:
 
-```ts
+```ts {3-6}
 import { createQueryRuntime } from "@queryweave/core";
 
 const runtime = createQueryRuntime({
@@ -70,7 +79,7 @@ const runtime = createQueryRuntime({
 Router navigation can be cancelled by a guard or redirected. That is an environment condition, not
 a programming error, so the adapter reports it rather than throwing into your transition:
 
-```ts
+```ts {1-7}
 const adapter = createVueRouterAdapter(router, {
   onNavigationFailure: (outcome) => {
     if (!outcome.ok) {

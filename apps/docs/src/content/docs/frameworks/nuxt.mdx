@@ -24,7 +24,7 @@ because they run at different times.
 pnpm add @queryweave/core @queryweave/vue @queryweave/nuxt
 ```
 
-```ts title="nuxt.config.ts"
+```ts title="nuxt.config.ts" {2}
 export default defineNuxtConfig({
   modules: ["@queryweave/nuxt"],
 });
@@ -34,7 +34,7 @@ Requires Nuxt 4.
 
 ## Example
 
-```vue title="app/pages/products.vue"
+```vue title="app/pages/products.vue" {10-11,16-17}
 <script setup lang="ts">
 import { defineQueryModel, param } from "@queryweave/core";
 
@@ -59,7 +59,7 @@ Vue binding finds it through injection.
 
 ## Module options
 
-```ts title="nuxt.config.ts"
+```ts title="nuxt.config.ts" {3-6}
 export default defineNuxtConfig({
   modules: ["@queryweave/nuxt"],
   queryweave: {
@@ -79,7 +79,7 @@ This is the part that matters for server rendering.
 Nuxt creates a fresh Vue application for every server-rendered request. The QueryWeave plugin
 creates its adapter inside that application's setup and installs it on that instance:
 
-```ts
+```ts {2-3}
 // packages/nuxt/src/runtime/plugin.ts, in essence
 const adapter = createNuxtQueryAdapter(nuxtApp.$router);
 installQueryAdapter(nuxtApp.vueApp, adapter);
@@ -113,7 +113,7 @@ There is no state-transfer payload for query state, and none is needed: the URL 
 
 For applications that want to wire things themselves:
 
-```ts
+```ts {3-6}
 import { createNuxtQueryAdapter, installQueryAdapter } from "@queryweave/nuxt/runtime";
 
 export default defineNuxtPlugin((nuxtApp) => {

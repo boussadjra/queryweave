@@ -24,7 +24,7 @@ pnpm add @queryweave/core @queryweave/browser
 
 ## Example
 
-```ts title="filters.ts"
+```ts title="filters.ts" {10-13,33-35}
 import { createBrowserAdapter } from "@queryweave/browser";
 import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
 
@@ -87,7 +87,7 @@ snapshot it would after a programmatic transition.
 The runtime applies every transition immediately. For a search field, that is one history entry per
 keystroke unless you either use `navigation: "replace"` or debounce:
 
-```ts
+```ts {6-8}
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 searchInput?.addEventListener("input", () => {
@@ -103,7 +103,7 @@ stays your decision.
 
 ## Cleanup
 
-```ts
+```ts {1,4-5}
 const unsubscribe = runtime.subscribe(handler);
 
 // later
@@ -117,10 +117,12 @@ In a page-lifetime application you can skip this. In anything that mounts and un
 
 The same model reads the request:
 
-```ts
+```ts {3-5}
 import { readRequestQuery } from "@queryweave/server";
 
 const result = readRequestQuery(request, products);
+const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+// Render the same search, page, and filters the client will read from this URL.
 ```
 
 The client then creates its runtime and immediately reads the same URL, so the first client render
