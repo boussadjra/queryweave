@@ -15,9 +15,13 @@ answerable by reading the call site.
 
 Merge a partial patch into the current state.
 
-```ts
+```ts {2-3,5-6}
+// current URL: ?search=vue&page=3&sort=price
 await runtime.update({ page: 2 });
+// written URL: ?search=vue&page=2&sort=price
+
 await runtime.update({ search: "vue", page: 1 });
+// written URL: ?search=vue&sort=price — page 1 is the default
 ```
 
 Keys you do not mention keep their current value. This is the operation you want most of the time.
@@ -26,13 +30,15 @@ Keys you do not mention keep their current value. This is the operation you want
 
 Swap the entire state. Every managed key is written from the value you pass.
 
-```ts
+```ts {2-8}
+// current URL: ?search=vue&page=3&sort=price&status=active
 await runtime.replace({
   search: undefined,
   page: 1,
   sort: "created_at",
   status: "all",
 });
+// written URL: /products — every value is absent or equal to its default
 ```
 
 `replace` takes a complete state, not a patch, so the compiler tells you when the model gains a
@@ -48,9 +54,13 @@ perfectly ordinary call.
 
 Omit keys from the written output, whatever their current value.
 
-```ts
+```ts {2-3,5-6}
+// current URL: ?search=vue&page=3&sort=price
 await runtime.remove("search");
+// written URL: ?page=3&sort=price
+
 await runtime.remove(["search", "page"]);
+// written URL: ?sort=price
 ```
 
 The keys are dropped from the encoded output, so they disappear from the URL. On the next read they
@@ -60,9 +70,13 @@ decode as absent — which means a parameter with a default comes back as that d
 
 Set keys back to their declared defaults.
 
-```ts
-await runtime.reset(); // every managed key
+```ts {2-3,5-6}
+// current URL: ?search=vue&page=3&sort=price
 await runtime.reset(["page"]); // just these
+// written URL: ?search=vue&sort=price
+
+await runtime.reset(); // every managed key
+// written URL: /products
 ```
 
 For a parameter with a default, `reset` and `remove` produce the same URL, because a value equal to
@@ -72,11 +86,13 @@ its default is omitted. They differ for `required` parameters, which have no def
 
 Apply several changes as one write.
 
-```ts
+```ts {2-6}
+// current URL: ?search=nuxt&page=4
 await runtime.transaction((draft) => {
   draft.search = "vue";
   draft.page = 1;
 });
+// written URL: ?search=vue — one write and one history entry
 ```
 
 The draft is a copy of the current values. Mutating it is safe precisely because it is not the
@@ -97,7 +113,7 @@ transaction it produces one of each.
 
 Every operation takes a navigation mode, and every runtime has a default:
 
-```ts
+```ts {1,3-4}
 const runtime = createQueryRuntime({ model, adapter, navigation: "replace" });
 
 await runtime.update({ page: 2 }); // replace — the runtime default
@@ -124,9 +140,13 @@ There is no queue. If an adapter's navigation is asynchronous — Vue Router's i
 second transition before the first settles, the second reads whatever the environment currently
 reports. Await the first when the second depends on it:
 
-```ts
+```ts {2-3,5-6}
+// Each transition reads the URL produced by the one before it.
 await runtime.update({ search: "vue" });
+// ?search=vue
+
 await runtime.update({ page: 2 });
+// ?search=vue&page=2
 ```
 
 Scheduling, throttling, coalescing, and cancellation are [planned](/project/roadmap/), and their
@@ -138,7 +158,7 @@ A transition does not throw when the environment refuses. Adapters that can fail
 rejects a navigation guarded away — report through their own callback rather than by throwing into
 your call:
 
-```ts
+```ts {1-7}
 createVueRouterAdapter(router, {
   onNavigationFailure: (outcome) => {
     if (!outcome.ok) {

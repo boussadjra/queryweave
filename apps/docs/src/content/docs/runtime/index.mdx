@@ -9,7 +9,7 @@ import { Aside } from "@astrojs/starlight/components";
 
 A model says what a query means. A runtime connects that meaning to a place that stores it.
 
-```ts
+```ts {3-7}
 import { createQueryRuntime } from "@queryweave/core";
 
 const runtime = createQueryRuntime({
@@ -27,7 +27,7 @@ const runtime = createQueryRuntime({
 
 ## Reading
 
-```ts
+```ts {1,3-6}
 const snapshot = runtime.read();
 
 snapshot.status; // "valid" | "invalid"
@@ -61,7 +61,7 @@ await runtime.transaction((draft) => {
 
 Each returns a `QueryTransitionResult`:
 
-```ts
+```ts {1,3-5}
 const { navigation, output, snapshot } = await runtime.update({ page: 2 });
 
 navigation; // "push" | "replace" — what was actually used
@@ -80,10 +80,15 @@ The notification does not come from the transition. It arrives through the adapt
 because the environment is the source of truth — a browser back button and a call to `update` must
 produce the same kind of event, or subscribers would have two code paths to reconcile.
 
-```ts
+```ts {2-4,6-7}
+const seen: number[] = [];
 const unsubscribe = runtime.subscribe((snapshot) => {
+  seen.push(snapshot.values.page);
   render(snapshot.values);
 });
+
+await runtime.update({ page: 2 });
+seen; // [2] — one transition, one notification
 ```
 
 The runtime subscribes to the adapter lazily, on the first `subscribe` call, so a runtime that is
@@ -93,7 +98,7 @@ only ever read never attaches a listener.
 
 `model.encode` emits only the keys the model declares. The runtime is what preserves the rest:
 
-```ts
+```ts {2-3}
 // current URL: ?page=2&utm_source=newsletter
 await runtime.update({ page: 3 });
 // written: ?page=3&utm_source=newsletter
@@ -129,7 +134,7 @@ This absence is deliberate and recorded in
 [ADR 0004](https://github.com/boussadjra/query-weave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md).
 For a fast-changing input such as a search field, debounce at the call site:
 
-```ts
+```ts {6-8}
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 input.addEventListener("input", () => {
