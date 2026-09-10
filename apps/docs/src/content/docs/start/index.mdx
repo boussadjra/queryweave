@@ -31,7 +31,7 @@ differently. Nothing is broken enough to fail loudly, and everything is slightly
 A **query model** describes your query parameters once. Each parameter defines how to decode and
 encode its value, so parsing and serialization cannot drift apart.
 
-```ts
+```ts {3-7}
 import { defineQueryModel, param } from "@queryweave/core";
 
 const products = defineQueryModel({
