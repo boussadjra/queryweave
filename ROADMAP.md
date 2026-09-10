@@ -26,6 +26,7 @@
 
 18. **Transition scheduling** — throttling, coalescing, cancellation, and concurrency control.
 19. **Codec composition** — date, JSON, object, tuple, and nested representations.
-20. **First release** — the first published version, migration guidance, and supported matrices.
+20. **First release** — publish `0.1.0-alpha.1` to npm under the `alpha` dist-tag from
+    `boussadjra/queryweave`, then migration guidance and supported matrices.
 21. **API stabilization** — freezing the public contracts for 1.0.
 22. **Additional framework adapters** — designed against the established core contracts.

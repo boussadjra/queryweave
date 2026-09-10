@@ -34,9 +34,12 @@ proxy they are attacker-controlled.
   `LICENSE`, and `package.json`. `pnpm artifacts:check` reads the real archive to confirm it.
 - `@queryweave/core` has no runtime dependencies. No published package depends on a validation
   library or a framework.
-- Publishing uses npm trusted publishing over OIDC with provenance attestations. No long-lived npm
-  token exists in the repository, and `id-token: write` is granted only to the publishing job.
+- Publishing uses npm trusted publishing over OIDC with provenance attestations. The first publish
+  of a new package name is the exception: npm cannot attach a trusted publisher until the package
+  exists, so that one run uses a short-lived granular token that is never committed. After that,
+  no long-lived npm token exists in the repository, and `id-token: write` is granted only to the
+  publishing jobs.
 - Third-party GitHub Actions are pinned to immutable commit SHAs.
 - `minimumReleaseAge` delays adoption of freshly published dependency versions.
 
-More detail is in [the security guide](./apps/docs/content/security.md).
+The release process is in [releasing.mdx](./apps/docs/src/content/docs/project/releasing.mdx).

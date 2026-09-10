@@ -159,6 +159,7 @@ Run it with `pnpm docs:dev`.
 - [Writing an adapter](./apps/docs/src/content/docs/adapters/writing-an-adapter.mdx)
 - [Testing query state](./apps/docs/src/content/docs/recipes/testing-query-state.mdx)
 - [Architecture](./ARCHITECTURE.md) and [architecture decisions](./docs/adr)
+- [Releasing](./apps/docs/src/content/docs/project/releasing.mdx)
 - [Security](./SECURITY.md)
 
 ## Development

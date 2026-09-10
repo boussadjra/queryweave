@@ -9,7 +9,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 <Aside type="caution" title={`Source version ${currentPackageVersion}`}>
   Every public package in this repository is version {currentPackageVersion}. The packages are not
-  on npm yet, so the commands below document the first release but cannot be installed today.
+  on npm yet. The first publish uses the `alpha` dist-tag, so install with `@queryweave/core@alpha`
+  once it exists. Bare `pnpm add @queryweave/core` resolves `latest`, which this alpha does not use.
 </Aside>
 
 ## Requirements
@@ -25,7 +26,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 1. **Always install the engine.**
 
    ```sh
-   pnpm add @queryweave/core
+   pnpm add @queryweave/core@alpha
    ```
 
    `@queryweave/core` has no runtime dependencies and no framework dependency. It targets
@@ -35,21 +36,21 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
    ```sh
    # A browser history stack
-   pnpm add @queryweave/browser
+   pnpm add @queryweave/browser@alpha
 
    # A web-standard Request, on any server, edge, or worker runtime
-   pnpm add @queryweave/server
+   pnpm add @queryweave/server@alpha
 
    # Node.js request primitives
-   pnpm add @queryweave/node
+   pnpm add @queryweave/node@alpha
    ```
 
 3. **Add a framework binding if you want one.**
 
    ```sh
-   pnpm add @queryweave/vue
-   pnpm add @queryweave/vue-router
-   pnpm add @queryweave/nuxt
+   pnpm add @queryweave/vue@alpha
+   pnpm add @queryweave/vue-router@alpha
+   pnpm add @queryweave/nuxt@alpha
    ```
 
    These are optional. The runtime works without any of them.
@@ -57,7 +58,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 4. **Add the test adapter as a development dependency.**
 
    ```sh
-   pnpm add -D @queryweave/testing
+   pnpm add -D @queryweave/testing@alpha
    ```
 
 </Steps>

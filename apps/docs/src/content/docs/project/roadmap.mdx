@@ -50,7 +50,7 @@ inputs. See [Search](/recipes/search/).
 **Why it waits:** a scheduling model that cannot express "supersede" and "cancel" honestly would
 have to be replaced later. When it lands, `QueryTransitionResult` gains an outcome describing what
 actually happened, which is why it does not carry a constant `committed: true` today
-([ADR 0007](https://github.com/boussadjra/query-weave/blob/main/docs/adr/0007-api-consistency-and-packaging.md)).
+([ADR 0007](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0007-api-consistency-and-packaging.md)).
 
 ### Codec composition <PackageBadge tone="planned">planned</PackageBadge>
 
@@ -86,8 +86,9 @@ In order:
 
 1. **Transition scheduling** — throttling, coalescing, cancellation, and concurrency control.
 2. **Codec composition** — date, JSON, object, tuple, and nested representations.
-3. **Publish {currentPackageVersion}** — the first npm release, migration guidance, and supported
-   matrices.
+3. **Publish {currentPackageVersion}** — the first npm alpha under the `alpha` dist-tag, from
+   [`boussadjra/queryweave`](https://github.com/boussadjra/queryweave). See
+   [Releasing](/project/releasing/).
 4. **API stabilization** — freezing the public contracts for 1.0.
 5. **Additional framework adapters** — designed against the established core contracts.
 

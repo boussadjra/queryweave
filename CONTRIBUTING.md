@@ -63,7 +63,7 @@ All public packages share one version as a fixed group, so a change to one moves
 Describe the change the way a consumer needs to read it: what broke, what to write instead, and why.
 Internal tooling changes — CI, scripts, fixtures, the documentation site — do not need one.
 
-See [the release process](./apps/docs/content/releasing.md) for what happens next.
+See [the release process](./apps/docs/src/content/docs/project/releasing.mdx) for what happens next.
 
 ## Pull requests
 
