@@ -110,6 +110,11 @@ export default defineConfig({
             terminalTitlebarBackground: "var(--qw-code-chrome)",
             shadowColor: "transparent",
           },
+          textMarkers: {
+            backgroundOpacity: "8%",
+            borderOpacity: "0%",
+            markHue: "145",
+          },
         },
       },
       sidebar: [

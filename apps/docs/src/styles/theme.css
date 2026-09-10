@@ -268,6 +268,32 @@ site-search button[data-open-modal]:hover {
   border: 1px solid var(--qw-code-border);
 }
 
+/* A neutral full-line marker identifies the operation a reader should scan first. Supporting
+   setup stays available and copyable, but recedes until the block is inspected. */
+.expressive-code:has(.ec-line.mark) .ec-line:not(.mark) {
+  opacity: 0.62;
+}
+
+.expressive-code:has(.ec-line.mark) .ec-line {
+  transition: opacity var(--qw-duration-control) var(--qw-ease);
+}
+
+.expressive-code:has(.ec-line.mark):is(:hover, :focus-within) .ec-line:not(.mark) {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expressive-code:has(.ec-line.mark) .ec-line {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .expressive-code:has(.ec-line.mark) .ec-line:not(.mark) {
+    opacity: 1;
+  }
+}
+
 /* ---------------------------------------------------------------- asides */
 
 .starlight-aside {
