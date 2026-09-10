@@ -123,7 +123,8 @@ see:
 ## Decided in session 3
 
 - Public API consistency corrections and packaging uniformity — ADR 0007.
-- Release automation: a fixed version group, trusted publishing over OIDC, and provenance.
+- Release automation: lockstep versions, `pnpm publish:packages`, a one-shot first publish, then
+  trusted publishing over OIDC with provenance from `boussadjra/queryweave`.
 
 ## Deferred decisions
 
