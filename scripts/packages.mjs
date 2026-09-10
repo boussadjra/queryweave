@@ -12,6 +12,13 @@ import { fileURLToPath } from "node:url";
 export const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const packagesRoot = join(repositoryRoot, "packages");
 
+/**
+ * GitHub owner/name for this repository. Independent of the npm org `queryweave` that
+ * owns the `@queryweave/*` scope.
+ */
+export const githubRepository = "boussadjra/queryweave";
+export const githubRepositoryUrl = `https://github.com/${githubRepository}`;
+
 /** Directory name to the internal packages it may depend on. */
 export const allowedInternalDependencies = {
   browser: ["@queryweave/core"],

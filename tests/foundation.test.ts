@@ -39,6 +39,11 @@ describe("repository foundation", () => {
       expect(manifest["private"]).not.toBe(true);
       expect(manifest["sideEffects"]).toBe(false);
       expect(manifest["license"]).toBe("MIT");
+      expect(manifest["repository"]).toMatchObject({
+        type: "git",
+        url: "git+https://github.com/boussadjra/queryweave.git",
+      });
+      expect(manifest["files"]).toEqual(expect.arrayContaining(["dist", "README.md", "LICENSE"]));
     }
   });
 });

@@ -18,6 +18,7 @@ import {
   publishablePackages,
   readManifests,
   report,
+  repositoryRoot,
   toPackageName,
 } from "./packages.mjs";
 
@@ -260,7 +261,7 @@ async function validateArchive(packageName, manifest, tarballPath) {
     }
   }
 
-  for (const required of ["package.json", "README.md"]) {
+  for (const required of ["package.json", "README.md", "LICENSE"]) {
     if (!paths.includes(required)) {
       packageFailures.push(`${name}: archive is missing "${required}"`);
     }
@@ -298,12 +299,20 @@ async function validateArchiveTypes(manifest, tarballPath) {
 }
 
 const manifests = await readManifests();
+const rootLicense = await readFile(join(repositoryRoot, "LICENSE"), "utf8");
 const workspace = await mkdtemp(join(tmpdir(), "queryweave-archives-"));
 
 try {
   for (const packageName of publishablePackages) {
     const manifest = manifests[packageName];
     const root = join(packagesRoot, packageName);
+
+    const licensePath = join(root, "LICENSE");
+    if (!(await exists(licensePath))) {
+      failures.push(`${manifest.name}: missing LICENSE; run pnpm license:sync`);
+    } else if ((await readFile(licensePath, "utf8")) !== rootLicense) {
+      failures.push(`${manifest.name}: LICENSE does not match the repository LICENSE`);
+    }
 
     const builtFailures = await validateBuiltOutput(packageName, manifest);
     failures.push(...builtFailures);

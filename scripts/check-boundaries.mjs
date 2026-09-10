@@ -8,6 +8,8 @@ import {
   forbiddenGlobals,
   forbiddenImports,
   forbiddenValidatorRuntimes,
+  githubRepository,
+  githubRepositoryUrl,
   packagesRoot,
   publishablePackages,
   readManifests,
@@ -85,6 +87,23 @@ function validateManifest(packageName, manifest) {
   }
   if (!Array.isArray(manifest.files) || !manifest.files.includes("dist")) {
     packageFailures.push(`${name}: files must publish "dist"`);
+  }
+  if (!Array.isArray(manifest.files) || !manifest.files.includes("LICENSE")) {
+    packageFailures.push(`${name}: files must publish "LICENSE"`);
+  }
+
+  const expectedRepository = `git+https://github.com/${githubRepository}.git`;
+  if (manifest.repository?.url !== expectedRepository) {
+    packageFailures.push(`${name}: repository.url must be "${expectedRepository}"`);
+  }
+  if (manifest.repository?.directory !== `packages/${packageName}`) {
+    packageFailures.push(`${name}: repository.directory must be "packages/${packageName}"`);
+  }
+  if (manifest.homepage !== `${githubRepositoryUrl}#readme`) {
+    packageFailures.push(`${name}: homepage must be "${githubRepositoryUrl}#readme"`);
+  }
+  if (manifest.bugs?.url !== `${githubRepositoryUrl}/issues`) {
+    packageFailures.push(`${name}: bugs.url must be "${githubRepositoryUrl}/issues"`);
   }
 
   for (const group of dependencyGroups(manifest)) {
