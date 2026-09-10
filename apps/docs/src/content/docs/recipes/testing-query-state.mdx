@@ -17,7 +17,7 @@ the part that touches an environment is swappable.
 
 No adapter, no runtime, no DOM:
 
-```ts
+```ts {6-10,13}
 import { expect, test } from "vitest";
 
 import { products } from "../shared/products";
@@ -42,7 +42,7 @@ the thing that actually varies: what a URL means.
 
 For any custom codec, assert the property that makes canonical URLs work:
 
-```ts
+```ts {2,4-11}
 test("a decoded value encodes back to the same input", () => {
   const decoded = products.decode("?search=vue&page=2");
 
@@ -58,7 +58,7 @@ test("a decoded value encodes back to the same input", () => {
 
 ## Test the runtime with the memory adapter
 
-```ts
+```ts {8-11,13-14}
 import { createQueryRuntime } from "@queryweave/core";
 import { createMemoryQueryAdapter } from "@queryweave/testing";
 
@@ -80,7 +80,7 @@ test("changing the search resets the page in one entry", async () => {
 
 ## Test history semantics
 
-```ts
+```ts {5-6,8-10}
 test("replace does not add a history entry", async () => {
   const adapter = createMemoryQueryAdapter();
   const runtime = createQueryRuntime({ model: products, adapter });
@@ -98,7 +98,7 @@ test("replace does not add a history entry", async () => {
 
 The single-notification rule is worth asserting whenever you write a subscriber:
 
-```ts
+```ts {6-8,10-15}
 test("one transaction notifies once", async () => {
   const adapter = createMemoryQueryAdapter();
   const runtime = createQueryRuntime({ model: products, adapter });
@@ -146,7 +146,7 @@ browser. Passing `{ adapter }` directly to `useQueryModel` works too.
 
 `readUrlQuery` accepts a string, so no server is required:
 
-```ts
+```ts {3-6}
 import { readUrlQuery } from "@queryweave/server";
 
 test("a stale sort recovers", () => {

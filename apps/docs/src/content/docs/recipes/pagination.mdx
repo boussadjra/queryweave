@@ -7,7 +7,7 @@ import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.ast
 
 ## The model
 
-```ts
+```ts {2-3}
 const products = defineQueryModel({
   page: param.integer({ min: 1 }).default(1),
   perPage: param.integer({ min: 1, max: 100 }).default(20),
@@ -20,7 +20,7 @@ against your own database.
 
 ## Page one is absent
 
-```ts
+```ts {1-2}
 products.encode({ page: 1, perPage: 20 }); // []
 products.encode({ page: 2, perPage: 20 }); // [["page", "2"]]
 ```
@@ -31,10 +31,16 @@ canonical tags have to reconcile.
 
 ## Moving between pages
 
-```ts
-await runtime.update({ page: current + 1 });
-await runtime.update({ page: current - 1 });
+```ts {2-3,5-6,8-9}
+// current URL: /products?page=2
+await runtime.update({ page: 3 });
+// written URL: /products?page=3
+
+await runtime.update({ page: 2 });
+// written URL: /products?page=2
+
 await runtime.reset(["page"]); // back to page 1, key removed
+// written URL: /products
 ```
 
 Use `push` — the runtime default — so Back returns to the previous page. Pagination is deliberate
@@ -50,7 +56,7 @@ navigation, unlike a search field.
 
 The model cannot know how many pages exist — that depends on data. Clamp after you know:
 
-```ts
+```ts {4-5}
 const { rows, total } = await fetchProducts(values);
 const pageCount = Math.max(1, Math.ceil(total / values.perPage));
 
@@ -66,11 +72,13 @@ occupy a history entry.
 
 Any change that shrinks the result set should return to page one, in the same transaction:
 
-```ts
+```ts {2-6}
+// current URL: /products?status=active&page=4
 await runtime.transaction((draft) => {
   draft.status = "archived";
   draft.page = 1;
 });
+// written URL: /products?status=archived
 ```
 
 Two separate `update` calls would produce two history entries and a moment where the page number
@@ -78,7 +86,7 @@ points past the end of the new results.
 
 ## On the server
 
-```ts
+```ts {1-4}
 const result = readRequestQuery(request, products);
 const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
 
@@ -90,10 +98,12 @@ rejected everything else. That is the point of decoding on both sides with one d
 
 ## Building page links
 
-```ts
+```ts {4-5}
 import { createQueryUrl } from "@queryweave/server";
 
-const next = createQueryUrl(request.url, products, { ...values, page: values.page + 1 });
+const requestUrl = "https://shop.example/products?page=2&utm_source=newsletter";
+const next = createQueryUrl(requestUrl, products, { page: 3, perPage: 20 });
+next.href; // https://shop.example/products?page=3&utm_source=newsletter
 ```
 
 `createQueryUrl` preserves query keys the model does not manage, so tracking parameters survive

@@ -9,7 +9,7 @@ import { Aside } from "@astrojs/starlight/components";
 The model is the artifact you share between client and server. Put it in a module both can import,
 and neither side has a parser of its own.
 
-```ts title="shared/products.ts"
+```ts title="shared/products.ts" {3-7}
 import { defineQueryModel, param } from "@queryweave/core";
 
 export const products = defineQueryModel({
@@ -23,7 +23,7 @@ export const products = defineQueryModel({
 
 Anywhere `Request` exists — Deno, Bun, Cloudflare Workers, Vercel, Netlify, Hono, Nitro:
 
-```ts
+```ts {6-7,9-10}
 import { readRequestQuery } from "@queryweave/server";
 
 import { products } from "./shared/products";
@@ -41,7 +41,7 @@ export async function GET(request: Request): Promise<Response> {
 
 ## Node.js
 
-```ts
+```ts {6-7,9-10}
 import { createServer } from "node:http";
 
 import { readNodeQuery } from "@queryweave/node";
@@ -57,8 +57,11 @@ createServer((request, response) => {
 
 Behind a trusted proxy, opt in to forwarded headers explicitly:
 
-```ts
-readNodeQuery(request, products, { trustForwardedHeaders: true });
+```ts {1,3-4}
+const result = readNodeQuery(request, products, { trustForwardedHeaders: true });
+
+result.ok; // true for /products?search=vue&page=2
+if (result.ok) result.value.page; // 2
 ```
 
 <Aside type="caution" title="Only opt in when a proxy overwrites them">
@@ -71,7 +74,7 @@ readNodeQuery(request, products, { trustForwardedHeaders: true });
 
 No adapter package is needed. Both expose a Node request:
 
-```ts
+```ts {2-3}
 app.get("/products", (request, response) => {
   const result = readNodeQuery(request, products);
   response.json(result.ok ? result.value : result.partial);
@@ -82,8 +85,11 @@ app.get("/products", (request, response) => {
 
 Every server example above merges defaults with partial values:
 
-```ts
+```ts {1,3-4}
 const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
+
+values.page; // always a usable number because page has a default
+result.issues.map((issue) => issue.code); // keep stable codes for logs or diagnostics
 ```
 
 Do this rather than returning a 400. A bad query usually comes from a stale link or a crawler, not
@@ -97,7 +103,7 @@ whole, giving you a real decision point.
 
 Because encoding is deterministic, you can detect a non-canonical URL by comparing strings:
 
-```ts
+```ts {3-7}
 import { encodeQuery } from "@queryweave/server";
 
 const canonical = encodeQuery(products, values);
@@ -114,10 +120,11 @@ is a legitimate choice, since decoding already recovered.
 
 ## Building links back
 
-```ts
+```ts {3-4}
 import { createQueryUrl } from "@queryweave/server";
 
 const nextPage = createQueryUrl(request.url, products, { ...values, page: values.page + 1 });
+nextPage.href; // managed page changes; an existing utm_source value survives
 ```
 
 Unmanaged keys in the incoming URL are preserved after the managed ones, so tracking parameters
@@ -132,9 +139,13 @@ survive.
 
 ## Asynchronous validation
 
-```ts
-const result = await readRequestQueryAsync(request, products);
-const result2 = await readNodeQueryAsync(request, products);
+```ts {2-3,5}
+// Web-standard Request
+const webResult = await readRequestQueryAsync(request, products);
+// Node IncomingMessage
+const nodeResult = await readNodeQueryAsync(request, products);
+
+[webResult.issues, nodeResult.issues]; // validation issues use the same QueryWeave shape
 ```
 
 Use these when any parameter or the model uses an asynchronous refinement.
@@ -143,7 +154,7 @@ Use these when any parameter or the model uses an asynchronous refinement.
 
 `readUrlQuery` takes a string, so a server test needs no server:
 
-```ts
+```ts {3-6}
 import { readUrlQuery } from "@queryweave/server";
 
 expect(readUrlQuery("/products?page=2", products)).toMatchObject({

@@ -11,7 +11,7 @@ and it must not turn the back button into a character-by-character undo.
 
 ## The model
 
-```ts
+```ts {3-6}
 import { defineQueryModel, param } from "@queryweave/core";
 
 export const products = defineQueryModel({
@@ -27,8 +27,11 @@ and `undefined` is the value that encodes to nothing.
 
 ### 1. Use replace, not push
 
-```ts
+```ts {3-4}
+const value = "vue";
+// current URL: /products?page=3
 await runtime.update({ search: value }, { navigation: "replace" });
+// written URL: /products?search=vue&page=3
 ```
 
 Each keystroke rewrites the current history entry instead of adding one. Back then leaves the
@@ -36,8 +39,11 @@ search entirely, which is what a reader expects.
 
 ### 2. Clear with `undefined`
 
-```ts
+```ts {3-4}
+const value = "";
+// current URL: /products?search=vue
 await runtime.update({ search: value === "" ? undefined : value });
+// written URL after clearing: /products
 ```
 
 Assigning `""` produces `?search=` in the URL and an `empty` issue when it is read back, because
@@ -45,7 +51,9 @@ Assigning `""` produces `?search=` in the URL and an `empty` issue when it is re
 
 ### 3. Reset the page in the same transition
 
-```ts
+```ts {3-10}
+const value = "vue";
+// current URL: /products?search=nuxt&page=4
 await runtime.transaction(
   (draft) => {
     draft.search = value === "" ? undefined : value;
@@ -53,6 +61,7 @@ await runtime.transaction(
   },
   { navigation: "replace" },
 );
+// written URL: /products?search=vue
 ```
 
 A new search on page 4 usually has no page 4. Doing both in one transaction produces one write, one
@@ -69,7 +78,7 @@ history entry, and one render.
 The runtime writes immediately, so debounce at the call site if you do not want one write per
 keystroke:
 
-```ts
+```ts {6-14}
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function onInput(value: string): void {
@@ -91,7 +100,7 @@ meaningful.
 
 ## In Vue
 
-```vue
+```vue {5-6,10}
 <script setup lang="ts">
 import { useQueryModel } from "@queryweave/vue";
 
@@ -106,7 +115,7 @@ const search = filters.field("search", { navigation: "replace" });
 
 `field` gives you the `v-model` target. For the page reset, use an explicit handler instead:
 
-```ts
+```ts {2-8}
 async function onSearch(value: string): Promise<void> {
   await filters.transaction(
     (draft) => {
@@ -126,7 +135,7 @@ async function onSearch(value: string): Promise<void> {
 
 ## Reading it on the server
 
-```ts
+```ts {3-6}
 import { readRequestQuery } from "@queryweave/server";
 
 const result = readRequestQuery(request, products);

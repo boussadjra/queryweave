@@ -10,7 +10,7 @@ import { Aside } from "@astrojs/starlight/components";
 
 `param.choice` gives you a union type and a distinct issue code for an unrecognized value.
 
-```ts
+```ts {2-3}
 const products = defineQueryModel({
   status: param.choice(["all", "active", "archived"]).default("all"),
   page: param.integer({ min: 1 }).default(1),
@@ -20,11 +20,13 @@ const products = defineQueryModel({
 Making `"all"` the default is what keeps the URL clean: selecting "All" removes the key rather than
 writing `?status=all`.
 
-```ts
+```ts {2-6}
+// current URL: /products?status=active&page=4
 await runtime.transaction((draft) => {
   draft.status = "archived";
   draft.page = 1;
 });
+// written URL: /products?status=archived
 ```
 
 <BrowserQuerySimulator
@@ -37,7 +39,7 @@ await runtime.transaction((draft) => {
 
 `param.list` consumes every value stored under its key, so repeated keys become an array.
 
-```ts
+```ts {2,5-7}
 const products = defineQueryModel({
   tags: param.list(param.text()).default([]),
 });
@@ -49,7 +51,7 @@ products.encode({ tags: [] }); // [] — equals the default
 
 Toggling one value:
 
-```ts
+```ts {2-7}
 async function toggleTag(tag: string): Promise<void> {
   await runtime.transaction((draft) => {
     draft.tags = draft.tags.includes(tag)
@@ -71,8 +73,18 @@ work — but treating them as immutable keeps the intent obvious and survives a 
 
 ### Constraining a list
 
-```ts
-param.list(param.choice(["vue", "nuxt", "node"]), { minItems: 1, maxItems: 3 });
+```ts {2-5,8-11}
+const products = defineQueryModel({
+  category: param.list(param.choice(["books", "games", "music", "software"]), {
+    minItems: 1,
+    maxItems: 3,
+  }),
+});
+
+const accepted = products.decode("?category=books&category=music");
+accepted.ok; // true
+const rejected = products.decode("?category=books&category=games&category=music&category=software");
+rejected.issues[0]?.code; // "out_of_range" — four selections exceed maxItems
 ```
 
 Item-level validation runs per entry, and item issues carry their index in `path`. Count violations
@@ -80,7 +92,7 @@ report `out_of_range` against the list itself.
 
 ## Clearing everything
 
-```ts
+```ts {1-3}
 await runtime.reset(); // every managed key back to its default
 await runtime.reset(["status", "tags"]); // just these
 await runtime.remove(["status", "tags"]); // omit the keys entirely
@@ -91,10 +103,14 @@ For parameters with defaults the three produce the same URL. Prefer `reset` when
 
 ## Boolean toggles
 
-```ts
+```ts {2,5-7}
 const products = defineQueryModel({
   inStock: param.boolean().default(false),
 });
+
+const result = products.decode("?inStock=yes");
+if (result.ok) result.value.inStock; // true
+products.encode({ inStock: true }); // [["inStock", "true"]]
 ```
 
 Decoding accepts `true`, `1`, `yes`, `on` and their negatives, case-insensitively. Encoding writes
@@ -111,18 +127,21 @@ Write `?inStock=true`, which is what encoding produces anyway.
 If your application must tell "the user removed this filter" from "the user never set it", the
 default cannot express both. Use `.nullable()`:
 
-```ts
+```ts {2,5-9}
 const filters = defineQueryModel({
   category: param.text().nullable().optional(),
 });
 
-filters.decode(""); // { category: undefined } — untouched
-filters.decode("?category="); // { category: null } — explicitly cleared
+const untouched = filters.decode("");
+const cleared = filters.decode("?category=");
+
+if (untouched.ok) untouched.value.category; // undefined — untouched
+if (cleared.ok) cleared.value.category; // null — explicitly cleared
 ```
 
 ## Server-side filtering
 
-```ts
+```ts {1-2,4-9}
 const result = readRequestQuery(request, products);
 const values = result.ok ? result.value : { ...products.defaults(), ...result.partial };
 
