@@ -14,11 +14,15 @@ That equivalence runs in both directions:
 - **Decoding**: an absent key produces `v`.
 - **Encoding**: a value equal to `v` produces no key.
 
-```ts
+```ts {3-10}
 const products = defineQueryModel({ page: param.integer({ min: 1 }).default(1) });
 
-products.decode(""); // { page: 1 }
-products.decode("?page=1"); // { page: 1 }
+const absent = products.decode("");
+const explicit = products.decode("?page=1");
+
+if (absent.ok) absent.value.page; // 1
+if (explicit.ok) explicit.value.page; // 1
+
 products.encode({ page: 1 }); // []
 products.encode({ page: 2 }); // [["page", "2"]]
 ```
@@ -57,31 +61,42 @@ The third row is the one that is easy to miss. If your application needs "the us
 cleared this field" to be different from "the user never touched it", `.nullable()` is what
 expresses it:
 
-```ts
+```ts {2,5-9}
 const filters = defineQueryModel({
   category: param.text().nullable().optional(),
 });
 
-filters.decode(""); // { category: undefined } — never set
-filters.decode("?category="); // { category: null } — explicitly cleared
+const untouched = filters.decode("");
+const cleared = filters.decode("?category=");
+
+if (untouched.ok) untouched.value.category; // undefined — never set
+if (cleared.ok) cleared.value.category; // null — explicitly cleared
 ```
 
 ## Clearing a value
 
 Because `undefined` encodes to nothing, assigning it is how you remove a key:
 
-```ts
+```ts {2-6}
+// current URL: ?search=vue&page=3
 await runtime.transaction((draft) => {
   draft.search = undefined;
+  draft.page = 1;
 });
+// written URL: /products
 ```
 
 The runtime also has an explicit operation, which is clearer when you are removing several keys and
 do not care about their current values:
 
-```ts
+```ts {2-3,6-7}
+// current URL: ?search=vue&page=3
 await runtime.remove(["search", "page"]);
-await runtime.reset(); // back to every declared default
+// written URL: /products
+
+// from the same initial URL, reset every managed key to its default
+await runtime.reset();
+// written URL: /products
 ```
 
 `remove` omits the keys from the written output. `reset` sets them to their defaults, which — for a
@@ -100,7 +115,7 @@ A required parameter cannot be defaulted, by construction: `.default()` changes 
 `default`. This is why `defaults()` returns only the parameters that have one, and why its type
 excludes required keys.
 
-```ts
+```ts {6}
 const model = defineQueryModel({
   id: param.text(),
   page: param.integer().default(1),

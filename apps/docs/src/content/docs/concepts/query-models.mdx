@@ -11,7 +11,7 @@ the same model works on a server, in a browser, and in a test.
 
 ## Defining a model
 
-```ts
+```ts {3-8}
 import { defineQueryModel, param } from "@queryweave/core";
 
 const products = defineQueryModel({
@@ -60,35 +60,48 @@ type ProductValues = ReturnType<typeof products.decode> extends { value: infer T
 
 ## Naming a model
 
-```ts
-const products = defineQueryModel({ page: param.integer().default(1) }, { name: "products" });
+```ts {6,8-9}
+const products = defineQueryModel(
+  {
+    page: param.integer({ min: 1 }).default(1),
+    sort: param.choice(["relevance", "price"]).default("relevance"),
+  },
+  { name: "product-catalog" },
+);
+
+products.name; // "product-catalog"
+products.keys(); // ["page", "sort"] — the name does not change the model's keys
 ```
 
-The name is used in diagnostics only. It does not appear in the URL and does not affect decoding.
+The name is metadata for introspection. It does not appear in the URL and does not affect decoding.
 
 ## Model-level refinement
 
 Individual parameters can be refined on their own, but some rules involve more than one key — for
-example, a date range whose end must not precede its start. Those belong to the model.
+example, a maximum price that must not be lower than the minimum. Those belong to the model.
 
-```ts
-const range = defineQueryModel(
+```ts {8-15,19-21}
+const priceFilters = defineQueryModel(
   {
-    from: param.integer(),
-    to: param.integer(),
+    minPrice: param.number({ min: 0 }),
+    maxPrice: param.number({ min: 0 }),
   },
   {
     refine: [
       {
-        name: "ordered-range",
+        name: "ordered-price-range",
         refine: (values) =>
-          values.from <= values.to
+          values.minPrice <= values.maxPrice
             ? { ok: true, value: values }
-            : { ok: false, issues: [{ message: "`from` must not be after `to`." }] },
+            : { ok: false, issues: [{ message: "Minimum price must not exceed maximum price." }] },
       },
     ],
   },
 );
+
+const result = priceFilters.decode("?minPrice=200&maxPrice=100");
+result.ok; // false
+result.issues[0]?.key; // "$" — the issue belongs to the whole model
 ```
 
 A model refinement runs only after every parameter decoded successfully — there is no point

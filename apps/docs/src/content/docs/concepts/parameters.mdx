@@ -31,10 +31,13 @@ Dedicated families for those representations are a
 
 ### text
 
-```ts
-param.text(); // rejects an empty value
-param.text({ allowEmpty: true }); // accepts ""
-param.text({ trim: true, minLength: 2, maxLength: 64 });
+```ts {2,5-6}
+const products = defineQueryModel({
+  search: param.text({ trim: true, minLength: 2, maxLength: 64 }).optional(),
+});
+
+const result = products.decode("?search=%20wireless%20headphones%20");
+if (result.ok) result.value.search; // "wireless headphones"
 ```
 
 Trimming happens before length checks, so `"  ab  "` with `trim` and `minLength: 2` is valid.
@@ -42,9 +45,17 @@ A length violation reports `out_of_range`.
 
 ### integer and number
 
-```ts
-param.integer({ min: 1 }); // "2" → 2; "2.5" → invalid; "abc" → invalid
-param.number({ min: 0, max: 1 }); // "0.25" → 0.25
+```ts {2-3,6-10}
+const products = defineQueryModel({
+  page: param.integer({ min: 1 }).default(1),
+  rating: param.number({ min: 0, max: 5 }).optional(),
+});
+
+const valid = products.decode("?page=2&rating=4.5");
+if (valid.ok) valid.value; // { page: 2, rating: 4.5 }
+
+const recovered = products.decode("?page=2.5&rating=9");
+recovered.issues.map((issue) => issue.code); // ["invalid", "out_of_range"]
 ```
 
 `integer` accepts an optional sign and digits only, and rejects anything outside the safe integer
@@ -53,9 +64,14 @@ includes `NaN` and `Infinity`.
 
 ### boolean
 
-```ts
-param.boolean(); // truthy: true, 1, yes, on — falsy: false, 0, no, off
-param.boolean({ truthy: ["yes"], falsy: ["no"] });
+```ts {2,5-7}
+const products = defineQueryModel({
+  inStock: param.boolean().default(false),
+});
+
+const result = products.decode("?inStock=yes");
+if (result.ok) result.value.inStock; // true
+products.encode({ inStock: true }); // [["inStock", "true"]]
 ```
 
 Comparison is case-insensitive. Encoding writes the first entry of the matching list, so a custom
@@ -63,8 +79,12 @@ Comparison is case-insensitive. Encoding writes the first entry of the matching 
 
 ### choice
 
-```ts
-param.choice(["name", "created_at", "price"]);
+```ts {2,5}
+const products = defineQueryModel({
+  sort: param.choice(["relevance", "price_asc", "price_desc"]).default("relevance"),
+});
+
+products.encode({ sort: "price_desc" }); // [["sort", "price_desc"]]
 ```
 
 The value type narrows to the union of the literals. An unrecognized value reports
@@ -73,9 +93,15 @@ The value type narrows to the union of the literals. An unrecognized value repor
 
 ### list
 
-```ts
-param.list(param.text());
-param.list(param.integer({ min: 1 }), { minItems: 1, maxItems: 10 });
+```ts {2,5-8}
+const products = defineQueryModel({
+  category: param.list(param.choice(["books", "games", "music"])).default([]),
+});
+
+const result = products.decode("?category=books&category=music");
+if (result.ok) result.value.category; // ["books", "music"]
+
+products.encode({ category: ["books", "music"] }); // repeated category entries
 ```
 
 A list consumes every value stored under its key, so `?tag=a&tag=b` decodes to `["a", "b"]`. Empty
@@ -84,7 +110,7 @@ item is decoded by the item parameter's codec, and item issues carry the index i
 
 ### custom
 
-```ts
+```ts {3-14}
 import { createQueryIssue, failValue, okValue, param } from "@queryweave/core";
 
 const isoDate = param.custom<Date>({
@@ -114,10 +140,12 @@ values, and they are visible in the type.
 | `optional` | `.optional()` | `undefined`         | yes, as `undefined`     |
 | `default`  | `.default(v)` | the declared value  | yes                     |
 
-```ts
-param.text(); // required
-param.text().optional(); // string | undefined
-param.integer().default(1); // number, always present
+```ts {2-4}
+const products = defineQueryModel({
+  category: param.text(), // required: a missing key fails the decode
+  search: param.text().optional(), // string | undefined
+  page: param.integer().default(1), // number, always present
+});
 ```
 
 A required parameter is the only one that can make a whole decode fail. That is deliberate: if you
@@ -127,8 +155,14 @@ declared that a key must exist, producing a complete state without it would be a
 
 Every constructor returns a builder that can be narrowed further:
 
-```ts
-param.text().describe("Free-text product search").nullable().optional();
+```ts {1-4}
+const search = param
+  .text({ trim: true })
+  .describe("Free-text product search")
+  .nullable()
+  .optional();
+
+const products = defineQueryModel({ search });
 ```
 
 - `.describe(text)` attaches documentation. It has no effect on decoding.
@@ -150,7 +184,7 @@ param.text().describe("Free-text product search").nullable().optional();
 
 A refinement validates an already decoded value and may transform it:
 
-```ts
+```ts {1-7}
 const slug = param.text().refine({
   name: "lowercase",
   refine: (value) =>

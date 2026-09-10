@@ -54,7 +54,7 @@ the ergonomics survive.
 
 ## Writing one
 
-```ts
+```ts {3-21,23}
 import { createQueryIssue, failValue, okValue, param, type QueryCodec } from "@queryweave/core";
 
 const isoDateCodec: QueryCodec<Date> = {
@@ -88,16 +88,49 @@ dropping optional members you did not supply.
 By default `param.custom` treats a codec as single-valued, which means the parameter reports
 `unexpected_multiple_values` and passes only the first. Opt in explicitly:
 
-```ts
-const bounds = param.custom(boundsCodec, { consumesMultipleValues: true });
+```ts {16,19-20}
+import {
+  createQueryIssue,
+  defineQueryModel,
+  failValue,
+  okValue,
+  param,
+  type QueryCodec,
+} from "@queryweave/core";
+
+const priceBoundsCodec: QueryCodec<readonly number[]> = {
+  decode: (input, context) => {
+    const values = input.map(Number);
+    return values.length === 2 && values.every(Number.isFinite)
+      ? okValue(values)
+      : failValue([
+          createQueryIssue({
+            key: context.key,
+            code: "invalid",
+            input,
+            message: "Expected two prices.",
+          }),
+        ]);
+  },
+  encode: (values) => values.map(String),
+};
+
+const products = defineQueryModel({
+  price: param.custom(priceBoundsCodec, { consumesMultipleValues: true }).optional(),
+});
+
+products.decode("?price=50&price=200"); // both raw values reach priceBoundsCodec
+products.encode({ price: [50, 200] }); // [["price", "50"], ["price", "200"]]
 ```
 
 ### Reporting a kind
 
 `kind` is metadata used for introspection and diagnostics. It defaults to `"custom"`:
 
-```ts
-param.custom(isoDateCodec, { kind: "text" });
+```ts {1-3}
+const createdAfter = param.custom(isoDateCodec, { kind: "text" }).optional();
+const products = defineQueryModel({ createdAfter });
+products.params.createdAfter.kind; // "text"
 ```
 
 ## Round-tripping
@@ -106,10 +139,14 @@ The rule a codec has to satisfy is that encoding a decoded value produces input 
 same value. If that does not hold, canonical URLs are not canonical and the runtime can write a
 query it cannot read back.
 
-```ts
-const decoded = isoDateCodec.decode(["2026-03-02"], { key: "from", path: ["from"] });
+```ts {1,3}
+const decoded = isoDateCodec.decode(["2026-03-02"], {
+  key: "createdAfter",
+  path: ["createdAfter"],
+});
 if (decoded.ok) {
-  isoDateCodec.encode(decoded.value, { key: "from", path: ["from"] }); // ["2026-03-02"]
+  isoDateCodec.encode(decoded.value, { key: "createdAfter", path: ["createdAfter"] });
+  // ["2026-03-02"]
 }
 ```
 
@@ -130,7 +167,7 @@ does not quietly return a wrong value.
 Codecs never see percent-encoding. Parsing and formatting happen once, in the model's input layer,
 through four exported helpers:
 
-```ts
+```ts {8-11}
 import {
   formatQueryString,
   normalizeQueryEntries,
