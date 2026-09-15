@@ -1,8 +1,8 @@
 import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
 import { createMemoryQueryAdapter } from "@queryweave/testing";
-import { useQueryModel } from "@queryweave/vue";
+import { queryAdapterKey, useQueryModel } from "@queryweave/vue";
 import { describe, expect, it, vi } from "vitest";
-import { effectScope, isReadonly, nextTick, watch } from "vue";
+import { createApp, defineComponent, effectScope, h, isReadonly, nextTick, watch } from "vue";
 
 const productFilters = defineQueryModel({
   search: param.text().optional(),
@@ -26,6 +26,14 @@ function withScope<TResult>(run: () => TResult): {
       scope.stop();
     },
   };
+}
+
+/** A field write is queued behind the runtime's transition queue, so a tick must pass. */
+async function flush(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+  await nextTick();
 }
 
 describe("useQueryModel", () => {
@@ -99,6 +107,38 @@ describe("useQueryModel", () => {
     stop();
   });
 
+  it("drops a required key the snapshot no longer carries", async () => {
+    const strict = defineQueryModel({ token: param.text(), page: param.integer().default(1) });
+    const adapter = createMemoryQueryAdapter({ initial: "?token=abc" });
+    const { result: binding, stop } = withScope(() => useQueryModel(strict, { adapter }));
+    expect(binding.values.token).toBe("abc");
+
+    void adapter.push([["page", "2"]]);
+    await nextTick();
+
+    expect(binding.status).toBe("invalid");
+    expect("token" in binding.values).toBe(false);
+    expect(binding.values.page).toBe(2);
+    stop();
+  });
+
+  it("keeps an unchanged list identity so watchers stay quiet", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?tags=a&tags=b" });
+    const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
+    const tagsWatcher = vi.fn<() => void>();
+    watch(() => filters.values.tags, tagsWatcher);
+
+    await filters.update({ page: 2 });
+    await filters.update({ page: 3 });
+    await nextTick();
+    expect(tagsWatcher).not.toHaveBeenCalled();
+
+    await filters.update({ tags: ["a", "b", "c"] });
+    await nextTick();
+    expect(tagsWatcher).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
   it("forwards every operation to the runtime", async () => {
     const adapter = createMemoryQueryAdapter({ initial: "?page=4&search=vue&utm=x" });
     const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
@@ -120,6 +160,15 @@ describe("useQueryModel", () => {
       draft.tags = [];
     });
     expect(adapter.current()).toBe("search=nuxt&sort=price&utm=x");
+    stop();
+  });
+
+  it("reports the outcome of a refused navigation", async () => {
+    const adapter = createMemoryQueryAdapter({ guard: () => ({ outcome: "refused" }) });
+    const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
+
+    await expect(filters.update({ page: 2 })).resolves.toMatchObject({ outcome: "refused" });
+    expect(filters.values.page).toBe(1);
     stop();
   });
 
@@ -147,6 +196,46 @@ describe("useQueryModel", () => {
     expect(adapter.current()).toBe("page=4");
     runtime.dispose();
   });
+
+  it("finds the provided adapter anywhere the application context is active", () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?page=8" });
+    const app = createApp(defineComponent({ setup: () => () => h("div") }));
+    app.provide(queryAdapterKey, adapter);
+
+    const binding = app.runWithContext(() => useQueryModel(productFilters));
+    expect(binding.values.page).toBe(8);
+    binding.runtime.dispose();
+  });
+});
+
+describe("pending decodes", () => {
+  const asyncModel = defineQueryModel({
+    slug: param
+      .text()
+      .refine({
+        async: true,
+        refine: async (value: string) => {
+          await Promise.resolve();
+          return { ok: true as const, value: value.toUpperCase() };
+        },
+      })
+      .default("NONE"),
+  });
+
+  it("starts pending and settles through the binding", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?slug=free" });
+    const { result: binding, stop } = withScope(() => useQueryModel(asyncModel, { adapter }));
+
+    expect(binding.status).toBe("pending");
+    expect(binding.values.slug).toBe("NONE");
+
+    await binding.settled();
+    await nextTick();
+
+    expect(binding.status).toBe("valid");
+    expect(binding.values.slug).toBe("FREE");
+    stop();
+  });
 });
 
 describe("field", () => {
@@ -158,7 +247,7 @@ describe("field", () => {
     expect(page.value).toBe(2);
 
     page.value = 5;
-    await nextTick();
+    await flush();
 
     expect(adapter.current()).toBe("page=5");
     expect(page.value).toBe(5);
@@ -171,10 +260,41 @@ describe("field", () => {
 
     const search = filters.field("search", { navigation: "replace" });
     search.value = "vue";
-    await nextTick();
+    await flush();
 
     expect(adapter.current()).toBe("search=vue");
     expect(adapter.canGoBack()).toBe(false);
+    stop();
+  });
+
+  it("clears the parameter when an input is emptied", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?search=vue&page=3" });
+    const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
+
+    const search = filters.field("search");
+    const page = filters.field("page");
+    search.value = "";
+    await flush();
+    expect(adapter.current()).toBe("page=3");
+    expect(filters.values.search).toBeUndefined();
+
+    (page as { value: unknown }).value = "";
+    await flush();
+    expect(adapter.current()).toBe("");
+    expect(filters.values.page).toBe(1);
+    stop();
+  });
+
+  it("serializes rapid writes so none is lost", async () => {
+    const adapter = createMemoryQueryAdapter();
+    const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
+
+    filters.field("search").value = "v";
+    filters.field("page").value = 4;
+    filters.field("search").value = "vu";
+    await flush();
+
+    expect(adapter.current()).toBe("search=vu&page=4");
     stop();
   });
 

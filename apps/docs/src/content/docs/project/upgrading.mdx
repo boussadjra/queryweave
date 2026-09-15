@@ -1,0 +1,127 @@
+---
+title: Upgrading
+description: What changed between releases, and what to write instead.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Every breaking change is listed here with its migration. The reasoning lives in the linked
+architecture decision record; the [stability policy](/project/support/) explains why breaking
+changes can ship in minor versions before 1.0.
+
+## From 0.1.0-alpha.1
+
+Recorded in
+[ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md).
+
+### Transition results carry an outcome
+
+`await runtime.update(...)` now resolves with `outcome` and, for a refused or redirected
+navigation, `reason`. Code that treated a resolved transition as an applied one should check the
+outcome:
+
+```ts {2-4}
+const result = await filters.update({ page: 2 });
+if (result.outcome !== "committed") {
+  console.warn(`page change ${result.outcome}`, result.reason);
+}
+```
+
+A transition whose output already matches the URL resolves with `outcome: "unchanged"`, writes
+nothing, and notifies nobody. Tests that counted history entries or notifications for no-op writes
+need updating.
+
+### `onNavigationFailure` is gone
+
+`createVueRouterAdapter(router, { onNavigationFailure })` no longer accepts options. The
+information now arrives on the transition result:
+
+```ts {1,4-6}
+const adapter = createVueRouterAdapter(router);
+
+const result = await runtime.update({ page: 9 });
+if (result.outcome === "refused") {
+  // result.reason is Vue Router's NavigationFailure
+}
+```
+
+An error thrown by a guard is propagated from the transition, as it always should have been.
+
+### Asynchronous validation is `pending`, then settled
+
+A model with an asynchronous refinement now produces a snapshot whose `status` is `"pending"`; the
+runtime decodes asynchronously and notifies once it settles. Add the new status to any exhaustive
+check, and await `settled()` where the settled state is required:
+
+```ts {1,3}
+const snapshot = await runtime.settled();
+
+const binding = useQueryModel(model); // binding.status may be "pending" on the first render
+```
+
+The synchronous decode reports the new issue code `async_required` where it reported
+`validation_failed` before. Declare an asynchronous schema with `{ async: true }` so the synchronous
+path does not start it:
+
+```ts
+param.text().refine(fromStandardSchema(slugSchema, { async: true }));
+```
+
+### A transforming refinement needs `encode`
+
+A refinement that changes the value's type must say how to write the value back:
+
+```ts {3}
+param.text().refine(
+  fromStandardSchema(digitsToNumber, {
+    encode: (value) => String(value),
+  }),
+);
+```
+
+A refinement that only validates or narrows needs nothing. Value types are also more precise:
+`param.text().optional().refine(r)` is `string | undefined` again, and `.nullable().refine(r)`
+keeps `null`.
+
+### Defaults must be valid
+
+`.default(value)` throws when the parameter's own codec would reject the value. Fix the definition,
+not the call site:
+
+```ts
+param.integer({ min: 1 }).default(0); // throws: use a default of 1 or more
+param.text().default(""); // throws: use param.text({ allowEmpty: true }).default("")
+```
+
+Defaults are stored as frozen copies. A transaction that mutated a nested default object in place
+now throws; assign a new object instead.
+
+### An empty list is written as `key=`
+
+`model.encode({ tags: [] })` produces `tags=` unless `[]` is the declared default, and `?tags=`
+decodes to `[]` with no issue. URLs already in the wild are unaffected: an absent key still decodes
+to the default. Tests that asserted an `empty` issue for `?tags=` need updating, and
+`param.list(...).nullable()` and `param.list(param.list(...))` now throw.
+
+### Stricter built-in codecs
+
+- `param.number` rejects `0x10`, `0b1`, `Infinity`, `NaN`, and a bare `+`; write decimal notation.
+- `param.boolean({ truthy: ["Yes"] })` now matches `yes` and `YES`, and encodes `Yes`.
+- `param.text({ trim: true })` reports `empty` for a whitespace-only value.
+- `param.integer({ min: 5, max: 1 })` and the other inverted bounds throw at construction.
+
+### Vue `field()` clears on an empty string
+
+Writing `""` through a `field()` ref now writes `undefined`, which clears the parameter. The manual
+`value === "" ? undefined : value` guard is no longer needed for fields; keep it for explicit
+`update` calls if you rely on it.
+
+### Nuxt refuses transitions during server rendering
+
+`update()` and friends resolve with `outcome: "refused"` on the server instead of moving the
+request's router. Redirect with `navigateTo()` when a server render must change the URL.
+
+### Package requirements
+
+`engines.node` is `>=22.12.0`. `@queryweave/vue-router` accepts Vue Router 4.4 and newer. Nothing
+to change unless you were on Node 20, which reached end of life in April 2026.

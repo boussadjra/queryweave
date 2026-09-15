@@ -5,10 +5,11 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 /**
- * Start the production server Nuxt just built, then prove server rendering and hydration.
+ * Start the production server Nuxt just built, then prove server rendering with real pages.
  *
- * The markup must already carry the decoded query, and the client bundle must carry the QueryWeave
- * runtime so the same state survives hydration.
+ * The markup must already carry the decoded query for every route, and the client bundle must
+ * carry the QueryWeave runtime. Hydration itself is not executed here: no browser runs in this
+ * fixture, so the client-side behavior is covered by the Vitest and Playwright suites instead.
  */
 
 const port = 41_837;
@@ -75,6 +76,10 @@ try {
   const [withQuery, withoutQuery] = await Promise.all([render("/?page=9"), render("/")]);
   assert.match(withQuery, /page:9/u, "concurrent requests must not share state");
   assert.match(withoutQuery, /page:1/u, "concurrent requests must not share state");
+
+  const other = await render("/other?tab=reviews");
+  assert.match(other, /tab:reviews/u, "a second page must decode its own model through pages/");
+  assert.match(await render("/other?tab=nope"), /tab:summary/u, "the second page must recover");
 
   assert.match(rendered, /<div id="__nuxt">/u, "the hydration root must be present");
   assert.match(rendered, /id="__NUXT_DATA__"/u, "the hydration payload must be present");

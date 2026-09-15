@@ -68,7 +68,14 @@ resolveNodeRequestUrl(request, { host: "example.com", protocol: "https" });
 ```
 
 The order of precedence is: explicit options, then forwarded headers _if you opted in_, then the
-`host` header, then the fallback host `queryweave.invalid`.
+`host` header, then the HTTP/2 `:authority` pseudo-header, then the fallback host
+`queryweave.invalid`. The scheme follows `x-forwarded-proto` (opt-in), `:scheme`, then the socket:
+`https` when it is encrypted, `http` otherwise.
+
+The path comes from `originalUrl` when a framework set it — Express strips a mounted router's
+prefix from `url` and keeps the full path there — and from `url` otherwise. A target such as
+`//evil.example/p` stays a path on the request's own host rather than becoming a different origin,
+and a `Host` header that cannot form a URL falls back instead of throwing.
 
 <Aside type="caution" title="Forwarded headers are off by default">
 `x-forwarded-host` and `x-forwarded-proto` are attacker-controlled unless a trusted proxy sets them.
@@ -113,14 +120,18 @@ asynchronous refinement.
 ## Edge cases
 
 - **A request with no URL** resolves to `/`.
+- **An absolute-form request line** (`GET http://origin.test/p`) is used as given; explicit `host`
+  and `protocol` options still override its authority.
 - **A comma-separated forwarded header** uses the first entry, trimmed.
 - **An empty header value** is ignored rather than producing an empty host.
 - **The fallback host is `queryweave.invalid`**, chosen because `.invalid` can never resolve.
+- **Fastify and Koa** hand you a wrapper; pass `request.raw` (Fastify) or `ctx.req` (Koa), which is
+  the underlying `IncomingMessage`. Express and Hono's Node adapter pass it through directly.
 
 ## How it is tested
 
 `tests/node/node.test.ts` covers URL resolution, header precedence, the forwarded-header opt-in,
-and decoding. The `node` consumer fixture runs the packed archive against a real
-`node:http` server.
+HTTP/2 pseudo-headers, TLS sockets, mounted routers, hostile paths and headers, and decoding. The
+`node` consumer fixture runs the packed archive against a real `node:http` server.
 
 <IntegrationNav />

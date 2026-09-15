@@ -72,12 +72,22 @@ if (result.ok) result.value.page; // 2
 
 ## Express, Fastify, and friends
 
-No adapter package is needed. Both expose a Node request:
+No adapter package is needed. Express hands you the Node request itself, and a mounted router's
+stripped prefix does not matter because `originalUrl` is read:
 
 ```ts {2-3}
 app.get("/products", (request, response) => {
   const result = readNodeQuery(request, products);
   response.json(result.ok ? result.value : result.partial);
+});
+```
+
+Fastify wraps the Node request; pass the wrapped one:
+
+```ts {2}
+fastify.get("/products", (request, reply) => {
+  const result = readNodeQuery(request.raw, products);
+  return result.ok ? result.value : result.partial;
 });
 ```
 

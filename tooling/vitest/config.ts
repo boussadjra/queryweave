@@ -37,6 +37,16 @@ const shared = {
   unstubGlobals: true,
 } as const;
 
+/**
+ * V8 coverage in browser mode instruments a single Chromium instance and refuses anything else.
+ * Firefox and WebKit therefore run whenever coverage is off — `pnpm test:browser`, which the
+ * quality gate and CI run beside the coverage pass — so every engine is still exercised.
+ */
+const browserEngines = process.argv.includes("--coverage")
+  ? (["chromium"] as const)
+  : (["chromium", "firefox", "webkit"] as const);
+const browserInstances = browserEngines.map((browser) => ({ browser }));
+
 function nodeProject(name: string, directory: string): ViteUserConfig {
   return {
     resolve: { alias },
@@ -121,7 +131,7 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright(),
-            instances: [{ browser: "chromium" }],
+            instances: browserInstances,
           },
         },
       },

@@ -10,11 +10,11 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     trace: "on-first-retry",
   },
+  // The History API behaves differently per engine (WebKit rate-limits writes), so all three run.
   projects: [
-    {
-      name: "chromium",
-      use: devices["Desktop Chrome"],
-    },
+    { name: "chromium", use: devices["Desktop Chrome"] },
+    { name: "firefox", use: devices["Desktop Firefox"] },
+    { name: "webkit", use: devices["Desktop Safari"] },
   ],
   webServer: {
     command: "pnpm --filter @queryweave/playground-browser preview",

@@ -153,11 +153,13 @@ asynchronous Standard Schema validator. Parameters decode concurrently; model-le
 in sequence, because each one sees the previous one's output.
 
 Calling the synchronous `decode` on a model with asynchronous validation is not a crash: it reports
-a `validation_failed` issue naming `decodeAsync` and recovers.
+an `async_required` issue and recovers. Neither `decode` nor `decodeAsync` ever throws or rejects
+for a value; a codec or refinement that throws becomes an issue.
 
 ## Edge cases
 
-- **A malformed percent sequence** such as `?q=%E0%A4%A` is kept verbatim rather than throwing.
+- **A malformed percent sequence** such as `?q=%E0%A4%A` is kept verbatim rather than throwing,
+  and only that sequence: `?q=50%+off` still reads `50% off`.
 - **A key with no `=`** (`?flag`) decodes as an empty value for that key.
 - **Repeated keys for a single-value parameter** report `unexpected_multiple_values` and use the
   first.

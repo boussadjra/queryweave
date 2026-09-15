@@ -30,18 +30,29 @@ const runtime = createQueryRuntime({
 ```ts {1,3-6}
 const snapshot = runtime.read();
 
-snapshot.status; // "valid" | "invalid"
-snapshot.values; // complete typed state, always present
+snapshot.status; // "valid" | "invalid" | "pending"
+snapshot.values; // complete typed state, always present, frozen
 snapshot.issues; // everything decoding reported
 snapshot.result; // the underlying DecodeResult
 ```
 
-`read` decodes the adapter's current query every time it is called. There is no cache, so a
-snapshot can never be stale relative to the environment.
+`read` compares the adapter's current entries with the last ones it decoded and decodes again only
+when they changed, so a snapshot is never stale relative to the environment and the same snapshot
+object comes back until the query moves.
 
 When decoding fails, `values` is the model's defaults merged with whatever did decode. That is why
 `values` is safe to render unconditionally, and why `status` — not a boolean on the snapshot —
-carries the distinction.
+carries the distinction. A required parameter that failed is absent from `values` at runtime even
+though its type says otherwise; give runtime-bound parameters a default, or check `status` before
+trusting a required key.
+
+`"pending"` appears only for a model with an asynchronous refinement: the runtime has decoded
+synchronously, recovered the asynchronous keys, and started `decodeAsync`. Subscribers are notified
+once it settles, and `runtime.settled()` resolves with the settled snapshot:
+
+```ts {1}
+const settled = await runtime.settled(); // status is "valid" or "invalid"
+```
 
 ## Changing state
 
@@ -61,12 +72,14 @@ await runtime.transaction((draft) => {
 
 Each returns a `QueryTransitionResult`:
 
-```ts {1,3-5}
-const { navigation, output, snapshot } = await runtime.update({ page: 2 });
+```ts {1,3-7}
+const { navigation, outcome, reason, output, snapshot } = await runtime.update({ page: 2 });
 
 navigation; // "push" | "replace" — what was actually used
-output; // the canonical entries written, including unmanaged keys
-snapshot; // the state after the write
+outcome; // "committed" | "redirected" | "refused" | "unchanged"
+reason; // the adapter's account of a refusal or redirect, when it gave one
+output; // the canonical entries the adapter was asked to write, including unmanaged keys
+snapshot; // the settled state after the transition, whatever its outcome
 ```
 
 [Transitions](/runtime/transitions/) covers each operation and when to reach for it.
@@ -91,8 +104,10 @@ await runtime.update({ page: 2 });
 seen; // [2] — one transition, one notification
 ```
 
-The runtime subscribes to the adapter lazily, on the first `subscribe` call, so a runtime that is
-only ever read never attaches a listener.
+The runtime subscribes to the adapter lazily, on the first `subscribe` call, and releases that
+subscription when the last listener leaves, so a runtime that is only ever read never attaches a
+listener. A listener must not throw: every listener still runs, and the error is rethrown
+afterwards to whoever triggered the notification.
 
 ## Unmanaged keys survive
 
@@ -126,12 +141,14 @@ plain TypeScript, call it when the runtime's owner goes away.
 
 ## What the runtime does not do
 
-Transitions are applied immediately and independently. There is no scheduling, throttling,
-coalescing, or cancellation, and two overlapping transitions are not reconciled — the second reads
-the state the first produced.
+Transitions run one at a time, in call order, and each starts from the state the previous one
+produced — but nothing is throttled, coalesced, or cancelled. Ten rapid updates are ten writes and,
+in `push` mode, ten history entries.
 
 This absence is deliberate and recorded in
-[ADR 0004](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md).
+[ADR 0004](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md)
+and
+[ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md).
 For a fast-changing input such as a search field, debounce at the call site:
 
 ```ts {6-8}
@@ -149,6 +166,8 @@ input.addEventListener("input", () => {
 
 The `runtime` Vitest project drives a runtime against the memory adapter from
 `@queryweave/testing`, asserting the single-notification rule, unmanaged-key preservation, and
-disposal; `tests/runtime/failures.test.ts` covers behavior when decoding fails.
+disposal; `tests/runtime/failures.test.ts` covers behavior when decoding fails, and
+`tests/runtime/serialization.test.ts` covers overlapping transitions, outcomes, listener errors, and
+pending decodes.
 
 <IntegrationNav />

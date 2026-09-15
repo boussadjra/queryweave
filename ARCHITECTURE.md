@@ -95,9 +95,10 @@ The repository uses:
   publishability.
 
 Vitest runs one project per boundary: `core`, `runtime`, `testing`, `browser`, `server`, `node`,
-`standard-schema`, `vue`, `vue-router`, `nuxt`, `types`, and `repository`. The browser project runs
-in real Chromium through Vitest Browser Mode, and the `repository` project fails the build if a
-rejected public API identity or a React dependency ever appears.
+`standard-schema`, `vue`, `vue-router`, `nuxt`, `docs`, `types`, and `repository`. The browser
+project runs in Chromium, Firefox, and WebKit through Vitest Browser Mode, and the `repository`
+project fails the build if a rejected public API identity or a React dependency ever appears. CI
+also runs the unit and integration suites on Node 22.12, the oldest supported line.
 
 Three repository checks sit outside the test suite, each reading something the previous one cannot
 see:
@@ -107,9 +108,10 @@ see:
 - `pnpm artifacts:check` reads built output and then the packed archive: externalization, phantom
   dependencies, CommonJS emits, declaration maps, export-map targets, archive contents, and type
   resolution against the tarball.
-- `pnpm consumers:check` installs those archives into seven clean projects outside the workspace
-  and runs them, including a Nuxt fixture that builds, server-renders, isolates concurrent
-  requests, and hydrates.
+- `pnpm consumers:check` installs those archives into eight clean projects outside the workspace
+  with strict peer dependencies and runs them: TypeScript 5.5 for the universal fixture, Vue Router
+  4 and 5 side by side, and a Nuxt fixture that builds and server-renders real `pages/` routes,
+  isolating concurrent requests.
 
 ## Decided in session 2
 
@@ -125,12 +127,23 @@ see:
 - Public API consistency corrections and packaging uniformity — ADR 0007.
 - Release automation: lockstep versions, `pnpm publish:packages`, a one-shot first publish, then
   trusted publishing over OIDC with provenance from `boussadjra/queryweave`.
+- Tree-shakable parameter constructors — ADR 0008.
+
+## Decided before beta
+
+- Adapter navigation results and transition outcomes, transitions serialized per runtime, cached
+  and frozen snapshots, pending decodes with `settled()`, refinement inverses, validated and frozen
+  defaults, and the empty-list spelling — ADR 0009.
+- Support matrix and stability policy: Node 22.12+, TypeScript 5.5+, Chromium, Firefox, and WebKit,
+  Vue 3.5+, Vue Router 4.4+ and 5, Nuxt 4.5+; what counts as public; closed unions grow in minor
+  versions. Documented in `apps/docs/src/content/docs/project/support.mdx`.
+- Dist-tags: every publish goes to `latest` until a stable version exists.
 
 ## Deferred decisions
 
 Still open:
 
-- Transition scheduling, throttling, coalescing, and concurrency control.
+- Transition throttling, coalescing, and cancellation, on top of the per-runtime queue.
 - Codec composition for date, JSON, object, tuple, and nested representations.
 - Per-parameter configurability of default omission and recovery policy.
 - Model-level refinements that change the model's output type.

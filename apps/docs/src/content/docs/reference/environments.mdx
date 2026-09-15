@@ -14,12 +14,20 @@ function createBrowserAdapter(options?: BrowserAdapterOptions): BrowserQueryAdap
 `BrowserAdapterOptions` is `{ target?: Window }`. The target is resolved when the adapter is
 created; without one, and without an ambient window, it throws with a message naming `target`.
 
-`BrowserQueryAdapter` is a `QueryAdapter` plus `dispose(): void`. After disposal, `push` and
-`replace` throw; `read` continues to work.
+`BrowserQueryAdapter` is a `QueryAdapter` plus `dispose(): void`. After disposal, `push`,
+`replace`, and `subscribe` throw; `read` continues to work.
 
-Writes go through `history.pushState` and `history.replaceState`, preserving `location.pathname`,
-`location.hash`, and the existing `history.state`. Subscribers are notified directly after a write —
-the History API does not fire `popstate` for programmatic navigation — and on every `popstate`.
+Writes go through `history.pushState` and `history.replaceState`. The URL is rebuilt from
+`location.href` with only the query replaced, so a pathname that starts with `//` and the hash are
+kept. `replace` keeps the entry's existing `history.state`; `push` starts the new entry with `null`
+state, so another library's state is not copied onto an entry it did not create. Subscribers are
+notified directly after a write — the History API does not fire `popstate` for programmatic
+navigation — and on a `popstate` whose `location.search` differs from the last announced one; a
+hash-only or path-only movement stays quiet.
+
+A write performed by other code through `pushState` or `replaceState` fires no event and is not
+observed. Share one adapter per window rather than creating several, and prefer
+`@queryweave/vue-router` when a router owns the history.
 
 ## @queryweave/server
 
@@ -38,8 +46,8 @@ function readRequestQueryAsync<TDefs>(
 ): Promise<DecodeResult<Values>>;
 ```
 
-A string that does not parse as absolute is resolved against `relativeUrlBase`. Only the query is
-read.
+Only the query is read, and it is read from the string itself: the part between the first `?` and
+any `#`. A string does not need to be a well-formed URL, so an unusual host or path never throws.
 
 ### Sources
 
@@ -58,7 +66,8 @@ function createQueryUrl<TDefs>(base: string | URL, model: QueryModel<TDefs>, val
 
 `encodeQuery` returns the canonical query string with no leading `?`. `createQueryUrl` returns a new
 `URL` — the base is copied, not mutated — with managed keys first and unmanaged keys preserved
-afterwards in their original order.
+afterwards in their original order. Unlike the readers, it needs a well-formed base; a string that
+does not parse as absolute is resolved against `relativeUrlBase`.
 
 ### Constants
 
@@ -80,9 +89,16 @@ function resolveNodeRequestUrl(
 `ResolveNodeRequestUrlOptions` is `{ host?, protocol?, trustForwardedHeaders? }`.
 
 Precedence for the authority: explicit `host`, then `x-forwarded-host` **only if**
-`trustForwardedHeaders` is `true`, then the `host` header, then `queryweave.invalid`. The scheme
-follows the same pattern with `x-forwarded-proto`, defaulting to `http`. A comma-separated header
-uses its first entry, trimmed; an empty value is ignored.
+`trustForwardedHeaders` is `true`, then the `host` header, then the HTTP/2 `:authority`
+pseudo-header, then `queryweave.invalid`. The scheme follows the same pattern with
+`x-forwarded-proto` and `:scheme`, then `https` when the request's socket is encrypted, then
+`http`. A comma-separated header uses its first entry, trimmed; an empty value is ignored.
+
+The request target is `originalUrl` when a framework set it (Express and others strip a mounted
+router's prefix from `url`), otherwise `url`. An origin-form target is composed onto the authority
+path-first, so `GET //evil.example/p` stays a path on the request's own host; an absolute-form
+target is used as given, with explicit `host` and `protocol` overrides applied. The function never
+throws: an authority that cannot form a URL falls back to `queryweave.invalid`.
 
 ### Reading
 
@@ -103,7 +119,10 @@ delegate decoding to `@queryweave/server`.
 function createMemoryQueryAdapter(options?: MemoryQueryAdapterOptions): MemoryQueryAdapter;
 ```
 
-`MemoryQueryAdapterOptions` is `{ initial?: QueryInput }`.
+`MemoryQueryAdapterOptions` is `{ initial?: QueryInput; guard? }`. `guard` is
+`(next: QueryOutput, mode: QueryNavigationMode) => QueryNavigationResult | undefined`, called before
+every write: return nothing to let it through, or a `refused` or `redirected` result to leave the
+stack untouched and report that outcome, the way a router guard would.
 
 `MemoryQueryAdapter` is a `QueryAdapter` plus:
 
@@ -118,7 +137,9 @@ function createMemoryQueryAdapter(options?: MemoryQueryAdapterOptions): MemoryQu
 | `dispose()`      | `void`        | Mutating calls throw afterwards                    |
 
 `push` truncates any forward entries, exactly like a browser. `replace` rewrites the current entry
-without changing the stack length. Entries are copied on write.
+without changing the stack length. Entries are copied on write. Navigation is synchronous, which
+real adapters are not; a test that depends on asynchronous ordering should wrap the adapter or use
+the runtime's serialization guarantees rather than assume the memory adapter's timing.
 
 The adapter's index is intentionally not exposed; `canGoBack` and `canGoForward` are the supported
 way to reason about position.

@@ -22,6 +22,7 @@ const model = defineQueryModel({
   flag: param.boolean().optional(),
   sort: param.choice(["name", "created_at", "price"]).optional(),
   tags: param.list(param.text()).default([]),
+  ids: param.list(param.integer()).default([1]),
   owner: param.text().nullable().optional(),
 });
 
@@ -35,6 +36,7 @@ const empty: Values = {
   flag: undefined,
   sort: undefined,
   tags: [],
+  ids: [1],
   owner: undefined,
 };
 
@@ -64,10 +66,12 @@ describe("value round trips", () => {
     ["false", { flag: false }],
     ["choice member", { sort: "created_at" }],
     ["empty list", { tags: [] }],
+    ["empty list with a non-empty default", { ids: [] }],
     ["single item list", { tags: ["a"] }],
     ["multi item list", { tags: ["a", "b", "a"] }],
     ["list with awkward items", { tags: ["a b", "c&d", "é"] }],
     ["explicit null", { owner: null }],
+    ["text with a lone surrogate replaced", { text: "a�b" }],
   ];
 
   it.each(cases)("survives encode then decode: %s", (_label, patch) => {
@@ -87,6 +91,9 @@ describe("canonical output is a fixed point", () => {
     "?unknown=1&text=vue",
     "?flag=YES",
     "?owner=",
+    "?ids=",
+    "?tags=&tags=a",
+    "?text=50%+off",
   ];
 
   it.each(inputs)("normalizes to a stable form: %s", (input) => {

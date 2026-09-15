@@ -10,14 +10,15 @@ import {
   type QueryParamDefinitions,
   type QueryPatch,
   type QueryRuntime,
+  type QuerySnapshot,
   type QueryStatus,
   type QueryTransitionOptions,
   type QueryTransitionResult,
 } from "@queryweave/core";
 import {
   computed,
-  getCurrentInstance,
   getCurrentScope,
+  hasInjectionContext,
   onScopeDispose,
   reactive,
   readonly,
@@ -46,7 +47,8 @@ export interface UseQueryModelOptions<TDefs extends QueryParamDefinitions> {
  * Readonly reactive values plus explicit operations.
  *
  * `values` is a readonly reactive object, so `binding.values.page` reads naturally while direct
- * mutation is rejected. Every change goes through a named operation.
+ * mutation is rejected. Every change goes through a named operation. `status` and `issues` are
+ * accessors on the binding: read them through it, or wrap one in `computed()` to pass it around.
  */
 export interface QueryModelBinding<TDefs extends QueryParamDefinitions> extends QueryBinding<
   TDefs,
@@ -54,10 +56,16 @@ export interface QueryModelBinding<TDefs extends QueryParamDefinitions> extends 
 > {
   readonly issues: readonly QueryIssue[];
   readonly status: QueryStatus;
+  /**
+   * A writable ref for `v-model`. Writing an empty string clears the parameter, which is what an
+   * emptied input means; the write goes through the runtime like any other transition.
+   */
   field<TKey extends QueryModelKey<TDefs>>(
     key: TKey,
     options?: QueryFieldOptions,
   ): WritableComputedRef<QueryModelValues<TDefs>[TKey]>;
+  /** Resolve once no asynchronous decode is pending, for example before server rendering. */
+  settled(): Promise<QuerySnapshot<QueryModelValues<TDefs>>>;
   update(
     patch: QueryPatch<TDefs>,
     options?: QueryTransitionOptions,
@@ -86,12 +94,26 @@ function resolveAdapter<TDefs extends QueryParamDefinitions>(
   if (options.adapter !== undefined) {
     return options.adapter;
   }
-  const injected = getCurrentInstance() === null ? undefined : injectQueryAdapter();
+  // Injection works in components, and anywhere `app.runWithContext` provides an app.
+  const injected = hasInjectionContext() ? injectQueryAdapter() : undefined;
   if (injected !== undefined) {
     return injected;
   }
   throw new Error(
     "useQueryModel needs an adapter. Pass `adapter`, call provideQueryAdapter() in an ancestor, or pass an existing `runtime`.",
+  );
+}
+
+/** Reassigning an equal array would wake every watcher of that key for nothing. */
+function sameValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+  return (
+    Array.isArray(left) &&
+    Array.isArray(right) &&
+    left.length === right.length &&
+    left.every((item: unknown, index) => Object.is(item, right[index]))
   );
 }
 
@@ -121,11 +143,22 @@ export function useQueryModel<TDefs extends QueryParamDefinitions>(
   const issuesRef = shallowRef<readonly QueryIssue[]>(initial.issues);
   const statusRef = shallowRef<QueryStatus>(initial.status);
 
-  const unsubscribe = runtime.subscribe((snapshot) => {
-    Object.assign(state, snapshot.values);
+  const apply = (snapshot: QuerySnapshot<Values>): void => {
+    const next = snapshot.values as Readonly<Record<string, unknown>>;
+    const target = state as Record<string, unknown>;
+    for (const key of model.keys()) {
+      // An invalid snapshot omits a failed required key; the binding must not keep a stale value.
+      if (!(key in next)) {
+        delete target[key];
+      } else if (!sameValue(target[key], next[key])) {
+        target[key] = next[key];
+      }
+    }
     issuesRef.value = snapshot.issues;
     statusRef.value = snapshot.status;
-  });
+  };
+
+  const unsubscribe = runtime.subscribe(apply);
 
   if (getCurrentScope() !== undefined) {
     onScopeDispose(() => {
@@ -153,10 +186,12 @@ export function useQueryModel<TDefs extends QueryParamDefinitions>(
       computed({
         get: () => state[key],
         set: (value) => {
-          const patch = { [key]: value } as unknown as QueryPatch<TDefs>;
+          const patch = { [key]: value === "" ? undefined : value } as unknown as QueryPatch<TDefs>;
+          // A setter cannot await; a failed write surfaces as an unhandled rejection.
           void runtime.update(patch, transitionOptions(fieldOptions));
         },
       }),
+    settled: async () => runtime.settled(),
     update: async (patch, transition) => runtime.update(patch, transitionOptions(transition)),
     replace: async (value, transition) => runtime.replace(value, transitionOptions(transition)),
     remove: async (keys, transition) => runtime.remove(keys, transitionOptions(transition)),

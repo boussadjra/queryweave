@@ -60,13 +60,17 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
-      # Runs every Vitest project: unit, integration, browser, Nuxt, and type tests, with
-      # coverage thresholds enforced.
+      # Runs every Vitest project: unit, integration, browser, Nuxt, and type tests, with coverage
+      # thresholds enforced. V8 coverage instruments Chromium only, so the browser adapter suite
+      # runs again below in all three engines without coverage.
       - name: Test with coverage
         run: pnpm test:coverage
+
+      - name: Test the browser adapter in Chromium, Firefox, and WebKit
+        run: pnpm test:browser
 
       - name: Upload coverage report
         if: ${{ !cancelled() }}
@@ -96,6 +100,38 @@ jobs:
 
       - name: Check unused and undeclared dependencies
         run: pnpm knip
+
+  # The published packages declare Node 22.12 or newer. The quality gate runs on Node 24, so the
+  # oldest supported line gets its own run of the unit and integration suites.
+  compat:
+    name: Node 22 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.17.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build --filter=!@queryweave/docs
+
+      - name: Run unit and integration suites
+        run: pnpm test:unit && pnpm test:integration
 
   consumers:
     name: Consumer fixtures

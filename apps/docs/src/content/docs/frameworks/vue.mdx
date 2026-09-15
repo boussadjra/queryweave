@@ -63,17 +63,19 @@ Three ways, in order of preference:
 ```ts {2-3,6,9}
 // 1. Provide once, high in the tree. Every binding below finds it.
 provideQueryAdapter(createBrowserAdapter());
-const filters = useQueryModel(products);
+const provided = useQueryModel(products);
 
 // 2. Pass one directly.
-const filters = useQueryModel(products, { adapter });
+const explicit = useQueryModel(products, { adapter });
 
 // 3. Reuse a runtime you already own.
-const filters = useQueryModel(products, { runtime });
+const shared = useQueryModel(products, { runtime });
 ```
 
 If none of the three is available, `useQueryModel` throws with a message naming all three. It never
-silently falls back to a global.
+silently falls back to a global. Injection works inside a component and anywhere else Vue has an
+injection context, such as `app.runWithContext()` — which is how a Nuxt plugin or a Pinia store can
+call it.
 
 ## The binding
 
@@ -81,7 +83,7 @@ silently falls back to a global.
 const filters = useQueryModel(products);
 
 filters.values; // readonly reactive state
-filters.status; // "valid" | "invalid"
+filters.status; // "valid" | "invalid" | "pending"
 filters.issues; // readonly QueryIssue[]
 filters.runtime; // the underlying QueryRuntime
 
@@ -93,9 +95,12 @@ await filters.transaction((draft) => {
   draft.search = "vue";
   draft.page = 1;
 });
+await filters.settled(); // once an asynchronous refinement has settled
 ```
 
-The operations are the runtime's, with the binding's default navigation applied.
+The operations are the runtime's, with the binding's default navigation applied, and each resolves
+with the transition's `outcome`. `status` is `"pending"` only while a model with an asynchronous
+refinement is being decoded; the binding updates itself when it settles.
 
 <Aside type="caution" title="values, status, and issues are plain properties">
 They are not refs, so templates read `filters.values.page` directly without `.value`. In a watcher
@@ -110,7 +115,9 @@ watch(
 );
 ```
 
-Watching `filters.status` directly watches a static value and will never fire.
+Watching `filters.status` directly watches a static value and will never fire, and so does a
+destructured `const { status } = filters`. To hand one to another component, wrap it:
+`computed(() => filters.status)`.
 
 </Aside>
 
@@ -125,7 +132,9 @@ const page = filters.field("page");
 
 Reading it reads the current value. Writing it runs `update` for that key with the navigation mode
 you gave. This is the only place mutation-shaped syntax exists, and it is still one named operation
-underneath.
+underneath. Writing an empty string clears the parameter — an emptied input means "no value", so
+`search` becomes absent rather than `?search=`. Rapid writes are serialized by the runtime, so none
+is lost; a write is not awaited, and a rejected one surfaces as an unhandled rejection.
 
 There is deliberately no per-key hook and no tuple setter. One model produces one binding; see
 [ADR 0006](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0006-vue-binding-shape.md).
@@ -149,7 +158,10 @@ yourself.
 
 `@queryweave/vue` never touches browser globals, so it is safe to import during server rendering.
 What is _not_ safe is creating a browser adapter there — see [Nuxt](/frameworks/nuxt/) for
-request-scoped wiring, or provide a source-backed adapter of your own.
+request-scoped wiring, or provide a source-backed adapter of your own. Transitions during a server
+render are not supported: the response is already being written, and the binding cannot observe a
+router that moves without a client. Await `filters.settled()` before rendering when the model has
+an asynchronous refinement.
 
 ## Edge cases
 
@@ -157,12 +169,18 @@ request-scoped wiring, or provide a source-backed adapter of your own.
   consistent because both read the same adapter, but they are two subscriptions.
 - **`field` on a required key** returns the decoded value, which may be a recovered default when
   the query is invalid.
-- **Reassigning `filters.values`** is a type error, and at runtime a no-op with a Vue warning.
+- **A required key an invalid snapshot no longer carries** is removed from `values` rather than
+  left at its last value.
+- **An unchanged list keeps its identity** across updates to other keys, so a watcher on
+  `filters.values.tags` does not fire for a page change.
+- **Reassigning `filters.values`** is a type error. At runtime the binding is a plain object, so the
+  assignment succeeds and simply detaches you from the binding; do not do it.
 
 ## How it is tested
 
-The `vue` Vitest project mounts real components against the memory adapter and asserts reactivity,
-field bindings, issue propagation, and scope cleanup. The `vue` consumer fixture type-checks the
-published archive against a Vue application outside the workspace.
+The `vue` Vitest project runs bindings inside effect scopes and server renders against the memory
+adapter and asserts reactivity, field bindings, issue propagation, pending decodes, and scope
+cleanup. The `vue` consumer fixture type-checks the published archive against a Vue application
+outside the workspace.
 
 <IntegrationNav />

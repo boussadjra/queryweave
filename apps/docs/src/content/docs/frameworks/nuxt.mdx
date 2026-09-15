@@ -30,7 +30,9 @@ export default defineNuxtConfig({
 });
 ```
 
-Requires Nuxt 4.
+Requires Nuxt 4.5 or newer on the 4.x line, which ships Vue Router 5. The module declares the same
+range as the package's peer dependency, and `@nuxt/kit` is depended on as `^4.5.0` so a newer 4.x
+does not receive a second copy.
 
 ## Example
 
@@ -81,12 +83,16 @@ creates its adapter inside that application's setup and installs it on that inst
 
 ```ts {2-3}
 // packages/nuxt/src/runtime/plugin.ts, in essence
-const adapter = createNuxtQueryAdapter(nuxtApp.$router);
+const adapter = createNuxtQueryAdapter(nuxtApp.$router, { server: import.meta.server });
 installQueryAdapter(nuxtApp.vueApp, adapter);
 ```
 
 Nothing is stored at module scope. A server handling two requests concurrently therefore has two
 adapters, each bound to its own router, and neither can observe the other.
+
+On the server, `update()` and the other transitions resolve with `outcome: "refused"` and an
+`Error` as `reason` rather than moving a router whose response is already being written. Reading
+works as usual. A server render that must change the URL redirects with `navigateTo()`.
 
 <Aside type="caution" title="Why module-scope state would break">
   A module-level `let adapter` is initialized once per process, not once per request. Under
@@ -102,6 +108,10 @@ from `location` on the client. Both sides therefore decode the same query with t
 the first client render matches the server's.
 
 There is no state-transfer payload for query state, and none is needed: the URL is the transfer.
+The exception is a model with an asynchronous refinement: its first snapshot is `pending` on both
+sides. Await `filters.settled()` in the component — for example at the top level of
+`<script setup>`, which Nuxt wraps in Suspense — when the server render must carry the settled
+value.
 
 <BrowserQuerySimulator
   preset="filters"
@@ -113,11 +123,12 @@ There is no state-transfer payload for query state, and none is needed: the URL 
 
 For applications that want to wire things themselves:
 
-```ts {3-6}
+```ts {1,4-7}
 import { createNuxtQueryAdapter, installQueryAdapter } from "@queryweave/nuxt/runtime";
+import type { Router } from "vue-router";
 
 export default defineNuxtPlugin((nuxtApp) => {
-  const adapter = createNuxtQueryAdapter(nuxtApp.$router as Router);
+  const adapter = createNuxtQueryAdapter(nuxtApp.$router as Router, { server: import.meta.server });
   installQueryAdapter(nuxtApp.vueApp, adapter);
 });
 ```
@@ -130,8 +141,11 @@ outside a component.
 
 ## Edge cases
 
-- **`useQueryModel` outside a component** cannot use injection. Pass an adapter or a runtime
-  explicitly.
+- **`useQueryModel` outside a component** still finds the adapter wherever Nuxt provides an
+  injection context — a plugin, route middleware, or a `useAsyncData` handler. Somewhere it does
+  not, pass `$queryWeaveAdapter` or a runtime explicitly.
+- **A page that unmounts** does not take the adapter's route watcher with it. The next page's
+  binding keeps receiving navigation.
 - **Static generation** decodes the query at request time in the browser; a pre-rendered page has
   no query of its own.
 - **Disabling auto-imports** means importing `useQueryModel` from `@queryweave/vue` yourself; the
@@ -142,9 +156,11 @@ outside a component.
 
 ## How it is tested
 
-`tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup and plugin
-registration. The stronger check is the `nuxt` consumer fixture, which installs the packed archive
-into a clean project, builds it, server-renders two concurrent requests with different queries,
-asserts they do not leak into each other, and then hydrates.
+`tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup, plugin
+registration, and the server-side refusal. The stronger check is the `nuxt` consumer fixture, which
+installs the packed archive into a clean project with real `pages/`, builds it, server-renders two
+concurrent requests with different queries, asserts they do not leak into each other, and renders a
+second route with its own model. No browser runs in that fixture, so hydration and client-side
+navigation are covered by the Vue Router and browser suites rather than by it.
 
 <IntegrationNav />

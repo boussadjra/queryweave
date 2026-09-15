@@ -13,7 +13,7 @@ export default defineNuxtPlugin({
   name: "queryweave:adapter",
   setup(nuxtApp) {
     const router = nuxtApp["$router"] as Router;
-    const adapter = createNuxtQueryAdapter(router);
+    const adapter = createNuxtQueryAdapter(router, { server: import.meta.server });
     installQueryAdapter(nuxtApp.vueApp, adapter);
 
     return {

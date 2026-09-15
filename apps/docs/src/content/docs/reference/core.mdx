@@ -16,23 +16,24 @@ function defineQueryModel<TDefs extends QueryParamDefinitions>(
 ): QueryModel<TDefs>;
 ```
 
-Composes named parameters into one model. Throws a `TypeError` if a key is the empty string.
+Composes named parameters into one model. Throws a `TypeError` if a key is the empty string or
+`$`, the reserved `modelIssueKey`.
 
 `options.name` labels the model for diagnostics. `options.refine` takes refinements that run after
 every parameter decodes, reporting under `modelIssueKey`.
 
 ### `QueryModel`
 
-| Member               | Returns                         | Notes                                                     |
-| -------------------- | ------------------------------- | --------------------------------------------------------- |
-| `name`               | `string \| undefined`           | Diagnostics only                                          |
-| `params`             | `Readonly<TDefs>`               | The definitions, for introspection                        |
-| `keys()`             | `readonly string[]`             | Managed keys, in definition order                         |
-| `defaults()`         | `QueryModelDefaults<TDefs>`     | Only parameters that have a default; required keys absent |
-| `decode(input)`      | `DecodeResult<Values>`          | Never throws                                              |
-| `decodeAsync(input)` | `Promise<DecodeResult<Values>>` | Required when validation is asynchronous                  |
-| `encode(values)`     | `QueryOutput`                   | Canonical; omits defaults; managed keys only              |
-| `normalize(input)`   | `QueryOutput`                   | `decode` then `encode`, recovering on failure             |
+| Member               | Returns                         | Notes                                                         |
+| -------------------- | ------------------------------- | ------------------------------------------------------------- |
+| `name`               | `string \| undefined`           | Diagnostics only                                              |
+| `params`             | `Readonly<TDefs>`               | The definitions, for introspection                            |
+| `keys()`             | `readonly string[]`             | Managed keys, in definition order                             |
+| `defaults()`         | `QueryModelDefaults<TDefs>`     | Only parameters that have a default; required keys absent     |
+| `decode(input)`      | `DecodeResult<Values>`          | Never throws; a throwing codec or refinement becomes an issue |
+| `decodeAsync(input)` | `Promise<DecodeResult<Values>>` | Required when validation is asynchronous; never rejects       |
+| `encode(values)`     | `QueryOutput`                   | Canonical; omits defaults; managed keys only                  |
+| `normalize(input)`   | `QueryOutput`                   | `decode` then `encode`, recovering on failure                 |
 
 ### `modelIssueKey`
 
@@ -90,6 +91,10 @@ Use named constructors when bundle size matters and a model only needs some buil
 bundler can then remove unrelated codecs. The `param.*` registry remains supported as the compact,
 ergonomic form when that distinction is not important.
 
+Construction validates options: inverted bounds (`min > max`, `minLength > maxLength`,
+`minItems > maxItems`), an empty or overlapping boolean spelling set, a list whose item consumes
+repeated values, and `nullable()` on a list all throw a `TypeError`.
+
 ### `QueryParamBuilder`
 
 ```ts
@@ -97,17 +102,26 @@ default(value: Exclude<TValue, undefined>): QueryParam<Exclude<TValue, undefined
 describe(description: string): QueryParamBuilder<TValue, TPresence>;
 nullable(): QueryParamBuilder<TValue | null, TPresence>;
 optional(): QueryParamBuilder<TValue | undefined, "optional">;
-refine<TOutput>(refinement: QueryRefinement<TValue, TOutput>): QueryParamBuilder<TOutput, TPresence>;
+refine<TOutput extends Decoded>(refinement: QueryRefinement<Decoded, TOutput>): QueryParamBuilder<TOutput | Absent, TPresence>;
+refine<TOutput>(transform: QueryTransform<Decoded, TOutput>): QueryParamBuilder<TOutput | Absent, TPresence>;
 ```
 
-`default()` returns a `QueryParam`, not a builder, so it must be last in a chain.
+`Decoded` is `Exclude<TValue, null | undefined>` and `Absent` is `Extract<TValue, null | undefined>`:
+a refinement never receives `null` or `undefined`, and they stay in the value type. The first
+overload validates or narrows; the second changes the type and therefore needs `encode`.
+
+`default()` returns a `QueryParam`, not a builder, so it must be last in a chain. It throws a
+`TypeError` when the parameter's own codec rejects the value, and stores a deep-frozen copy of
+arrays and plain objects.
 
 ### `QueryParam`
 
 `kind`, `presence`, `consumesMultipleValues`, `description`, `codec`, `defaultValue`.
 
 `QueryParamKind` is `"boolean" | "choice" | "custom" | "integer" | "list" | "number" | "text"`.
-`QueryParamPresence` is `"default" | "optional" | "required"`.
+`QueryParamPresence` is `"default" | "optional" | "required"`. `QueryParamBase` is the
+non-generic part of a parameter (`kind`, `presence`, `consumesMultipleValues`, `description`), and
+`QueryParamFactory` is the type of `param`.
 
 ## Codecs
 
@@ -145,24 +159,41 @@ function hasQueryIssueCode(issues: readonly QueryIssue[], code: QueryIssueCode):
 ```
 
 `QueryIssue` carries `key`, `code`, optional `input`, `message`, and optional `path`, and is frozen.
+`QueryIssueInit` is the same shape, accepted by `createQueryIssue`, which copies `input` and `path`
+and omits them when empty.
 
 `QueryIssueCode` is `"missing" | "empty" | "invalid" | "out_of_range" | "unknown_choice" |
-"unexpected_multiple_values" | "validation_failed"`.
+"unexpected_multiple_values" | "validation_failed" | "async_required"`. The union is closed;
+adding a member is a minor change under the [stability policy](/project/support/).
 
 ## Refinements
 
 ```ts
+interface QueryRefineContext {
+  readonly key: string;
+  readonly path: readonly PropertyKey[];
+}
+
 interface QueryRefinement<TInput, TOutput = TInput> {
   readonly name?: string | undefined;
+  readonly async?: boolean | undefined;
   refine(
     value: TInput,
     context: QueryRefineContext,
   ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
+  encode?(value: TOutput): TInput;
+}
+
+interface QueryTransform<TInput, TOutput> extends QueryRefinement<TInput, TOutput> {
+  encode(value: TOutput): TInput;
 }
 ```
 
 `QueryRefinementResult<T>` is `{ ok: true; value: T }` or `{ ok: false; issues: readonly QueryRefinementIssue[] }`,
-where an issue carries `message` and an optional `path`.
+where an issue carries `message` and an optional `path`. `async: true` tells the synchronous
+decode to report `async_required` without starting the refinement. `encode` is the inverse used
+when a refined value is written back; `QueryTransform` makes it mandatory for a refinement that
+changes the type.
 
 ## Query input
 
@@ -175,8 +206,14 @@ function queryOutputEquals(left: QueryOutput, right: QueryOutput): boolean;
 ```
 
 `QueryEntry` is `readonly [key: string, value: string]`, `QueryOutput` is `readonly QueryEntry[]`,
-and `QueryInput` is `string | Iterable<QueryEntry> | QueryRecordInput`. `URLSearchParams` satisfies
-the iterable form structurally, which is how it is accepted without a DOM library.
+and `QueryInput` is `string | Iterable<QueryEntry> | QueryRecordInput`, where `QueryRecordInput` is
+`Readonly<Record<string, string | readonly string[] | undefined>>`. `URLSearchParams` satisfies the
+iterable form structurally, which is how it is accepted without a DOM library.
+
+`formatQueryString` is byte-identical to `URLSearchParams.prototype.toString`, replacing a lone
+surrogate with U+FFFD as the platform does. `parseQueryString` decodes `+` as a space and each run
+of percent sequences on its own, so a malformed sequence or an invalid UTF-8 run keeps only itself
+verbatim; the platform would substitute U+FFFD for the bad bytes instead.
 
 ## Runtime
 
@@ -196,6 +233,7 @@ function createQueryRuntime<TDefs extends QueryParamDefinitions>(
 | ------------------------------- | -------------------------------- |
 | `model`                         | the bound model                  |
 | `read()`                        | `QuerySnapshot<Values>`          |
+| `settled()`                     | `Promise<QuerySnapshot<Values>>` |
 | `update(patch, options?)`       | `Promise<QueryTransitionResult>` |
 | `replace(values, options?)`     | `Promise<QueryTransitionResult>` |
 | `remove(keys, options?)`        | `Promise<QueryTransitionResult>` |
@@ -205,29 +243,45 @@ function createQueryRuntime<TDefs extends QueryParamDefinitions>(
 | `dispose()`                     | `void`                           |
 
 Every operation throws after `dispose()`. `QueryTransitionOptions` is `{ navigation? }`.
+Transitions run one at a time per runtime, in call order, each starting from the settled state.
+`read()` decodes only when the adapter's entries changed since the last read. `settled()` resolves
+once no asynchronous decode is pending. `subscribe` takes a `QuerySnapshotListener<Values>`,
+`(snapshot: QuerySnapshot<Values>) => void`; every listener runs on every notification, and a
+listener error is rethrown after the loop.
 
 ### `QuerySnapshot`
 
 ```ts
+type QueryStatus = "invalid" | "pending" | "valid";
+
 interface QuerySnapshot<TValues> {
-  readonly status: "valid" | "invalid";
+  readonly status: QueryStatus;
   readonly values: TValues;
   readonly issues: readonly QueryIssue[];
   readonly result: DecodeResult<TValues>;
 }
 ```
 
-`values` is always present. Use `result.ok` when you want narrowing.
+`values` is always present and frozen. Use `result.ok` when you want narrowing. `pending` means an
+asynchronous refinement has not settled; `values` then carry the synchronous best effort and a
+settled snapshot follows through the subscription.
 
 ### `QueryTransitionResult`
 
 ```ts
+type QueryTransitionOutcome = "committed" | "redirected" | "refused" | "unchanged";
+
 interface QueryTransitionResult<TValues> {
   readonly navigation: "push" | "replace";
+  readonly outcome: QueryTransitionOutcome;
+  readonly reason?: unknown;
   readonly output: QueryOutput;
   readonly snapshot: QuerySnapshot<TValues>;
 }
 ```
+
+`unchanged` is decided by the runtime: the output equalled the adapter's entries, so nothing was
+written and nobody was notified. The other outcomes come from the adapter, with its `reason`.
 
 ## Adapter contracts
 
@@ -236,15 +290,23 @@ interface QuerySource {
   read(): QueryInput;
 }
 
+type QueryNavigationOutcome = "committed" | "redirected" | "refused";
+
+interface QueryNavigationResult {
+  readonly outcome: QueryNavigationOutcome;
+  readonly reason?: unknown;
+}
+
 interface QueryAdapter extends QuerySource {
-  push(next: QueryOutput): void | Promise<void>;
-  replace(next: QueryOutput): void | Promise<void>;
+  push(next: QueryOutput): QueryNavigationResult | void | Promise<QueryNavigationResult | void>;
+  replace(next: QueryOutput): QueryNavigationResult | void | Promise<QueryNavigationResult | void>;
   subscribe(listener: QueryChangeListener): () => void;
 }
 ```
 
 `QueryChangeListener` is `(input: QueryInput) => void`. `QueryNavigationMode` is
-`"push" | "replace"`.
+`"push" | "replace"`. Returning nothing from `push` or `replace` means `committed`; an adapter
+throws only for environment errors, never to report a refusal.
 
 ## Bindings
 

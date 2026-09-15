@@ -10,6 +10,6 @@
     "@queryweave/core": "file:./queryweave-core.tgz"
   },
   "devDependencies": {
-    "typescript": "6.0.3"
+    "typescript": "5.5.4"
   }
 }

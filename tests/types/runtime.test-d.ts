@@ -112,10 +112,21 @@ describe("field key inference", () => {
   });
 });
 
+describe("transition results", () => {
+  it("carry an outcome and an optional reason", async () => {
+    const result = await runtime.update({ page: 2 });
+    expectTypeOf(result.outcome).toEqualTypeOf<
+      "committed" | "redirected" | "refused" | "unchanged"
+    >();
+    expectTypeOf(result.reason).toEqualTypeOf<unknown>();
+    expectTypeOf(runtime.settled()).resolves.toEqualTypeOf(runtime.read());
+  });
+});
+
 describe("readonly values", () => {
   it("exposes values without a tuple setter", () => {
     expectTypeOf(binding.values.page).toEqualTypeOf<number>();
-    expectTypeOf(binding.status).toEqualTypeOf<"invalid" | "valid">();
+    expectTypeOf(binding.status).toEqualTypeOf<"invalid" | "pending" | "valid">();
   });
 
   it("rejects direct mutation", () => {

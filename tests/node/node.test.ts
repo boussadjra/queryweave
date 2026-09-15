@@ -86,8 +86,70 @@ describe("malformed requests", () => {
 
   it("keeps a malformed query decodable", () => {
     const result = readNodeQuery(fakeRequest("/products?page=%E0%A4%A&tags="), productFilters);
-    expect(result.ok).toBe(true);
-    expect(result.issues.map((issue) => issue.code)).toStrictEqual(["invalid", "empty"]);
+    expect(result.ok && result.value).toMatchObject({ page: 1, tags: [] });
+    expect(result.issues.map((issue) => issue.code)).toStrictEqual(["invalid"]);
+  });
+
+  it("keeps a path that starts with two slashes on the request's own host", () => {
+    const url = resolveNodeRequestUrl(fakeRequest("//evil.example/p?page=2"));
+    expect(url.host).toBe("example.test");
+    expect(url.pathname).toBe("//evil.example/p");
+    expect(url.search).toBe("?page=2");
+  });
+
+  it("falls back instead of throwing on a malformed authority", () => {
+    expect(resolveNodeRequestUrl(fakeRequest("/p?page=2", { host: "a b" })).host).toBe(
+      "queryweave.invalid",
+    );
+    expect(resolveNodeRequestUrl(fakeRequest("/p", { host: "x:99999" })).host).toBe(
+      "queryweave.invalid",
+    );
+    const forwarded = fakeRequest("/p?page=2", {
+      host: "internal.test",
+      "x-forwarded-proto": "ht tp",
+    });
+    expect(readNodeQuery(forwarded, productFilters, { trustForwardedHeaders: true }).ok).toBe(true);
+  });
+
+  it("keeps a query readable even when the path is odd", () => {
+    const result = readNodeQuery(fakeRequest("/a b/c?page=3&search=vue#frag"), productFilters);
+    expect(result.ok && result.value).toMatchObject({ page: 3, search: "vue" });
+  });
+});
+
+describe("request shapes", () => {
+  it("prefers the original URL a mounted router stripped", () => {
+    const request = {
+      url: "/list?page=2",
+      originalUrl: "/api/products/list?page=2",
+      headers: { host: "example.test" },
+    } as unknown as IncomingMessage;
+    expect(resolveNodeRequestUrl(request).pathname).toBe("/api/products/list");
+    expect(
+      readNodeQuery(request, productFilters).ok && readNodeQuery(request, productFilters),
+    ).toMatchObject({ value: { page: 2 } });
+  });
+
+  it("reads the HTTP/2 pseudo-headers", () => {
+    const request = fakeRequest("/p", { ":authority": "h2.test", ":scheme": "https" });
+    expect(resolveNodeRequestUrl(request).origin).toBe("https://h2.test");
+  });
+
+  it("infers https from an encrypted socket", () => {
+    const request = {
+      url: "/p",
+      headers: { host: "tls.test" },
+      socket: { encrypted: true },
+    } as unknown as IncomingMessage;
+    expect(resolveNodeRequestUrl(request).protocol).toBe("https:");
+  });
+
+  it("accepts an absolute-form request line and still honors overrides", () => {
+    const request = fakeRequest("http://origin.test/p?page=4", { host: "ignored.test" });
+    expect(resolveNodeRequestUrl(request).href).toBe("http://origin.test/p?page=4");
+    expect(resolveNodeRequestUrl(request, { host: "given.test", protocol: "https" }).href).toBe(
+      "https://given.test/p?page=4",
+    );
   });
 });
 

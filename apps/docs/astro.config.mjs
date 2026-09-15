@@ -213,6 +213,8 @@ export default defineConfig({
           collapsed: true,
           items: [
             { label: "Architecture", link: "/project/architecture/" },
+            { label: "Support and stability", link: "/project/support/" },
+            { label: "Upgrading", link: "/project/upgrading/" },
             { label: "Roadmap", link: "/project/roadmap/" },
             { label: "Contributing", link: "/project/contributing/" },
             { label: "Releasing", link: "/project/releasing/" },

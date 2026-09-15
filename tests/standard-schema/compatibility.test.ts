@@ -19,31 +19,42 @@ interface PageState {
 interface Vendor {
   readonly name: string;
   readonly nonEmptyText: StandardSchemaV1<string, string>;
-  readonly textLength: StandardSchemaV1<string, number>;
+  readonly digits: StandardSchemaV1<string, number>;
   readonly pageAtMostFive: StandardSchemaV1<PageState, PageState>;
+  readonly parsesJson: StandardSchemaV1<string, unknown>;
 }
 
 const vendors: readonly Vendor[] = [
   {
     name: "zod",
     nonEmptyText: z.string().min(2),
-    textLength: z.string().transform((value) => value.length),
+    digits: z
+      .string()
+      .regex(/^\d+$/u)
+      .transform((value) => Number(value)),
     pageAtMostFive: z.object({ page: z.number().max(5) }),
+    parsesJson: z.string().transform((value): unknown => JSON.parse(value)),
   },
   {
     name: "valibot",
     nonEmptyText: v.pipe(v.string(), v.minLength(2)),
-    textLength: v.pipe(
+    digits: v.pipe(
       v.string(),
-      v.transform((value) => value.length),
+      v.regex(/^\d+$/u),
+      v.transform((value) => Number(value)),
     ),
     pageAtMostFive: v.object({ page: v.pipe(v.number(), v.maxValue(5)) }),
+    parsesJson: v.pipe(
+      v.string(),
+      v.transform((value): unknown => JSON.parse(value)),
+    ),
   },
   {
     name: "arktype",
     nonEmptyText: type("string >= 2"),
-    textLength: type("string").pipe((value) => value.length),
+    digits: type(/^\d+$/u).pipe((value) => Number(value)),
     pageAtMostFive: type({ page: "number <= 5" }),
+    parsesJson: type("string").pipe((value): unknown => JSON.parse(value)),
   },
 ];
 
@@ -61,14 +72,44 @@ describe.each(vendors)("$name", (vendor) => {
     expect(rejected.issues[0]?.key).toBe("search");
   });
 
-  it("carries a transformed output through to the value type", () => {
+  it("carries a transformed output through to the value type and back to the URL", () => {
     const model = defineQueryModel({
-      length: param.text().refine(fromStandardSchema(vendor.textLength)).default(0),
+      count: param
+        .text()
+        .refine(fromStandardSchema(vendor.digits, { encode: (value) => String(value) }))
+        .default(0),
     });
 
-    const result = model.decode("?length=hello");
-    expect(result.ok && result.value.length).toBe(5);
-    expect(model.encode({ length: 5 })).toStrictEqual([["length", "5"]]);
+    const result = model.decode("?count=42");
+    expect(result.ok && result.value.count).toBe(42);
+    expect(model.encode({ count: 42 })).toStrictEqual([["count", "42"]]);
+    expect(model.decode(model.encode({ count: 42 }))).toMatchObject({ value: { count: 42 } });
+    expect(model.decode("?count=x").issues.map((issue) => issue.code)).toStrictEqual([
+      "validation_failed",
+    ]);
+  });
+
+  it("reports a throwing transform instead of letting it escape", async () => {
+    const model = defineQueryModel({
+      filter: param
+        .text()
+        .refine(fromStandardSchema(vendor.parsesJson, { encode: (value) => JSON.stringify(value) }))
+        .optional(),
+    });
+
+    expect(model.decode('?filter={"a":1}')).toMatchObject({
+      ok: true,
+      value: { filter: { a: 1 } },
+    });
+
+    // Zod turns a throwing synchronous transform into a rejected promise; the others throw.
+    const sync = model.decode("?filter=%7Bbad");
+    expect(sync.ok && sync.value.filter).toBeUndefined();
+    expect(["validation_failed", "async_required"]).toContain(sync.issues[0]?.code);
+
+    const settled = await model.decodeAsync("?filter=%7Bbad");
+    expect(settled.ok && settled.value.filter).toBeUndefined();
+    expect(settled.issues).toMatchObject([{ code: "validation_failed", key: "filter" }]);
   });
 
   it("validates the whole model", () => {
@@ -137,31 +178,86 @@ describe("multiple issues", () => {
 });
 
 describe("asynchronous schemas", () => {
-  const asyncSchema = z.string().refine(async (value) => {
-    await Promise.resolve();
-    return value !== "taken";
-  }, "already taken");
+  const vendorsAsync: readonly (readonly [string, StandardSchemaV1<string, string>])[] = [
+    [
+      "zod",
+      z.string().refine(async (value) => {
+        await Promise.resolve();
+        return value !== "taken";
+      }, "already taken"),
+    ],
+    [
+      "valibot",
+      v.pipeAsync(
+        v.string(),
+        v.checkAsync(async (value) => {
+          await Promise.resolve();
+          return value !== "taken";
+        }, "already taken"),
+      ),
+    ],
+  ];
 
-  const model = defineQueryModel({
-    slug: param.text().refine(fromStandardSchema(asyncSchema)).optional(),
-  });
+  describe.each(vendorsAsync)("%s", (_name, schema) => {
+    const model = defineQueryModel({
+      slug: param.text().refine(fromStandardSchema(schema)).optional(),
+    });
 
-  it("resolves through decodeAsync", async () => {
-    await expect(model.decodeAsync("?slug=free")).resolves.toMatchObject({
-      ok: true,
-      value: { slug: "free" },
+    it("resolves through decodeAsync", async () => {
+      await expect(model.decodeAsync("?slug=free")).resolves.toMatchObject({
+        ok: true,
+        value: { slug: "free" },
+      });
+    });
+
+    it("reports the failure through decodeAsync", async () => {
+      const result = await model.decodeAsync("?slug=taken");
+      expect(result.issues.map((issue) => issue.message)).toStrictEqual(["already taken"]);
+    });
+
+    it("refuses to guess in the synchronous path", () => {
+      const result = model.decode("?slug=free");
+      expect(result.issues[0]?.code).toBe("async_required");
+      expect(result.issues[0]?.message).toContain("asynchronous validation");
     });
   });
 
-  it("reports the failure through decodeAsync", async () => {
-    const result = await model.decodeAsync("?slug=taken");
-    expect(result.issues.map((issue) => issue.message)).toStrictEqual(["already taken"]);
+  it("skips a schema declared asynchronous without starting it", () => {
+    let started = 0;
+    const schema = z.string().refine(async () => {
+      started += 1;
+      return true;
+    });
+    const model = defineQueryModel({
+      slug: param
+        .text()
+        .refine(fromStandardSchema(schema, { async: true }))
+        .optional(),
+    });
+    expect(model.decode("?slug=free").issues[0]?.code).toBe("async_required");
+    expect(started).toBe(0);
   });
 
-  it("refuses to guess in the synchronous path", () => {
-    const result = model.decode("?slug=free");
-    expect(result.issues[0]?.code).toBe("validation_failed");
-    expect(result.issues[0]?.message).toContain("asynchronous validation");
+  it("accepts a thenable that is not a native promise", async () => {
+    const thenable: StandardSchemaV1<string, string> = {
+      "~standard": {
+        version: 1,
+        vendor: "custom",
+        // Not a native Promise, only a `then`, which is all the specification requires.
+        validate: (value) =>
+          ({
+            then: (onFulfilled: (result: StandardSchemaV1.Result<string>) => unknown) =>
+              Promise.resolve(onFulfilled({ value: String(value) })),
+          }) as unknown as Promise<StandardSchemaV1.Result<string>>,
+      },
+    };
+    const model = defineQueryModel({
+      slug: param.text().refine(fromStandardSchema(thenable)).optional(),
+    });
+    expect(model.decode("?slug=free").issues[0]?.code).toBe("async_required");
+    await expect(model.decodeAsync("?slug=free")).resolves.toMatchObject({
+      value: { slug: "free" },
+    });
   });
 });
 

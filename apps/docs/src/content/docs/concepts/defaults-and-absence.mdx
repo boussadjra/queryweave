@@ -128,12 +128,16 @@ model.defaults(); // { page: 1 } — `id` is not present, in the type or at runt
 
 - **A default that cannot be encoded to itself** breaks omission. If a custom codec encodes `1` as
   `"01"`, then decoding `"01"` must produce `1` again, or the comparison in `encode` will not
-  match. Round-trip your custom codecs.
+  match. `.default()` runs that round trip when you declare it and throws when it fails.
 - **List defaults** are compared by their encoded form, so `.default([])` is dropped correctly
-  without any deep-equality helper.
-- **A default is not validated** against the parameter's own constraints when you declare it.
-  `param.integer({ min: 5 }).default(1)` is accepted, and produces a state that decoding could
-  never yield.
+  without any deep-equality helper. An empty list that is _not_ the default is written as one empty
+  value, `tags=`, which reads back as `[]`.
+- **A default is validated** against the parameter's own constraints when you declare it.
+  `param.integer({ min: 5 }).default(1)` throws, because it would produce a state that decoding
+  could never yield. Refinements are not run on defaults.
+- **Defaults are frozen copies.** Every decode of an absent key hands out the same frozen array or
+  object, so a transaction that tries to mutate it in place throws instead of changing the next
+  request's state. Replace nested values; do not mutate them.
 
 ## Next
 

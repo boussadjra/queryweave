@@ -28,21 +28,24 @@ to `undefined`.
 
 ## The taxonomy
 
-Seven codes, and they are stable:
+Eight codes, and they are stable:
 
-| Code                         | Meaning                                     | Typical source                     |
-| ---------------------------- | ------------------------------------------- | ---------------------------------- |
-| `missing`                    | A required key was absent                   | `param.text()` with no value       |
-| `empty`                      | The key was present but carried no value    | `?q=`                              |
-| `invalid`                    | The value is not the right shape            | `?page=abc`                        |
-| `out_of_range`               | The right shape, outside the allowed bounds | `?page=0` with `min: 1`            |
-| `unknown_choice`             | Not one of the declared choices             | `?sort=colour`                     |
-| `unexpected_multiple_values` | Several values for a single-value parameter | `?page=1&page=2`                   |
-| `validation_failed`          | A refinement rejected the value             | Zod, Valibot, ArkType, or your own |
+| Code                         | Meaning                                             | Typical source                     |
+| ---------------------------- | --------------------------------------------------- | ---------------------------------- |
+| `missing`                    | A required key was absent                           | `param.text()` with no value       |
+| `empty`                      | The key was present but carried no value            | `?q=`                              |
+| `invalid`                    | The value is not the right shape                    | `?page=abc`                        |
+| `out_of_range`               | The right shape, outside the allowed bounds         | `?page=0` with `min: 1`            |
+| `unknown_choice`             | Not one of the declared choices                     | `?sort=colour`                     |
+| `unexpected_multiple_values` | Several values for a single-value parameter         | `?page=1&page=2`                   |
+| `validation_failed`          | A refinement rejected the value, or threw           | Zod, Valibot, ArkType, or your own |
+| `async_required`             | The value needs `decodeAsync`; this decode was sync | an asynchronous schema             |
 
 `validation_failed` is the deliberate flattening point. A validator's own error type never reaches
 your code: whatever the vendor reported becomes a QueryWeave issue with the vendor's message, so
-consumers depend on one taxonomy.
+consumers depend on one taxonomy. `async_required` is not a failure of the value; it recovers the
+same way, and the asynchronous decode settles it. The union is closed; adding a code is a minor
+change, so keep a `default` branch in an exhaustive `switch`.
 
 ## Recovery
 
@@ -91,7 +94,7 @@ In a runtime binding the same list is on the snapshot, alongside a status:
 ```ts {1,3-6}
 const snapshot = runtime.read();
 
-snapshot.status; // "valid" | "invalid"
+snapshot.status; // "valid" | "invalid" | "pending"
 snapshot.issues; // the same issues
 snapshot.values; // always present — defaults merged with whatever decoded
 snapshot.result; // the underlying DecodeResult, when you want narrowing
@@ -147,8 +150,10 @@ has to resolve.
 - **Model-level issues** use the key `$`. Compare against `modelIssueKey` rather than the literal.
 - **A recovered value still carries its issue.** Do not treat a non-empty `issues` array as
   failure; check `ok` or `status` for that.
-- **Asynchronous validation reached through synchronous decode** reports `validation_failed` with a
-  message naming `decodeAsync`, and recovers.
+- **Asynchronous validation reached through synchronous decode** reports `async_required` and
+  recovers; a runtime turns that into a `pending` snapshot and settles it.
+- **A codec or refinement that throws** is reported as `invalid` or `validation_failed` with the
+  error's message; decoding never propagates an exception.
 
 ## How it is tested
 

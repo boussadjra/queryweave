@@ -4,19 +4,29 @@ import {
   type QueryAdapter,
   type QueryChangeListener,
   type QueryInput,
+  type QueryNavigationMode,
+  type QueryNavigationResult,
   type QueryOutput,
 } from "@queryweave/core";
 
 /** Options accepted by {@link createMemoryQueryAdapter}. */
 export interface MemoryQueryAdapterOptions {
   readonly initial?: QueryInput | undefined;
+  /**
+   * Decide what happens to a navigation before it is applied, the way a router guard would.
+   * Return nothing to let it through; a refused or redirected result leaves the stack untouched.
+   */
+  readonly guard?:
+    | ((next: QueryOutput, mode: QueryNavigationMode) => QueryNavigationResult | undefined)
+    | undefined;
 }
 
 /**
  * A deterministic, environment-free adapter with an observable back/forward stack.
  *
  * This is the reference adapter for runtime tests: it needs no browser, no router, and no
- * framework, and it never re-implements model semantics.
+ * framework, and it never re-implements model semantics. Navigation is synchronous, so a test
+ * that needs an asynchronous or refusing environment passes a `guard` or wraps the adapter.
  */
 export interface MemoryQueryAdapter extends QueryAdapter {
   current(): string;
@@ -52,22 +62,32 @@ export function createMemoryQueryAdapter(
     }
   };
 
+  const navigate = (
+    next: QueryOutput,
+    mode: QueryNavigationMode,
+  ): QueryNavigationResult | undefined => {
+    assertActive();
+    const verdict = options.guard?.(next, mode);
+    if (verdict !== undefined && verdict.outcome !== "committed") {
+      return verdict;
+    }
+    if (mode === "push") {
+      stack.length = index + 1;
+      stack.push([...next]);
+      index = stack.length - 1;
+    } else {
+      stack[index] = [...next];
+    }
+    notify();
+    return verdict;
+  };
+
   return {
     read: () => entries(),
     entries,
     current: () => formatQueryString(entries()),
-    push: (next) => {
-      assertActive();
-      stack.length = index + 1;
-      stack.push([...next]);
-      index = stack.length - 1;
-      notify();
-    },
-    replace: (next) => {
-      assertActive();
-      stack[index] = [...next];
-      notify();
-    },
+    push: (next) => navigate(next, "push"),
+    replace: (next) => navigate(next, "replace"),
     back: () => {
       assertActive();
       if (index === 0) {

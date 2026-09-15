@@ -15,12 +15,16 @@ the fixture's `verify` script.
 Dependency entries such as `"@queryweave/core": "file:./queryweave-core.tgz"` are literal: the
 runner copies `queryweave-core-<version>.tgz` to that name before installing.
 
-| Fixture           | Proves                                                                 |
-| ----------------- | ---------------------------------------------------------------------- |
-| `universal`       | Core needs no DOM library, no Node typings, and no framework           |
-| `browser`         | The History adapter installs and runs with no framework present        |
-| `node`            | Node helpers work over a real HTTP request                             |
-| `vue`             | Vue is a peer and Vue Router is not required                           |
-| `vue-router`      | The router adapter resolves without deep imports                       |
-| `nuxt`            | The module and runtime plugin build, render on the server, and hydrate |
-| `standard-schema` | No validator is installed transitively; a chosen one works             |
+Peer dependencies are strict inside a fixture, so a published range that excludes the fixture's
+framework version fails the install.
+
+| Fixture           | Proves                                                                       |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `universal`       | Core needs no DOM library, no Node typings, no framework, and TypeScript 5.5 |
+| `browser`         | The History adapter installs and runs with no framework present              |
+| `node`            | Node helpers work over a real HTTP request                                   |
+| `vue`             | Vue is a peer and Vue Router is not required                                 |
+| `vue-router`      | The router adapter resolves without deep imports on Vue Router 5             |
+| `vue-router-4`    | The same consumer on Vue Router 4, the other supported major                 |
+| `nuxt`            | The module and runtime plugin build and server-render real `pages/` routes   |
+| `standard-schema` | No validator is installed transitively; a chosen one works                   |

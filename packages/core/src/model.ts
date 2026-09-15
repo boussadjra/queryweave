@@ -120,9 +120,20 @@ function mergeResults(
   return { ok, values, partial, issues };
 }
 
+const ignore = (): void => undefined;
+
 function toModelIssues(
   result: QueryRefinementResult<unknown> & { ok: false },
 ): readonly QueryIssue[] {
+  if (result.issues.length === 0) {
+    return [
+      createQueryIssue({
+        key: modelIssueKey,
+        code: "validation_failed",
+        message: "The model failed validation without an explanation.",
+      }),
+    ];
+  }
   return result.issues.map((issue) =>
     createQueryIssue({
       key: modelIssueKey,
@@ -133,8 +144,26 @@ function toModelIssues(
   );
 }
 
+function thrownModelIssue(error: unknown): QueryIssue {
+  const detail = error instanceof Error ? error.message : String(error);
+  return createQueryIssue({
+    key: modelIssueKey,
+    code: "validation_failed",
+    message: `The model failed validation: ${detail}`,
+  });
+}
+
+const asyncRequiredModelIssue: QueryIssue = createQueryIssue({
+  key: modelIssueKey,
+  code: "async_required",
+  message: "This model uses asynchronous validation; call decodeAsync instead.",
+});
+
 /**
  * Compose named parameters into one typed, portable query model.
+ *
+ * Keys keep their definition order in canonical output, with one JavaScript caveat: a key that
+ * is a canonical numeric string (`"2"`) is enumerated before every other key.
  */
 export function defineQueryModel<TDefs extends QueryParamDefinitions>(
   definitions: TDefs,
@@ -147,6 +176,11 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
   for (const key of keys) {
     if (key === "") {
       throw new TypeError("A query parameter key must not be empty.");
+    }
+    if (key === modelIssueKey) {
+      throw new TypeError(
+        `"${modelIssueKey}" is reserved for model-level issues and cannot name a parameter.`,
+      );
     }
   }
 
@@ -237,15 +271,20 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
     const issues: QueryIssue[] = [];
 
     for (const refinement of refinements) {
-      const outcome = refinement.refine(current, { key: modelIssueKey, path: [] });
+      if (refinement.async === true) {
+        issues.push(asyncRequiredModelIssue);
+        return finish(merged, issues, undefined);
+      }
+      let outcome: QueryRefinementResult<unknown> | PromiseLike<QueryRefinementResult<unknown>>;
+      try {
+        outcome = refinement.refine(current, { key: modelIssueKey, path: [] });
+      } catch (error) {
+        issues.push(thrownModelIssue(error));
+        return finish(merged, issues, undefined);
+      }
       if (isPromiseLike(outcome)) {
-        issues.push(
-          createQueryIssue({
-            key: modelIssueKey,
-            code: "validation_failed",
-            message: "This model uses asynchronous validation; call decodeAsync instead.",
-          }),
-        );
+        outcome.then(ignore, ignore);
+        issues.push(asyncRequiredModelIssue);
         return finish(merged, issues, undefined);
       }
       if (!outcome.ok) {
@@ -283,9 +322,15 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
     const issues: QueryIssue[] = [];
 
     for (const refinement of refinements) {
-      // Model refinements form a pipeline; each one sees the previous one's output.
-      // oxlint-disable-next-line no-await-in-loop
-      const outcome = await refinement.refine(current, { key: modelIssueKey, path: [] });
+      let outcome: QueryRefinementResult<unknown>;
+      try {
+        // Model refinements form a pipeline; each one sees the previous one's output.
+        // oxlint-disable-next-line no-await-in-loop
+        outcome = await refinement.refine(current, { key: modelIssueKey, path: [] });
+      } catch (error) {
+        issues.push(thrownModelIssue(error));
+        return finish(merged, issues, undefined);
+      }
       if (!outcome.ok) {
         issues.push(...toModelIssues(outcome));
         return finish(merged, issues, undefined);

@@ -44,9 +44,9 @@ const products = defineQueryModel({
   tags: param.list(param.text()).default([]),
 });
 
-products.decode("?tags=vue&tags=nuxt"); // { tags: ["vue", "nuxt"] }
+products.decode("?tags=vue&tags=nuxt"); // ok, value: { tags: ["vue", "nuxt"] }
 products.encode({ tags: ["vue", "nuxt"] }); // [["tags", "vue"], ["tags", "nuxt"]]
-products.encode({ tags: [] }); // [] — equals the default
+products.encode({ tags: [] }); // [] — equals the default; otherwise it would be [["tags", ""]]
 ```
 
 Toggling one value:

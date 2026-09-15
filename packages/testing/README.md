@@ -2,6 +2,10 @@
 
 The framework-independent reference adapter.
 
+```sh
+pnpm add -D @queryweave/testing
+```
+
 ```ts
 import { createMemoryQueryAdapter } from "@queryweave/testing";
 
@@ -18,3 +22,5 @@ adapter.dispose();
 
 Deterministic push, replace, back, and forward with no browser, router, or framework requirement.
 Use it for most runtime tests.
+
+Documentation: https://queryweave-docs.vercel.app/adapters/testing/

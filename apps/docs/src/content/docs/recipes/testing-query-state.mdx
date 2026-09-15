@@ -165,14 +165,15 @@ test("a stale sort recovers", () => {
 ## When you do need a real browser
 
 Only for behavior the History API itself owns: that `popstate` fires, that path and hash survive,
-that a real back button produces one notification. QueryWeave tests those in real Chromium through
-Vitest Browser Mode and everything else against the memory adapter — a reasonable split for an
-application too.
+that a real back button produces one notification. QueryWeave tests those in Chromium, Firefox,
+and WebKit through Vitest Browser Mode and everything else against the memory adapter — a
+reasonable split for an application too. A refusing environment does not need a browser either:
+the memory adapter's `guard` option refuses or redirects a write the way a router guard would.
 
 ## What QueryWeave's own suite does
 
-Twelve Vitest projects, one per boundary, plus a Playwright suite and seven consumer fixtures that
-install packed archives into clean projects outside the workspace. The
+Thirteen Vitest projects, one per boundary, plus a Playwright suite in three engines and eight
+consumer fixtures that install packed archives into clean projects outside the workspace. The
 [architecture page](/project/architecture/) describes the three repository checks that sit outside
 the test suite.
 

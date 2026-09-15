@@ -56,8 +56,17 @@ them fails the build rather than review.
 - A value equal to its declared default is omitted from canonical output.
 - An invalid value recovers to its default or to `undefined` **and** reports an issue. It never
   disappears silently.
-- A transition encodes once, navigates once, and notifies once. Notification flows through the
-  adapter subscription, not from the transition itself.
+- A transition encodes once, navigates at most once, and is followed by at most one notification.
+  Notification flows through the adapter subscription, not from the transition itself. Transitions
+  on one runtime run one at a time, in call order; an output equal to the adapter's entries is
+  `unchanged` and writes nothing.
+- An adapter reports a refusal or redirect as a `QueryNavigationResult`; it throws only for
+  environment errors. Returning nothing means committed.
+- A refinement that changes the value's type must provide `encode`. Refinements never receive
+  `null` or `undefined`. A promise-returning refinement makes the synchronous decode report
+  `async_required`; the runtime then holds a `pending` snapshot and settles it asynchronously.
+- Defaults are validated against their own codec at construction and stored as frozen copies. An
+  empty list encodes as one empty value.
 - Unmanaged query keys are preserved by the runtime, never by `model.encode`.
 - Vue `values`, `status`, and `issues` are plain properties, not refs, so templates read them
   directly. Watching them needs a getter: `watch(() => filters.status, ...)`.
@@ -77,9 +86,10 @@ pnpm check
 ```
 
 `pnpm check` runs format, lint, root typecheck, workspace typecheck, every Vitest project with
-coverage thresholds, builds, boundary check, package checks, artifact and archive validation, docs
-build, and knip. Browser tests need Chromium once:
-`pnpm exec playwright install chromium`.
+coverage thresholds, the browser adapter suite in Chromium, Firefox, and WebKit, builds, boundary
+check, package checks, artifact and archive validation, docs build, and knip. V8 coverage only
+instruments Chromium, which is why the browser suite runs twice. Install the engines once:
+`pnpm exec playwright install chromium firefox webkit`.
 
 Anything touching packaging, exports, declarations, or peers also needs:
 
@@ -92,7 +102,11 @@ and takes about two minutes.
 
 ## Status
 
-Phase 3: the engine runs, is tested, and is validated as published archives, but it is not
-production ready and nothing has been published. The API is provisional; breaking changes ship in
-minor versions with an ADR and a changeset. Transition scheduling, throttling, coalescing, and
-cancellation are deliberately absent. Do not claim production readiness in documentation.
+`0.1.0-alpha.1` is on npm under both `latest` and `alpha`; until a stable version exists every
+publish goes to `latest`. The engine runs, is tested, and is validated as published archives, but
+it is not production ready. The API is provisional; breaking changes ship in minor versions with an
+ADR and a changeset, summarized in `apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009
+settled transition outcomes, serialized transitions, pending decodes, and refinement inverses ahead
+of a beta. Transition throttling, coalescing, and cancellation are deliberately absent. Do not
+claim production readiness in documentation. The GitHub repository is still private, which is why
+the published packages carry no provenance.

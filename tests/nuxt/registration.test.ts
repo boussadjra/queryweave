@@ -87,7 +87,7 @@ describe("module metadata", () => {
     const meta = await withMeta.getMeta();
     expect(meta.name).toBe("@queryweave/nuxt");
     expect(meta.configKey).toBe("queryweave");
-    expect(meta.compatibility).toMatchObject({ nuxt: ">=4.0.0" });
+    expect(meta.compatibility).toMatchObject({ nuxt: ">=4.5.0" });
   });
 
   it("exposes resolved defaults", async () => {

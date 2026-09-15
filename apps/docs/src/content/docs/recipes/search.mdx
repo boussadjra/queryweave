@@ -113,7 +113,8 @@ const search = filters.field("search", { navigation: "replace" });
 </template>
 ```
 
-`field` gives you the `v-model` target. For the page reset, use an explicit handler instead:
+`field` gives you the `v-model` target, and it already clears the parameter when the input is
+emptied. For the page reset, use an explicit handler instead:
 
 ```ts {2-8}
 async function onSearch(value: string): Promise<void> {
@@ -148,6 +149,9 @@ The same model, the same defaults, no second parser.
 
 ## What this does not solve
 
-Scheduling. If a user types faster than your data source responds, responses can arrive out of
-order — QueryWeave does not cancel or coalesce transitions, so ordering your own requests is your
-responsibility. That capability is [planned](/project/roadmap/).
+Coalescing. Transitions on one runtime are serialized, so a burst of keystrokes never loses a
+character — but each keystroke is still its own write. Debounce for the history stack's sake, and
+because Safari refuses more than about a hundred history writes in ten seconds. If a user types
+faster than your data source responds, responses can also arrive out of order; QueryWeave does not
+cancel transitions, so ordering your own requests is your responsibility. That capability is
+[planned](/project/roadmap/).

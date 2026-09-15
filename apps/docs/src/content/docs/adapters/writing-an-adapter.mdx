@@ -17,8 +17,8 @@ interface QuerySource {
 }
 
 interface QueryAdapter extends QuerySource {
-  push(next: QueryOutput): void | Promise<void>;
-  replace(next: QueryOutput): void | Promise<void>;
+  push(next: QueryOutput): QueryNavigationResult | void | Promise<QueryNavigationResult | void>;
+  replace(next: QueryOutput): QueryNavigationResult | void | Promise<QueryNavigationResult | void>;
   subscribe(listener: QueryChangeListener): () => void;
 }
 ```
@@ -116,19 +116,29 @@ This is the question that decides whether you notify after writing.
 Getting this wrong produces either no notification or two. The rule to hold onto is that exactly one
 notification must reach the runtime per change, whatever its source.
 
-## Reporting failure
+## Reporting an outcome
 
-If the environment can refuse — a navigation guard, a rejected route — report it rather than
-throwing into the caller's transition:
+If the environment can refuse — a navigation guard, a rejected route — return the outcome from
+`push` or `replace` rather than throwing into the caller's transition:
 
-```ts
-interface MyAdapterOptions {
-  readonly onNavigationFailure?: (outcome: { ok: boolean; failure?: unknown }) => void;
-}
+```ts {3-6}
+const push = async (next: QueryOutput): Promise<QueryNavigationResult | void> => {
+  const failure = await store.navigate(formatQueryString(next));
+  if (failure !== undefined) {
+    return { outcome: "refused", reason: failure };
+  }
+  // Returning nothing means committed.
+};
 ```
 
-`@queryweave/vue-router` does exactly this. A transition that was refused is an environment
-condition, not a programming error.
+`outcome` is `"committed"`, `"refused"` (the environment declined and is unchanged), or
+`"redirected"` (it accepted the write but ended somewhere else); `reason` carries the environment's
+own account. The runtime puts both on the transition result. A transition that was refused is an
+environment condition, not a programming error; throw only for real errors, such as a disposed
+adapter or an environment that rejects the write itself. `@queryweave/vue-router` does exactly this.
+
+The runtime skips a write whose output already equals what `read()` returns, so an adapter never
+has to detect a no-op itself.
 
 ## Testing a new adapter
 
@@ -156,7 +166,8 @@ expect(notifications).toHaveLength(1);
 
 Compare behavior with `createMemoryQueryAdapter` from [`@queryweave/testing`](/adapters/testing/):
 if the two disagree for the same operations, the new adapter is doing something the contract does
-not allow.
+not allow. Its `guard` option shows what a refusing environment should look like from the
+runtime's side.
 
 ## Packaging
 
