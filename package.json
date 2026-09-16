@@ -25,7 +25,7 @@
     "docs:dev": "turbo run dev --filter=@queryweave/docs",
     "docs:build": "turbo run docs:build --filter=@queryweave/docs",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && oxfmt .",
     "version:set": "node scripts/version.mjs",
     "version:alpha": "node scripts/version.mjs prerelease --preid alpha",
     "version:beta": "node scripts/version.mjs prerelease --preid beta",
