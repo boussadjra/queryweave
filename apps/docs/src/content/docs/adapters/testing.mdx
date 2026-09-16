@@ -13,18 +13,13 @@ import { Aside } from "@astrojs/starlight/components";
 
 <IntegrationHeader context="testing" />
 
-## What it owns
+The memory adapter holds the query string in memory, with a history stack you move through with
+`back` and `forward`. `canGoBack` and `canGoForward` tell you whether each move is possible. It notifies on every change,
+and an optional `guard` can refuse or redirect a write the way a router guard would.
 
-- A query string held in memory.
-- A history stack with `back`, `forward`, and the two predicates that guard them.
-- Notification on every change, and an optional `guard` that refuses or redirects a write the way
-  a router guard would.
-
-## What it does not own
-
-The same things no adapter owns: decoding, validation, defaults. It is the _reference_
-implementation of the adapter contract precisely because it does nothing extra — if a behavior
-appears with the memory adapter, it came from the engine.
+Like every adapter, it leaves decoding, validation, and defaults to the model, and it adds nothing
+of its own. That makes it the _reference_ implementation of the adapter contract: if a behavior
+shows up with the memory adapter, it came from the engine.
 
 ## Install
 
@@ -149,11 +144,5 @@ router suites.
 - **After `dispose`, every mutating call throws.** `read` and `entries` keep working.
 - **Entries are copied on write**, so a caller cannot mutate the stack afterwards.
 - **The initial value accepts any `QueryInput`** — a string, entries, or an object.
-
-## How it is tested
-
-`tests/testing/memory-adapter.test.ts` covers the stack, truncation, notification, and disposal.
-The coverage threshold for this package is the highest in the repository, because everything else
-is tested through it.
 
 <IntegrationNav />

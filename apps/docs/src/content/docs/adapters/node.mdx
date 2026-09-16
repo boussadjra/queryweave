@@ -14,16 +14,10 @@ import { Aside } from "@astrojs/starlight/components";
 
 <IntegrationHeader context="node" />
 
-## What it owns
-
-One thing: turning a Node `IncomingMessage` into an absolute `URL`. Everything after that is
-delegated to [`@queryweave/server`](/adapters/server/), so decoding lives in exactly one place.
-
-## What it does not own
-
-Decoding, validation, defaults, navigation, and any HTTP framework. Express, Fastify, NestJS, and
-Hono are not dependencies and never will be — they all expose a request object this package can
-read.
+This package turns a Node `IncomingMessage` into an absolute `URL`, and that is all it does.
+Everything after that is handed to [`@queryweave/server`](/adapters/server/), so decoding lives in
+one place. No HTTP framework is a dependency, and none will be: Express, Fastify, NestJS, and Hono all
+expose a request object this package can read.
 
 <AdapterDiagram
   mode="source"
@@ -127,11 +121,5 @@ asynchronous refinement.
 - **The fallback host is `queryweave.invalid`**, chosen because `.invalid` can never resolve.
 - **Fastify and Koa** hand you a wrapper; pass `request.raw` (Fastify) or `ctx.req` (Koa), which is
   the underlying `IncomingMessage`. Express and Hono's Node adapter pass it through directly.
-
-## How it is tested
-
-`tests/node/node.test.ts` covers URL resolution, header precedence, the forwarded-header opt-in,
-HTTP/2 pseudo-headers, TLS sockets, mounted routers, hostile paths and headers, and decoding. The
-`node` consumer fixture runs the packed archive against a real `node:http` server.
 
 <IntegrationNav />

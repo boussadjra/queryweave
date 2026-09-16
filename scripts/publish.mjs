@@ -17,7 +17,7 @@ const registry = "https://registry.npmjs.org";
 function usage(message) {
   if (message) console.error(`\nError: ${message}`);
   console.error(`
-Usage: pnpm publish:packages -- [options]
+Usage: pnpm publish:packages [options]
 
 Publishes each package in the fixed @queryweave/* group only when its exact
 version is not already present on npm.

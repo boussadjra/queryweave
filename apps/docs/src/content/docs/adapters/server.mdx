@@ -15,17 +15,13 @@ import { Aside } from "@astrojs/starlight/components";
 
 <IntegrationHeader context="server" />
 
-## What it owns
+This package decodes the query of a `Request` or a `URL` with a model, builds a canonical query
+string or a complete `URL` from typed state, and gives you a read-only `QuerySource` scoped to one
+request.
 
-- Decoding the query of a `Request` or a `URL` with a model.
-- Building a canonical query string, or a complete `URL`, from typed state.
-- Producing a read-only `QuerySource` scoped to one request.
-
-## What it does not own
-
-Navigation. A request is read once and then ends; there is no history to push to. That is why this
-package produces a `QuerySource` rather than a `QueryAdapter` — the capability is absent from the
-type, not present and throwing.
+It cannot navigate. A request is read once and then ends, so there is no history to push to. That is
+why the package returns a `QuerySource` instead of a `QueryAdapter`: the navigation methods are
+missing from the type, so nothing can call them and fail at runtime.
 
 <AdapterDiagram
   mode="source"
@@ -135,12 +131,5 @@ written first, and everything the model does not declare follows in its original
 - **A malformed query does not throw.** It decodes with issues, exactly as in the browser.
 - **`createQueryUrl` mutates nothing.** It copies the base URL before writing to `search`.
 - **Repeated unmanaged keys keep their order and multiplicity.**
-
-## How it is tested
-
-`tests/server/server.test.ts` covers reading, encoding, and link building, including unmanaged-key
-preservation, malformed URL strings, and the relative-base fallback. The `node` consumer fixture
-installs the packed archive together with `@queryweave/node` and runs the same helpers over a real
-request outside the workspace.
 
 <IntegrationNav />

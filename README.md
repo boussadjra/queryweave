@@ -14,7 +14,7 @@ The engine is implemented, tested, and validated as published archives — param
 models, decode results, canonical encoding, runtime transitions, and integrations for the browser,
 server, Node.js, Standard Schema, Vue, Vue Router, and Nuxt.
 
-An alpha is on npm. Until a stable version exists, `latest` follows the newest prerelease, so
+A beta is on npm. Until a stable version exists, `latest` follows the newest prerelease, so
 `pnpm add @queryweave/core` installs it. The [support matrix and stability
 policy](./apps/docs/src/content/docs/project/support.mdx) say what is tested and what a version
 number promises; [upgrading](./apps/docs/src/content/docs/project/upgrading.mdx) lists every

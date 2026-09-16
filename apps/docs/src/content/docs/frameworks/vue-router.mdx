@@ -14,20 +14,14 @@ import { Aside } from "@astrojs/starlight/components";
 
 <IntegrationHeader context="vue-router" />
 
-This package produces an adapter and nothing else. It depends on `@queryweave/core` alone — not on
-`@queryweave/vue` — so router synchronization can be adopted without the Vue binding.
+This package produces an adapter and nothing else. It depends on `@queryweave/core` alone, not on
+`@queryweave/vue`, so you can sync the router without the Vue binding.
 
-## What it owns
-
-- Reading `route.query` and converting it to entries, preserving repeated keys.
-- Navigating with `router.push` and `router.replace`, keeping the current path and hash.
-- Watching `route.fullPath` and reporting changes, in a scope the adapter owns.
-- Reporting a refused or redirected navigation as the transition's outcome instead of throwing.
-
-## What it does not own
-
-Decoding, validation, defaults, and the Vue binding. Those belong to the model and to
-[`@queryweave/vue`](/frameworks/vue/).
+The adapter reads `route.query` as entries, keeping repeated keys, and navigates with
+`router.push` or `router.replace` while keeping the current path and hash. It watches
+`route.fullPath` in a scope it owns and reports changes. A refused or redirected navigation comes
+back as the transition's outcome and does not throw. Decoding, validation, and defaults stay in the
+model; reactive bindings come from [`@queryweave/vue`](/frameworks/vue/).
 
 <AdapterDiagram
   mode="adapter"
@@ -131,12 +125,5 @@ History API — will fight, and the router will not know about writes it did not
   watcher lives in a detached effect scope owned by the adapter, so it survives the unmounting of
   the component that subscribed first and stops when the last subscriber leaves.
 - **After `dispose`**, the watcher stops and later navigation and subscription throw.
-
-## How it is tested
-
-`tests/vue-router/adapter.test.ts` drives a real router through push, replace, refused and
-redirected navigation, a subscriber that unmounts before another subscribes, prototype-named keys,
-and repeated keys. The `vue-router` and `vue-router-4` consumer fixtures run the packed archive
-against a router outside the workspace on both supported majors.
 
 <IntegrationNav />

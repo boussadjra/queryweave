@@ -187,10 +187,3 @@ shared contract: see [Zod, Valibot, ArkType](/validation/vendors/).
 - **A validator error is never thrown.** It becomes an issue. Zod reports a throwing synchronous
   transform as a rejected promise, so its synchronous decode reads `async_required` and its
   asynchronous decode reads `validation_failed`.
-
-## How it is tested
-
-`tests/standard-schema/compatibility.test.ts` runs one contract across Zod, Valibot, and ArkType,
-asserting normalized issues, inverses, throwing transforms, and inferred output types — never a
-vendor's own error shape. The `standard-schema` consumer fixture repeats a Valibot slice of it
-against the packed archive.

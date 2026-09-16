@@ -2,10 +2,14 @@
 
 This project uses Changesets to generate release entries. Every public package shares one version.
 
-## Unreleased
+## 0.1.0-beta.1
+
+First beta, published on 2026-09-16 under the `latest` dist-tag through npm trusted publishing.
+Public contracts remain provisional and this release is not production ready.
 
 Settles the contracts that had to be fixed before a beta. See ADR 0009 and the upgrading guide in
-`apps/docs/src/content/docs/project/upgrading.mdx`; the pending changeset carries the full list.
+`apps/docs/src/content/docs/project/upgrading.mdx`; each package's `CHANGELOG.md` carries the full
+list.
 
 - **Breaking:** transitions resolve with `outcome` and `reason`; a refused or redirected navigation
   no longer looks like a success, and an unchanged write navigates nowhere. `onNavigationFailure` is

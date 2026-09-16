@@ -52,7 +52,8 @@ wrong value type.
 
 ## Document
 
-- `apps/docs/content/guide/codecs.md` — a subsection under the implemented families
+- `apps/docs/src/content/docs/concepts/parameters.mdx` — a `###` subsection under "The families",
+  following the Documentation rules in [AGENTS.md](../../../AGENTS.md)
 - `packages/core/README.md` if the family changes what the package advertises
 - A changeset in `.changeset/`
 - An ADR only if the family forces a new rule, such as a new issue code or a new encoding

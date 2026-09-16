@@ -165,12 +165,6 @@ for a value; a codec or refinement that throws becomes an issue.
   first.
 - **An empty query** decodes to the model's defaults, with no issues.
 
-## How it is tested
-
-`tests/core/query-input.test.ts` covers parsing and formatting against `URLSearchParams`;
-`tests/core/model.test.ts` covers results, ordering, and omission; `tests/core/round-trip.test.ts`
-asserts decode-encode stability.
-
 ## Next
 
 [Defaults and absence](/concepts/defaults-and-absence/) explains why omission is a semantic rule

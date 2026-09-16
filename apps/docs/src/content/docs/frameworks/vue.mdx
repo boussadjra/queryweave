@@ -176,11 +176,4 @@ an asynchronous refinement.
 - **Reassigning `filters.values`** is a type error. At runtime the binding is a plain object, so the
   assignment succeeds and simply detaches you from the binding; do not do it.
 
-## How it is tested
-
-The `vue` Vitest project runs bindings inside effect scopes and server renders against the memory
-adapter and asserts reactivity, field bindings, issue propagation, pending decodes, and scope
-cleanup. The `vue` consumer fixture type-checks the published archive against a Vue application
-outside the workspace.
-
 <IntegrationNav />

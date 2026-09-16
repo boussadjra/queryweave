@@ -4,13 +4,12 @@ description: How QueryWeave versions, publishes, and tags packages. GitHub stays
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
-import { currentPackageVersion } from "../../../data/release";
 
 <Aside type="note" title="Where things stand">
-  `0.1.0-alpha.1` was published on 2026-09-10 with a one-shot token; the source tree is at{" "}
-  {currentPackageVersion}. That first publish attached no provenance, because npm only attests a
-  public repository, and trusted publishing over OIDC has not yet succeeded. The checklist below
-  covers what is left before the next release.
+  `0.1.0-alpha.1` was published on 2026-09-10 with a one-shot token. `0.1.0-beta.1` followed on
+  2026-09-16 through trusted publishing over OIDC, with no token. Neither carries provenance,
+  because npm only attests a public repository. The checklist below covers what is left before the
+  next release.
 </Aside>
 
 GitHub is [`boussadjra/queryweave`](https://github.com/boussadjra/queryweave). npm is the
@@ -45,14 +44,14 @@ Moving from alpha to beta needs both the pre-mode tag and the version to change,
 ```sh
 pnpm changeset pre exit
 pnpm changeset pre enter beta
-pnpm version:set -- 0.1.0-beta.0
+pnpm version:set 0.1.0-beta.0
 ```
 
 Commit the three results together. Later changesets then produce `0.1.0-beta.1`, `0.1.0-beta.2`,
 and so on through the Version PR.
 
 <Aside type="caution" title="Do not run version:set alone">
-  `pnpm version:set -- 0.1.0-beta.0` on its own leaves pre mode at `alpha`. The next `changeset
+  `pnpm version:set 0.1.0-beta.0` on its own leaves pre mode at `alpha`. The next `changeset
   version` then computes `0.1.0-alpha.2` from the recorded alpha baseline and writes that back over
   the beta version. Exit and re-enter pre mode first.
 </Aside>
@@ -77,11 +76,11 @@ the first stable release is `pnpm changeset pre exit` followed by a normal Versi
    - Workflow filename: `release.yml`
    - Environment name: `release`
 
-   The first-publish runs logged `Skipped OIDC` because the packages did not exist yet; a publish
-   that still logs it means this step is incomplete.
+   `0.1.0-beta.1` published all nine packages over OIDC, so the publishers are attached. A later
+   publish that logs `Skipped OIDC` means one is missing or no longer matches these values.
 
 3. Require 2FA and disallow tokens on those packages. Confirm no `NPM_TOKEN` secret remains on the
-   repository; the repository variable `NPM_TRUSTED_PUBLISHING` is already `true`.
+   repository; the `release` environment variable `NPM_TRUSTED_PUBLISHING` is already `true`.
 
 4. Add a changeset for the release, merge, then merge the Version PR. Confirm the tag afterwards:
 

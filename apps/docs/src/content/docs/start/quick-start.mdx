@@ -7,7 +7,8 @@ import BrowserQuerySimulator from "../../../components/BrowserQuerySimulator.ast
 import IntegrationChooser from "../../../components/IntegrationChooser.astro";
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Five steps, none of which mention a framework until the last one.
+Steps 1 to 4 use only `@queryweave/core` and run anywhere. Step 5 connects the model to the place
+your query lives.
 
 <Steps>
 
@@ -73,13 +74,14 @@ Five steps, none of which mention a framework until the last one.
    // [["search", "vue"]]
    ```
 
-   `page`, `sort`, and `status` are omitted because each equals its declared default. Canonical
-   output is the shortest encoding that decodes back to the same state.
+   `page`, `sort`, and `status` are omitted because each equals its declared default. That makes
+   the output canonical: `?page=1` and a URL with no `page` decode to the same state, and that
+   state encodes back without `page`.
 
 5. ### Choose a runtime integration
 
-   Everything above works without a browser or framework. A runtime connects the model to a place that
-   stores and navigates the query.
+   Pick where your query lives. In the browser, Vue Router, or Nuxt, a runtime reads the URL, writes
+   it, and reports changes. On a server or in Node.js, you read the request's query once.
 
    <IntegrationChooser />
 
@@ -101,15 +103,9 @@ controls disappear, because a request has none.
 <Aside type="note" title="Why search vanishes from the typed state">
   `search` is `param.text().optional()`, so when it has no value it is `undefined`. JSON has no
   representation for `undefined`, which is why the key is absent from the inspector panel rather
-  than shown as `null`. Its encoded form is absent too — that is the same fact seen twice.
+  than shown as `null`. It is also left out of the encoded query, because there is no value to
+  write.
 </Aside>
-
-## What you now have
-
-- One description of the query, usable on both sides of a request.
-- Types that follow from the model rather than being written twice.
-- Canonical URLs, so equal states produce equal links.
-- Issues you can render, rather than exceptions you must catch.
 
 ## Next
 
