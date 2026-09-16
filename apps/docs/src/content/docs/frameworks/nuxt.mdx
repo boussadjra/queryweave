@@ -154,13 +154,4 @@ outside a component.
   expressed without it. This is recorded in
   [ADR 0007](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0007-api-consistency-and-packaging.md).
 
-## How it is tested
-
-`tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup, plugin
-registration, and the server-side refusal. The stronger check is the `nuxt` consumer fixture, which
-installs the packed archive into a clean project with real `pages/`, builds it, server-renders two
-concurrent requests with different queries, asserts they do not leak into each other, and renders a
-second route with its own model. No browser runs in that fixture, so hydration and client-side
-navigation are covered by the Vue Router and browser suites rather than by it.
-
 <IntegrationNav />

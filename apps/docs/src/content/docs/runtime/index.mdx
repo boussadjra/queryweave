@@ -162,12 +162,4 @@ input.addEventListener("input", () => {
 });
 ```
 
-## How it is tested
-
-The `runtime` Vitest project drives a runtime against the memory adapter from
-`@queryweave/testing`, asserting the single-notification rule, unmanaged-key preservation, and
-disposal; `tests/runtime/failures.test.ts` covers behavior when decoding fails, and
-`tests/runtime/serialization.test.ts` covers overlapping transitions, outcomes, listener errors, and
-pending decodes.
-
 <IntegrationNav />

@@ -155,11 +155,6 @@ has to resolve.
 - **A codec or refinement that throws** is reported as `invalid` or `validation_failed` with the
   error's message; decoding never propagates an exception.
 
-## How it is tested
-
-`tests/core/semantics.test.ts` asserts the code emitted for each failure mode, and
-`tests/runtime/failures.test.ts` asserts that a runtime snapshot stays usable while reporting them.
-
 ## Next
 
 [The query runtime](/runtime/) puts a model to work against an environment.

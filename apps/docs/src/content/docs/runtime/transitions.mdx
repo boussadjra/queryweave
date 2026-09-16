@@ -182,11 +182,4 @@ _does_ reject for two kinds of error:
 A listener that throws does not stop the other listeners; the error is rethrown after all of them
 ran, to the transition that triggered the notification.
 
-## How it is tested
-
-`tests/runtime/runtime.test.ts` asserts one write and one notification per operation, patch
-merging, removal, reset, and transaction batching, all against the memory adapter.
-`tests/runtime/serialization.test.ts` asserts ordering under an asynchronous adapter, every outcome,
-and the memory adapter's `guard` option, which simulates a refusing environment.
-
 <IntegrationNav />

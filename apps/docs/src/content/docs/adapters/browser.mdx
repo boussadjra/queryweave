@@ -14,17 +14,10 @@ import { Aside } from "@astrojs/starlight/components";
 
 <IntegrationHeader context="browser" />
 
-## What it owns
-
-- Reading `location.search`.
-- Writing through `history.pushState` and `history.replaceState`, preserving the path and the
-  hash.
-- Listening for `popstate` and reporting a change to the query.
-
-## What it does not own
-
-Decoding, validation, defaults, and canonical form — all of that is the model. The adapter moves
-strings.
+The browser adapter reads the query from `location.search` and writes it with
+`history.pushState` or `history.replaceState`, keeping the path and the hash. It listens for
+`popstate` and reports when the query changes. Decoding, validation, defaults, and the canonical form
+stay in the model, so the adapter only moves strings. It is tested in Chromium, Firefox, and WebKit.
 
 ## Install
 
@@ -125,11 +118,5 @@ creates its own adapter, tie it to teardown.
 - **Safari rate-limits history writes** — around a hundred in ten seconds — and throws a
   `SecurityError` past that. The write then rejects the transition; debounce fast-changing inputs.
 - **After `dispose`, `push`, `replace`, and `subscribe` throw.** Reading does not.
-
-## How it is tested
-
-The `browser` Vitest project runs in Chromium, Firefox, and WebKit through Vitest Browser Mode, and
-the Playwright suite drives the browser playground end to end in the same three engines, including
-back navigation.
 
 <IntegrationNav />

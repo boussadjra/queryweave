@@ -248,13 +248,6 @@ validators with asynchronous schemas participate, and a [runtime](/runtime/) tur
 - **A codec or refinement that throws** becomes an `invalid` or `validation_failed` issue carrying
   the error's message; decoding never throws.
 
-## How it is tested
-
-`tests/core/semantics.test.ts` covers presence, recovery, and the issue codes each family emits;
-`tests/core/parameters.test.ts` covers grammar, defaults, empty lists, transforms, and exceptions;
-`tests/core/round-trip.test.ts` asserts that decoding an encoded value returns the original for
-every family.
-
 ## Next
 
 [Codecs](/concepts/codecs/) describes the contract a parameter's translation must satisfy.

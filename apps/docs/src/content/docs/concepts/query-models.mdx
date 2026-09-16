@@ -142,11 +142,6 @@ re-attaches unmanaged entries after the managed ones. This is what lets QueryWea
 - **Unknown keys in the input** are ignored by `decode`. They are not an error, because a model is
   a description of what you care about, not an assertion about the whole URL.
 
-## How it is tested
-
-The `core` Vitest project covers definition, inference, and composition; `tests/types` asserts both
-what the inferred types accept and what they reject, so a widened type fails the build.
-
 ## Next
 
 [Parameters](/concepts/parameters/) covers the families a model is built from.
