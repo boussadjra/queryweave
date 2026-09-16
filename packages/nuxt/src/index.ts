@@ -26,7 +26,7 @@ const queryWeaveModule: NuxtModule<QueryWeaveModuleOptions> =
       name: "@queryweave/nuxt",
       configKey: "queryweave",
       compatibility: {
-        nuxt: ">=4.5.0",
+        nuxt: ">=4.0.0",
       },
     },
     defaults: {

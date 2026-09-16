@@ -80,7 +80,9 @@ async function prepareFixture(fixtureName, workspace, tarballs) {
    * The fixture becomes its own workspace root. It lives outside the repository, so pnpm reads
    * these settings instead of QueryWeave's, and nothing resolves through workspace linking. Peer
    * dependencies are strict so a published range that excludes a fixture's framework version
-   * fails the install instead of being papered over.
+   * fails the install instead of being papered over. The two allowed versions are Nuxt's own:
+   * below 4.5, a bare Nuxt install already resolves `@nuxt/cli` and `unctx` releases whose peers
+   * its pinned `@nuxt/schema` and `oxc-parser` do not satisfy.
    */
   const overrideLines = Object.entries(overrides)
     .map(([dependency, target_]) => `  "${dependency}": "${target_}"`)
@@ -94,6 +96,11 @@ async function prepareFixture(fixtureName, workspace, tarballs) {
       overrideLines,
       "",
       "strictPeerDependencies: true",
+      "",
+      "peerDependencyRules:",
+      "  allowedVersions:",
+      '    "@nuxt/cli>@nuxt/schema": "4"',
+      '    "unctx>oxc-parser": "*"',
       "",
       "allowBuilds:",
       "  esbuild: true",
