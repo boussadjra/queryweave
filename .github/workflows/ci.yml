@@ -102,7 +102,10 @@ jobs:
         run: pnpm knip
 
   # The published packages declare Node 22.12 or newer. The quality gate runs on Node 24, so the
-  # oldest supported line gets its own run of the unit and integration suites.
+  # oldest supported line gets its own run of the unit and integration suites. pnpm itself refuses
+  # to start below Node 22.13, so dependencies are installed on 24 before the runner switches to
+  # 22.12; the suites are then started with Node's own script runner, which needs no pnpm. Vitest
+  # resolves every package to its sources, so nothing is built here.
   compat:
     name: Node 22 compatibility
     runs-on: ubuntu-latest
@@ -121,17 +124,22 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 22.12.0
+          node-version: 24.18.0
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build --filter=!@queryweave/docs
+      - name: Switch to Node.js 22.12
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.12.0
 
       - name: Run unit and integration suites
-        run: pnpm test:unit && pnpm test:integration
+        run: |
+          node --version
+          node --run test:unit
+          node --run test:integration
 
   consumers:
     name: Consumer fixtures
