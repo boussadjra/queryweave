@@ -3,8 +3,6 @@ title: Why QueryWeave
 description: Why URL state is modelled as a domain object rather than as a component hook.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
-
 ## The same query is read in many places
 
 A server renders the first response from it. The client reads it again after hydration. The user
@@ -12,25 +10,24 @@ shares it as a link. A test asserts the result. A helper tied to one framework's
 can only cover one of those reads.
 
 QueryWeave defines the query as a model and syncs it through environment-specific adapters. The
-model is portable; the adapter changes with the environment.
+model stays the same everywhere; only the adapter changes with the environment.
 
 ## Decoding and encoding stay together
 
-Reading and writing a URL are one problem. When a parser and a serializer are configured separately,
-they drift: the parser accepts values the serializer cannot produce, and round-tripping stops being
-stable.
+When a parser and a serializer are configured separately, they drift: the parser accepts values the
+serializer cannot produce, and a value no longer survives the trip from state to URL and back.
 
-In QueryWeave, each parameter has one codec for both directions. That is why there is no
-`createParser`, no separate serializer, and no way to configure decode and encode independently.
+In QueryWeave, each parameter has one codec that handles both directions. There is no `createParser`
+or separate serializer to keep in step with it.
 
-## Defaults are part of the meaning, not of the reader
+## Defaults belong to the parameter
 
-If a default lives in the component that reads the query, every other reader must repeat it, and
-the URL cannot be canonical — `?page=1` and an absent `page` mean the same thing but produce
-different strings.
+If a default lives in the component that reads the query, every other reader has to repeat it. The
+URL also stops being canonical: `?page=1` and an absent `page` mean the same thing but are different
+strings.
 
-Declaring the default on the parameter fixes both problems at once. The default participates in
-decoding _and_ in encoding, which is what makes omission possible.
+Declaring the default on the parameter fixes both. Every reader gets the same default when decoding,
+and encoding leaves `page` out when it equals `1`, so both spellings collapse into one URL.
 
 ## Invalid input is normal
 
@@ -40,25 +37,20 @@ forces every call site into a `try`/`catch` that usually swallows the cause.
 QueryWeave returns a result. A failed decode still carries `partial` values and a list of issues
 with stable codes, so an application can render something useful and report what went wrong.
 
-## What QueryWeave is not
+## Model first
 
-QueryWeave is not a port, a wrapper, or a rename of another library.
+`@queryweave/core` has no framework dependency, and a repository check keeps it that way. Vue and
+Nuxt support are integrations built on the same runtime a plain TypeScript application uses.
 
-- It is **not** a framework utility. `@queryweave/core` has no framework dependency, and a
-  repository check enforces that — not convention alone.
-- It is **not** a query-string helper. Parsing a string is the smallest part; the model, the
-  issues, the canonical form, and the transition semantics are the substance.
-- It is **not** a collection of composables. Vue and Nuxt are integrations built on the same
-  runtime a plain TypeScript application uses.
+Parsing the string is the smallest part of the library. Most of it is the model around the string:
+issues with stable codes, the canonical form, and the rules for when and how a transition writes the
+URL.
 
-The public API is deliberately model-first. Hook-shaped identities, per-key hooks, tuple setters,
-and `parseAs*`-style constructors are rejected by name in
-[ADR 0001](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0001-public-api-model.md),
-and a test in the repository fails the build if one ever appears.
+You declare a model, then change it through named operations such as `update` and `reset`.
+Hook-shaped APIs, per-key hooks, tuple setters, and `parseAs*`-style constructors are ruled out in
+[ADR 0001](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0001-public-api-model.md).
 
 ## What that costs
-
-Model-first is not free, and the trade-offs are real:
 
 - **More to write up front.** A model must be declared before anything can read a single value.
   For an application with one `?tab=` parameter, that is more ceremony than it is worth.
@@ -66,12 +58,7 @@ Model-first is not free, and the trade-offs are real:
   explicit operation to change it.
 - **Transitions are immediate.** Without scheduling, a fast-changing input such as a search field
   writes on every keystroke unless you debounce it yourself. Scheduling is
-  [planned](/project/roadmap/), not present.
-
-<Aside type="note">
-  If your query state is one boolean that never leaves the client, a model is overhead. QueryWeave
-  is built for the case where the same query is read in more than one place.
-</Aside>
+  [planned](/project/roadmap/) but not built yet.
 
 ## Next
 

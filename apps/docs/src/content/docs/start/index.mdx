@@ -13,9 +13,8 @@ router, or in a test.
 
 ## The problem
 
-A URL query is the only application state that is simultaneously a string, a user-visible artifact,
-a navigation event, a shareable link, and an input from outside your program. Most codebases end up
-describing it more than once:
+A URL query is a string, a navigation event, a link someone can share, and input your program did
+not write, all at once. Applications often end up describing it more than once:
 
 - a parser in the client component that reads `page` as a number,
 - a second parser on the server that reads it again,
@@ -24,7 +23,7 @@ describing it more than once:
 
 Those descriptions drift. The server accepts `page=0`, the client does not. A link built by hand
 produces `?sort=name&page=1` while the application produces `?page=1&sort=name`, and the two cache
-differently. Nothing is broken enough to fail loudly, and everything is slightly wrong.
+differently. None of this throws an error, so it tends to go unnoticed.
 
 ## What QueryWeave does
 
@@ -41,9 +40,8 @@ const products = defineQueryModel({
 });
 ```
 
-That model is a plain value. It has no environment, no reactivity, and no navigation policy. Decode
-it on a server, encode it into a link, bind it to a component, or assert against it in a test — the
-model itself does not change.
+The model is a plain value that knows nothing about browsers, reactivity, or navigation. The same
+object decodes a request on the server, encodes a link, binds to a component, and runs in a test.
 
 <QueryFlow caption="The same model decodes a query string into typed values (with issues for invalid input) and encodes typed values back into a canonical query string." />
 
@@ -51,35 +49,32 @@ model itself does not change.
 
 - **A value equal to its declared default is omitted from canonical output.** Two states that mean
   the same thing produce the same URL.
-- **An invalid value recovers to its default or to `undefined`, and reports an issue.** It never
-  disappears silently and never throws.
-- **Repeated keys survive.** A query is never reduced to `Record<string, string>`, because
-  `?tag=a&tag=b` carries meaning.
-- **One `update()` means one encode, one navigation write, and one subscriber notification.**
-  Calling `runtime.update()` or `runtime.transaction()` does not encode the URL twice, create
-  duplicate history entries, or fire your listener multiple times for that single call. A
-  `transaction()` can change several fields in its callback, but the runtime still commits once at
-  the end.
+- **An invalid value recovers to its default or to `undefined`, and reports an issue.** `?page=abc`
+  decodes to page `1` with an `invalid` issue on `page`. Decoding does not throw.
+- **Repeated keys survive.** `?tag=a&tag=b` decodes to both values. The query is not flattened to
+  `Record<string, string>`.
+- **An update encodes once, writes the URL at most once, and notifies subscribers at most once.**
+  A `transaction()` can change several fields in its callback and still commits once, at the end.
+  If the result matches the URL already there, nothing is written.
 - **Keys your model does not define stay in the URL.** If the current URL is
   `?page=2&utm_source=newsletter` and your model only manages `page`, updating `page` writes
-  `?page=3&utm_source=newsletter`. You do not have to model every query parameter before you can
-  manage some of them.
+  `?page=3&utm_source=newsletter`. You can start managing some parameters without modelling all of
+  them.
 
-## What QueryWeave does not do
+## Not included
 
-- It does not throttle, coalesce, or cancel transitions. Transitions run one at a time, in order,
-  and each is written as it comes. This is deliberate and recorded in
+- **Throttling, coalescing, and cancellation.** Transitions run one at a time, in call order, and
+  each one is written as it arrives, so debounce fast inputs such as a search field yourself. The
+  reasoning is in
   [ADR 0004](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md)
   and
   [ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md).
-- It does not bundle a validation library. Validators join through
-  [Standard Schema](/validation/).
-- It does not decide navigation policy inside a codec, and it does not let an adapter decode.
+- **A validation library.** Bring your own validator through [Standard Schema](/validation/).
 
-<Aside type="caution" title="Experimental">
-  QueryWeave {currentPackageVersion} is a pre-1.0 alpha on npm. The API is provisional and may
-  change in minor versions; every breaking change is recorded in an architecture decision record and
-  a changeset, and listed with its migration under [Upgrading](/project/upgrading/).
+<Aside type="caution" title="Pre-1.0">
+  QueryWeave {currentPackageVersion} is a beta and is not production ready. The API can still change
+  in a minor version. Each breaking change comes with an architecture decision record and a
+  changeset, and [Upgrading](/project/upgrading/) lists its migration.
 </Aside>
 
 ## Where to go next
