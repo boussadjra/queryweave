@@ -26,11 +26,13 @@
     inverses, validated defaults, and the empty-list spelling (ADR 0009); a support matrix, a
     stability policy, and an upgrading guide.
 
+20. **Beta** — `0.1.0-beta.1` published to npm on 2026-09-16, the first release through trusted
+    publishing. It carries no provenance while the repository is private.
+
 ## Next
 
-20. **Beta** — `0.1.0-beta.0` once alpha users have exercised ADR 0009; the repository goes public
-    and trusted publishing with provenance takes over.
-21. **Transition scheduling** — throttling, coalescing, and cancellation on the per-runtime queue.
-22. **Codec composition** — date, JSON, object, tuple, and nested representations.
-23. **API stabilization** — freezing the public contracts for 1.0.
-24. **Additional framework adapters** — designed against the established core contracts.
+21. **Public repository** — the repository goes public, so releases carry provenance attestations.
+22. **Transition scheduling** — throttling, coalescing, and cancellation on the per-runtime queue.
+23. **Codec composition** — date, JSON, object, tuple, and nested representations.
+24. **API stabilization** — freezing the public contracts for 1.0.
+25. **Additional framework adapters** — designed against the established core contracts.

@@ -3,10 +3,10 @@
  * Lockstep semver updates for QueryWeave's publishable package group.
  *
  * Usage:
- *   pnpm version:set -- 0.1.0-alpha.1
- *   pnpm version:set -- prerelease --preid alpha
- *   pnpm version:set -- preminor --preid beta
- *   pnpm version:set -- minor --dry-run
+ *   pnpm version:set 0.1.0-alpha.1
+ *   pnpm version:set prerelease --preid alpha
+ *   pnpm version:set preminor --preid beta
+ *   pnpm version:set minor --dry-run
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -27,7 +27,7 @@ const releaseTypes = new Set([
 function usage(message) {
   if (message) console.error(`\nError: ${message}`);
   console.error(`
-Usage: pnpm version:set -- <version|release-type> [options]
+Usage: pnpm version:set <version|release-type> [options]
 
   <version>        Exact semver version, for example 0.1.0-alpha.1
   <release-type>   ${[...releaseTypes].join(", ")}
@@ -38,10 +38,10 @@ Options:
   --help           Show this message
 
 Examples:
-  pnpm version:set -- 0.1.0-alpha.1
-  pnpm version:set -- prerelease --preid alpha
-  pnpm version:set -- preminor --preid beta
-  pnpm version:set -- minor
+  pnpm version:set 0.1.0-alpha.1
+  pnpm version:set prerelease --preid alpha
+  pnpm version:set preminor --preid beta
+  pnpm version:set minor
 `);
   process.exit(message ? 1 : 0);
 }

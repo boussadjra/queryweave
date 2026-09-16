@@ -102,8 +102,8 @@ and takes about two minutes.
 
 ## Status
 
-`0.1.0-alpha.1` is on npm under both `latest` and `alpha`; until a stable version exists every
-publish goes to `latest`. The engine runs, is tested, and is validated as published archives, but
+`0.1.0-beta.1` is on npm under `latest`, published through trusted publishing; `alpha` still
+points at `0.1.0-alpha.1`. Until a stable version exists every publish goes to `latest`. The engine runs, is tested, and is validated as published archives, but
 it is not production ready. The API is provisional; breaking changes ship in minor versions with an
 ADR and a changeset, summarized in `apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009
 settled transition outcomes, serialized transitions, pending decodes, and refinement inverses ahead
