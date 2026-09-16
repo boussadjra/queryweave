@@ -1,6 +1,6 @@
 {
   "mode": "pre",
-  "tag": "alpha",
+  "tag": "beta",
   "initialVersions": {
     "@queryweave/docs": "0.0.0",
     "@queryweave/playground-browser": "0.0.0",
