@@ -45,8 +45,8 @@ A new package under `packages/`. Then, in the same change:
 2. Add its source alias to `tooling/vitest/config.ts` — order the regexes so a longer package name
    is matched before a shorter prefix.
 3. Add the `paths` entry in `tooling/typescript/base.json`.
-4. Add it to the dependency graph in `ARCHITECTURE.md` and the table in `README.md`,
-   `apps/docs/content/packages.md`, and `tests/foundation.test.ts`.
+4. Add it to the dependency graph in `ARCHITECTURE.md`, the table in `README.md`,
+   `apps/docs/src/data/packages.ts`, and `tests/foundation.test.ts`.
 
 Copy `package.json`, `tsconfig.json`, and `tsdown.config.ts` from the closest existing package and
 pick the right tsconfig preset: `universal-library`, `browser-library`, `server-library`,
@@ -66,7 +66,10 @@ Use `createMemoryQueryAdapter` as the behavioral reference for what your adapter
 
 ## Document
 
-An integration section in `apps/docs/content/guide/integrations.md`, a package README, a changeset,
-and an ADR if the adapter forces a change to the shared contract.
+A page at `apps/docs/src/content/docs/adapters/<name>.mdx` (or `frameworks/<name>.mdx` for a router
+or framework), an entry in `apps/docs/src/data/docs-contexts.ts`, a sidebar link in
+`apps/docs/astro.config.mjs`, a package README, a changeset, and an ADR if the adapter forces a
+change to the shared contract. Follow the Documentation rules in [AGENTS.md](../../../AGENTS.md), and
+add the adapter's tests to the table in `apps/docs/src/content/docs/project/architecture.mdx`.
 
 Then run the [quality-gate](../quality-gate/SKILL.md) skill.
