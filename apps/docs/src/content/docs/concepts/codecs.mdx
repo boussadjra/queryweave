@@ -159,8 +159,13 @@ asynchronous. Synchronous decoding must always remain available, so a codec cann
 asynchronous-only.
 
 When a value needs a promise and you call the synchronous `decode`, QueryWeave reports
-`validation_failed` with a message pointing at `decodeAsync`. It does not block the thread and it
-does not quietly return a wrong value.
+`async_required` and recovers. It does not block the thread and it does not quietly return a wrong
+value. `decodeAsync` on a list reaches its items' `decodeAsync`, and a custom codec's `decodeAsync`
+is what the model's asynchronous path calls.
+
+A codec that throws is not a crash either: the exception becomes an `invalid` issue with the
+error's message, and the parameter recovers as for any other failure. A failure that reports no
+issue at all is given one, so nothing recovers silently.
 
 ## Query string handling
 
@@ -181,11 +186,12 @@ selectQueryValues(entries, "tag"); // ["a", "b"]
 formatQueryString(entries); // "tag=a&tag=b"
 ```
 
-`parseQueryString` ignores one leading `?`, skips empty segments, treats a key without `=` as an
-empty value, and keeps malformed percent sequences verbatim instead of throwing.
-`formatQueryString` is hand-written and must stay byte-identical to
-`URLSearchParams.prototype.toString`, including `+` for spaces and percent-encoding for
-`!`, `'`, `(`, `)`, and `~`.
+`parseQueryString` ignores one leading `?`, skips empty segments, and treats a key without `=` as
+an empty value. `+` always decodes to a space, and each run of percent sequences is decoded on its
+own, so `?q=50%+off` reads `50% off` and only a malformed sequence, or a run that is not valid
+UTF-8, stays verbatim rather than throwing. `formatQueryString` is
+hand-written and stays byte-identical to `URLSearchParams.prototype.toString`, including `+` for
+spaces, percent-encoding for `!`, `'`, `(`, `)`, and `~`, and U+FFFD for a lone surrogate.
 
 ## Next
 

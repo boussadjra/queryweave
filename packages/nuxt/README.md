@@ -2,6 +2,10 @@
 
 A minimal Nuxt module and runtime plugin.
 
+```sh
+pnpm add @queryweave/nuxt
+```
+
 ```ts
 export default defineNuxtConfig({
   modules: ["@queryweave/nuxt"],
@@ -17,3 +21,5 @@ hydration matches.
 
 Module-time exports and `./runtime` exports stay separate, and no runtime state is held at module
 scope. The Nuxt-specific API is deliberately small and not final.
+
+Documentation: https://queryweave-docs.vercel.app/frameworks/nuxt/

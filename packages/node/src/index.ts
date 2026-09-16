@@ -20,7 +20,7 @@ import { readUrlQuery, readUrlQueryAsync } from "@queryweave/server";
 export interface ResolveNodeRequestUrlOptions {
   /** Explicit authority, overriding request headers. */
   readonly host?: string | undefined;
-  /** Explicit scheme without `:`, overriding request headers. */
+  /** Explicit scheme without `:`, overriding request headers and the socket. */
   readonly protocol?: string | undefined;
   /** Read `x-forwarded-host` and `x-forwarded-proto` when present. Off by default. */
   readonly trustForwardedHeaders?: boolean | undefined;
@@ -32,6 +32,7 @@ export interface NodeRequestQuerySource extends QuerySource {
 }
 
 const fallbackHost = "queryweave.invalid";
+const absoluteForm = /^[a-z][a-z0-9+.-]*:\/\//iu;
 
 function firstHeaderValue(value: string | readonly string[] | undefined): string | undefined {
   if (value === undefined) {
@@ -45,7 +46,56 @@ function firstHeaderValue(value: string | readonly string[] | undefined): string
   return first === undefined || first === "" ? undefined : first;
 }
 
-/** Resolve the absolute URL a Node request was made against. */
+/**
+ * The request target as the client sent it.
+ *
+ * Frameworks that mount routers rewrite `url` to strip the mount prefix and keep the original in
+ * `originalUrl`; the original is the one a canonical URL should be built from.
+ */
+function requestTarget(request: IncomingMessage): string {
+  const original = (request as { originalUrl?: unknown }).originalUrl;
+  if (typeof original === "string" && original !== "") {
+    return original;
+  }
+  return request.url ?? "/";
+}
+
+function isEncrypted(request: IncomingMessage): boolean {
+  const socket = (request as { socket?: { encrypted?: unknown } }).socket;
+  return socket?.encrypted === true;
+}
+
+/**
+ * Compose an origin-form target onto an authority without letting the target reach the host.
+ *
+ * `new URL("//evil.example/p", base)` would treat the path as protocol-relative; setting the
+ * path and query separately keeps a `//` path on the request's own host. A malformed authority
+ * falls back to the placeholder host rather than throwing.
+ */
+function composeUrl(protocol: string, host: string, target: string): URL {
+  let url: URL;
+  try {
+    url = new URL(`${protocol}://${host}/`);
+  } catch {
+    url = new URL(`http://${fallbackHost}/`);
+  }
+  const hash = target.indexOf("#");
+  const withoutHash = hash === -1 ? target : target.slice(0, hash);
+  const query = withoutHash.indexOf("?");
+  const path = query === -1 ? withoutHash : withoutHash.slice(0, query);
+  url.pathname = path.startsWith("/") ? path : `/${path}`;
+  url.search = query === -1 ? "" : withoutHash.slice(query + 1);
+  return url;
+}
+
+/**
+ * Resolve the absolute URL a Node request was made against.
+ *
+ * The authority comes from the `host` header, or from `:authority` on an HTTP/2 request; the
+ * scheme from `:scheme` or the socket's TLS state. Forwarded headers are read only when
+ * `trustForwardedHeaders` is set. Never throws: a request whose headers cannot form a URL still
+ * resolves, against the placeholder host.
+ */
 export function resolveNodeRequestUrl(
   request: IncomingMessage,
   options: ResolveNodeRequestUrlOptions = {},
@@ -57,14 +107,31 @@ export function resolveNodeRequestUrl(
     options.host ??
     (trusted ? firstHeaderValue(headers["x-forwarded-host"]) : undefined) ??
     firstHeaderValue(headers.host) ??
+    firstHeaderValue(headers[":authority"]) ??
     fallbackHost;
 
   const protocol =
     options.protocol ??
     (trusted ? firstHeaderValue(headers["x-forwarded-proto"]) : undefined) ??
-    "http";
+    firstHeaderValue(headers[":scheme"]) ??
+    (isEncrypted(request) ? "https" : "http");
 
-  return new URL(request.url ?? "/", `${protocol}://${host}`);
+  const target = requestTarget(request);
+  if (absoluteForm.test(target)) {
+    try {
+      const url = new URL(target);
+      if (options.host !== undefined) {
+        url.host = options.host;
+      }
+      if (options.protocol !== undefined) {
+        url.protocol = options.protocol;
+      }
+      return url;
+    } catch {
+      // Fall through and treat the target as a path.
+    }
+  }
+  return composeUrl(protocol, host, target);
 }
 
 /** Decode the query of a Node request with a model. */

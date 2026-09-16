@@ -40,7 +40,9 @@ pnpm add @queryweave/core @queryweave/server
 ```
 
 No Node built-in is used anywhere in the package, so it runs unchanged on Node.js, Deno, Bun,
-Cloudflare Workers, and any other runtime with `Request` and `URL`.
+Cloudflare Workers, and any other runtime with `Request` and `URL`. Node.js is the runtime the
+repository tests on; the others are supported by construction, not by a fixture — see
+[Support and stability](/project/support/).
 
 ## Example
 
@@ -71,9 +73,10 @@ await readUrlQueryAsync(url, model); // when validation is asynchronous
 await readRequestQueryAsync(request, model);
 ```
 
-A relative URL string is accepted. It is resolved against `relativeUrlBase`
-(`http://queryweave.invalid`), which is exported so tests can assert against it. Only the query is
-ever read, so the base is irrelevant to the result.
+Only the query is ever read, and it is read from the string itself — the part between the first `?`
+and any `#` — so a relative path, an absolute URL, or a request line with an unusual host all work
+and none of them throws. `relativeUrlBase` (`http://queryweave.invalid`) is the origin
+`createQueryUrl` uses for a base that is not absolute, exported so tests can assert against it.
 
 ```ts {1-4}
 const result = readUrlQuery("/products?search=vue&page=2", products);
@@ -127,7 +130,8 @@ written first, and everything the model does not declare follows in its original
 
 ## Edge cases
 
-- **An absolute URL is used as given.** A string that parses as absolute is not re-based.
+- **An absolute URL is used as given.** A string that parses as absolute is not re-based by
+  `createQueryUrl`; the readers never build a URL at all.
 - **A malformed query does not throw.** It decodes with issues, exactly as in the browser.
 - **`createQueryUrl` mutates nothing.** It copies the base URL before writing to `search`.
 - **Repeated unmanaged keys keep their order and multiplicity.**
@@ -135,7 +139,8 @@ written first, and everything the model does not declare follows in its original
 ## How it is tested
 
 `tests/server/server.test.ts` covers reading, encoding, and link building, including unmanaged-key
-preservation and the relative-base fallback. The `universal` consumer fixture installs the packed
-archive and runs the same helpers outside the workspace.
+preservation, malformed URL strings, and the relative-base fallback. The `node` consumer fixture
+installs the packed archive together with `@queryweave/node` and runs the same helpers over a real
+request outside the workspace.
 
 <IntegrationNav />

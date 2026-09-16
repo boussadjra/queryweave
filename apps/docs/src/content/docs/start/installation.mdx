@@ -7,17 +7,23 @@ import PackageGrid from "../../../components/PackageGrid.astro";
 import { currentPackageVersion } from "../../../data/release";
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-<Aside type="caution" title={`Source version ${currentPackageVersion}`}>
-  Every public package in this repository is version {currentPackageVersion}. The packages are not
-  on npm yet. The first publish uses the `alpha` dist-tag, so install with `@queryweave/core@alpha`
-  once it exists. Bare `pnpm add @queryweave/core` resolves `latest`, which this alpha does not use.
+<Aside type="caution" title={`Version ${currentPackageVersion}`}>
+  Every public package shares one version, and every published version so far is a prerelease. Until
+  a stable release exists, `latest` follows the newest prerelease, so a bare `pnpm add` installs the
+  current one. The API is provisional; see [Support and stability](/project/support/) for what a
+  version number promises.
 </Aside>
 
 ## Requirements
 
-- Node.js 24.18.0 or newer for the Node.js integration and for local development.
-- TypeScript 5.5 or newer to get the inferred model types.
+- Node.js 22.12 or newer; 24 is what the repository develops on. Browser-only packages carry the
+  same `engines` range for consistency.
+- TypeScript 5.5 or newer to get the inferred model types; the published declarations are compiled
+  against 5.5 on every change.
 - ESM. Every package is ESM-only and declares `"type": "module"`.
+
+The full [support matrix](/project/support/) lists the tested Vue, Vue Router, Nuxt, and browser
+versions.
 
 ## What to install
 
@@ -26,7 +32,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 1. **Always install the engine.**
 
    ```sh
-   pnpm add @queryweave/core@alpha
+   pnpm add @queryweave/core
    ```
 
    `@queryweave/core` has no runtime dependencies and no framework dependency. It targets
@@ -36,21 +42,21 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
    ```sh
    # A browser history stack
-   pnpm add @queryweave/browser@alpha
+   pnpm add @queryweave/browser
 
    # A web-standard Request, on any server, edge, or worker runtime
-   pnpm add @queryweave/server@alpha
+   pnpm add @queryweave/server
 
    # Node.js request primitives
-   pnpm add @queryweave/node@alpha
+   pnpm add @queryweave/node
    ```
 
 3. **Add a framework binding if you want one.**
 
    ```sh
-   pnpm add @queryweave/vue@alpha
-   pnpm add @queryweave/vue-router@alpha
-   pnpm add @queryweave/nuxt@alpha
+   pnpm add @queryweave/vue
+   pnpm add @queryweave/vue-router
+   pnpm add @queryweave/nuxt
    ```
 
    These are optional. The runtime works without any of them.
@@ -58,7 +64,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 4. **Add the test adapter as a development dependency.**
 
    ```sh
-   pnpm add -D @queryweave/testing@alpha
+   pnpm add -D @queryweave/testing
    ```
 
 </Steps>
@@ -70,15 +76,15 @@ Yarn, and Bun work the same way; only the command word changes.
 
 ## Peer dependencies
 
-| Package                       | Peers                   |
-| ----------------------------- | ----------------------- |
-| `@queryweave/vue`             | `vue`                   |
-| `@queryweave/vue-router`      | `vue`, `vue-router`     |
-| `@queryweave/nuxt`            | `nuxt`                  |
-| `@queryweave/standard-schema` | `@standard-schema/spec` |
+| Package                  | Peers                                                        |
+| ------------------------ | ------------------------------------------------------------ |
+| `@queryweave/vue`        | `vue >=3.5.0 <4`                                             |
+| `@queryweave/vue-router` | `vue >=3.5.0 <4`, `vue-router >=4.4.0 <6`                    |
+| `@queryweave/nuxt`       | `nuxt >=4.5.0 <5`, `vue >=3.5.0 <4`, `vue-router >=5.2.0 <6` |
 
-No other package has a peer dependency, and none of them declares a dependency on a validation
-library or on a frontend framework.
+No other package has a peer dependency. `@queryweave/standard-schema` depends on
+`@standard-schema/spec`, a types-only package, and none of them declares a dependency on a
+validation library or on a frontend framework.
 
 ## Every package
 

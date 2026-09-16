@@ -111,6 +111,26 @@ describe("node helper types", () => {
 });
 
 describe("runtime adapter types", () => {
+  it("accepts adapters that report an outcome and adapters that do not", () => {
+    const silent: QueryAdapter = {
+      read: () => "",
+      push: () => undefined,
+      replace: async () => undefined,
+      subscribe: () => () => undefined,
+    };
+    const reporting: QueryAdapter = {
+      read: () => "",
+      push: () => ({ outcome: "refused", reason: "guard" }),
+      replace: async () => ({ outcome: "committed" }),
+      subscribe: () => () => undefined,
+    };
+    assertType<QueryAdapter>(silent);
+    assertType<QueryAdapter>(reporting);
+    // @ts-expect-error an outcome must be one of the declared words.
+    const wrong: QueryAdapter = { ...silent, push: () => ({ outcome: "maybe" }) };
+    void wrong;
+  });
+
   it("accepts any adapter and rejects a read-only source", () => {
     expectTypeOf(createQueryRuntime({ model, adapter: createMemoryQueryAdapter() })).toEqualTypeOf<
       QueryRuntime<(typeof model)["params"]>
@@ -137,22 +157,33 @@ describe("runtime adapter types", () => {
 });
 
 describe("standard schema output inference", () => {
+  const digits = z
+    .string()
+    .regex(/^\d+$/u)
+    .transform((value) => Number(value));
+
   it("carries a transformed output into the parameter value type", () => {
     const transformed = defineQueryModel({
-      length: param
+      count: param
         .text()
-        .refine(fromStandardSchema(z.string().transform((value) => value.length)))
+        .refine(fromStandardSchema(digits, { encode: (value) => String(value) }))
         .default(0),
     });
     type Transformed = QueryModelValues<(typeof transformed)["params"]>;
-    expectTypeOf<Transformed["length"]>().toEqualTypeOf<number>();
+    expectTypeOf<Transformed["count"]>().toEqualTypeOf<number>();
+  });
+
+  it("requires an inverse for a schema that changes the type", () => {
+    // @ts-expect-error a transforming schema needs `encode` to be written back to a URL.
+    param.text().refine(fromStandardSchema(digits));
+    param.text().refine(fromStandardSchema(z.string().min(2)));
   });
 
   it("rejects a default that does not match the transformed output", () => {
     defineQueryModel({
-      length: param
+      count: param
         .text()
-        .refine(fromStandardSchema(z.string().transform((value) => value.length)))
+        .refine(fromStandardSchema(digits, { encode: (value) => String(value) }))
         // @ts-expect-error the refined output is a number.
         .default("zero"),
     });

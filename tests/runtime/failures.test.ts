@@ -109,6 +109,18 @@ describe("failed transitions", () => {
     ]);
     expect(result.snapshot.values.search).toBe("vue");
   });
+
+  it("does not let a listener error be mistaken for a failed write", async () => {
+    const adapter = createHostileAdapter();
+    const runtime = createQueryRuntime({ model, adapter });
+    runtime.subscribe(() => {
+      throw new Error("listener");
+    });
+
+    await expect(runtime.update({ page: 5 })).rejects.toThrow("listener");
+    expect(adapter.entries()).toStrictEqual([["page", "5"]]);
+    expect(runtime.read().values.page).toBe(5);
+  });
 });
 
 describe("a disposed runtime", () => {

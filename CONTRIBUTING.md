@@ -12,11 +12,11 @@ Thank you for helping build QueryWeave.
 
 ## Setup
 
-Use Node.js 24.18.0 or newer on the Node 24 LTS line and pnpm 11.17.0:
+Use Node.js 22.13 or newer — CI's full gate runs on 24 — and pnpm 11.17.0:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium firefox webkit
 ```
 
 ## Validation

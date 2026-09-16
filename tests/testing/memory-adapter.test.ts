@@ -192,6 +192,31 @@ describe("disposal", () => {
   });
 });
 
+describe("guard", () => {
+  it("lets a test refuse or redirect a navigation the way a router guard would", () => {
+    const adapter = createMemoryQueryAdapter({
+      initial: "?page=1",
+      guard: (next, mode) => {
+        if (mode === "replace") {
+          return { outcome: "redirected" };
+        }
+        return next.some(([, value]) => value === "9") ? { outcome: "refused" } : undefined;
+      },
+    });
+    const listener = vi.fn<(input: QueryInput) => void>();
+    adapter.subscribe(listener);
+
+    expect(adapter.push([["page", "9"]])).toStrictEqual({ outcome: "refused" });
+    expect(adapter.replace([["page", "2"]])).toStrictEqual({ outcome: "redirected" });
+    expect(adapter.current()).toBe("page=1");
+    expect(listener).not.toHaveBeenCalled();
+
+    expect(adapter.push([["page", "2"]])).toBeUndefined();
+    expect(adapter.current()).toBe("page=2");
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("as a runtime adapter", () => {
   it("behaves like a session entry list under a runtime", async () => {
     const adapter = createMemoryQueryAdapter();

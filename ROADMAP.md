@@ -21,12 +21,16 @@
 
 17. **Package stabilization** — export, declaration, compatibility, and archive audits; consumer
     fixtures; coverage thresholds; release automation and trusted publishing.
+18. **First release** — `0.1.0-alpha.1` published to npm on 2026-09-10.
+19. **Beta contracts** — transition outcomes, serialized transitions, pending decodes, refinement
+    inverses, validated defaults, and the empty-list spelling (ADR 0009); a support matrix, a
+    stability policy, and an upgrading guide.
 
 ## Next
 
-18. **Transition scheduling** — throttling, coalescing, cancellation, and concurrency control.
-19. **Codec composition** — date, JSON, object, tuple, and nested representations.
-20. **First release** — publish `0.1.0-alpha.1` to npm under the `alpha` dist-tag from
-    `boussadjra/queryweave`, then migration guidance and supported matrices.
-21. **API stabilization** — freezing the public contracts for 1.0.
-22. **Additional framework adapters** — designed against the established core contracts.
+20. **Beta** — `0.1.0-beta.0` once alpha users have exercised ADR 0009; the repository goes public
+    and trusted publishing with provenance takes over.
+21. **Transition scheduling** — throttling, coalescing, and cancellation on the per-runtime queue.
+22. **Codec composition** — date, JSON, object, tuple, and nested representations.
+23. **API stabilization** — freezing the public contracts for 1.0.
+24. **Additional framework adapters** — designed against the established core contracts.

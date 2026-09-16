@@ -26,19 +26,30 @@ export type QueryRefinementResult<TOutput> =
 /**
  * Validates and optionally transforms an already decoded value.
  *
- * Returning a promise is allowed; synchronous decoding then reports `validation_failed` and
- * callers must use the asynchronous decode path.
+ * Returning a promise is allowed; synchronous decoding then reports `async_required` and callers
+ * must use the asynchronous decode path. A refinement that is known to be asynchronous should say
+ * so with `async: true`, which lets the synchronous path skip it without starting it.
+ *
+ * A refinement that changes the value's type must also provide `encode`, the inverse mapping
+ * used when the value is written back to a URL. {@link QueryTransform} makes it required.
  */
 export interface QueryRefinement<TInput, TOutput = TInput> {
   readonly name?: string | undefined;
+  readonly async?: boolean | undefined;
   refine(
     value: TInput,
     context: QueryRefineContext,
   ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
+  encode?(value: TOutput): TInput;
+}
+
+/** A refinement whose output type differs from its input, so the inverse is mandatory. */
+export interface QueryTransform<TInput, TOutput> extends QueryRefinement<TInput, TOutput> {
+  encode(value: TOutput): TInput;
 }
 
 /** Internal promise detection shared by synchronous refinement pipelines. */
-export function isPromiseLike<TValue>(value: unknown): value is Promise<TValue> {
+export function isPromiseLike<TValue>(value: unknown): value is PromiseLike<TValue> {
   return (
     typeof value === "object" &&
     value !== null &&

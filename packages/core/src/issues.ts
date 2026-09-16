@@ -5,7 +5,12 @@
  * `validation_failed` so consumers depend on QueryWeave's taxonomy alone.
  */
 
-/** Stable issue codes reported by codecs, parameters, and models. */
+/**
+ * Stable issue codes reported by codecs, parameters, and models.
+ *
+ * `async_required` is reported by the synchronous decode when a refinement can only run
+ * asynchronously; the value recovers exactly as an invalid one would, and `decodeAsync` settles it.
+ */
 export type QueryIssueCode =
   | "missing"
   | "empty"
@@ -13,7 +18,8 @@ export type QueryIssueCode =
   | "out_of_range"
   | "unknown_choice"
   | "unexpected_multiple_values"
-  | "validation_failed";
+  | "validation_failed"
+  | "async_required";
 
 /** A structured, serializable description of one decode problem. */
 export interface QueryIssue {

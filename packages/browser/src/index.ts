@@ -32,26 +32,34 @@ function resolveTarget(options: BrowserAdapterOptions): Window {
  *
  * Nothing happens at module evaluation time: the target is resolved when the adapter is created,
  * and the `popstate` handler is attached only once something subscribes.
+ *
+ * The adapter observes its own writes and `popstate`. A write performed by other code through
+ * `pushState` or `replaceState` fires no event and is therefore not observed; share one adapter
+ * per window instead of creating several.
  */
 export function createBrowserAdapter(options: BrowserAdapterOptions = {}): BrowserQueryAdapter {
   const target = resolveTarget(options);
   const listeners = new Set<QueryChangeListener>();
   let attached: (() => void) | undefined;
   let disposed = false;
+  /** The query last announced, so a hash-only or path-only `popstate` stays quiet. */
+  let announced: string | undefined;
 
   const read = (): QueryOutput => parseQueryString(target.location.search);
 
   const notify = (): void => {
+    announced = target.location.search;
     const input = read();
     for (const listener of [...listeners]) {
       listener(input);
     }
   };
 
+  /** Only the query changes; pathname (even one starting with `//`) and hash are kept as-is. */
   const buildUrl = (next: QueryOutput): string => {
-    const search = formatQueryString(next);
-    const suffix = search === "" ? "" : `?${search}`;
-    return `${target.location.pathname}${suffix}${target.location.hash}`;
+    const url = new URL(target.location.href);
+    url.search = formatQueryString(next);
+    return url.href;
   };
 
   const navigate = (next: QueryOutput, mode: "push" | "replace"): void => {
@@ -59,11 +67,12 @@ export function createBrowserAdapter(options: BrowserAdapterOptions = {}): Brows
       throw new Error("This browser query adapter was disposed.");
     }
     const url = buildUrl(next);
-    const state: unknown = target.history.state;
     if (mode === "replace") {
+      // The entry keeps whatever state a router or the application stored on it.
+      const state: unknown = target.history.state;
       target.history.replaceState(state, "", url);
     } else {
-      target.history.pushState(state, "", url);
+      target.history.pushState(null, "", url);
     }
     notify();
   };
@@ -72,8 +81,11 @@ export function createBrowserAdapter(options: BrowserAdapterOptions = {}): Brows
     if (attached !== undefined) {
       return;
     }
+    announced = target.location.search;
     const handler = (): void => {
-      notify();
+      if (target.location.search !== announced) {
+        notify();
+      }
     };
     target.addEventListener("popstate", handler);
     attached = () => {
@@ -90,6 +102,9 @@ export function createBrowserAdapter(options: BrowserAdapterOptions = {}): Brows
       navigate(next, "replace");
     },
     subscribe: (listener) => {
+      if (disposed) {
+        throw new Error("This browser query adapter was disposed.");
+      }
       attach();
       listeners.add(listener);
       return () => {

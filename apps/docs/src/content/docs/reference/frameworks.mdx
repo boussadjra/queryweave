@@ -16,7 +16,8 @@ function useQueryModel<TDefs>(
 
 `UseQueryModelOptions` is `{ adapter?, navigation?, runtime? }`. The adapter is resolved in that
 order: an explicit `adapter`, then the injected one, and an existing `runtime` bypasses both. If
-none is available, it throws with a message naming all three.
+none is available, it throws with a message naming all three. Injection works inside a component
+and anywhere else `hasInjectionContext()` is true, such as `app.runWithContext`.
 
 ### `QueryModelBinding`
 
@@ -24,15 +25,21 @@ none is available, it throws with a message naming all three.
 | ------------------------------------------------- | -------------------------------------------------------- |
 | `runtime`                                         | `QueryRuntime<TDefs>`                                    |
 | `values`                                          | `Readonly<QueryModelValues<TDefs>>` — reactive, readonly |
-| `status`                                          | `"valid" \| "invalid"` — a plain property                |
+| `status`                                          | `QueryStatus` — a plain property                         |
 | `issues`                                          | `readonly QueryIssue[]` — a plain property               |
 | `field(key, options?)`                            | `WritableComputedRef<Values[key]>`                       |
+| `settled()`                                       | `Promise<QuerySnapshot<Values>>`                         |
 | `update` `replace` `remove` `reset` `transaction` | the runtime's operations                                 |
 
 `values`, `status`, and `issues` are plain properties, not refs, so templates read them without
-`.value`. Watching them requires a getter: `watch(() => binding.status, ...)`.
+`.value`. Watching them requires a getter: `watch(() => binding.status, ...)`; destructuring
+`status` or `issues` copies a value that never updates, so wrap one in `computed()` to pass it
+around. `values` drops a required key that an invalid snapshot no longer carries, and keeps an
+unchanged list's identity so watchers on it stay quiet.
 
-`QueryFieldOptions` is `{ navigation? }`.
+`QueryFieldOptions` is `{ navigation? }`. Writing `""` through a field writes `undefined`, which
+clears the parameter. A field write is not awaited; a rejected write surfaces as an unhandled
+rejection.
 
 ### Injection
 
@@ -52,32 +59,29 @@ runtime only if it created one. A binding given a `runtime` never disposes it.
 
 ## @queryweave/vue-router
 
-### `createVueRouterAdapter(router, options?)`
+### `createVueRouterAdapter(router)`
 
 ```ts
-function createVueRouterAdapter(
-  router: Router,
-  options?: VueRouterAdapterOptions,
-): VueRouterQueryAdapter;
-```
-
-`VueRouterAdapterOptions` is `{ onNavigationFailure? }`, called with a
-`VueRouterNavigationOutcome`:
-
-```ts
-type VueRouterNavigationOutcome =
-  { readonly ok: true } | { readonly ok: false; readonly failure: NavigationFailure | Error };
+function createVueRouterAdapter(router: Router): VueRouterQueryAdapter;
 ```
 
 `VueRouterQueryAdapter` is a `QueryAdapter` plus `readonly router: Router` and `dispose(): void`.
+Vue Router 4.4 and newer, and 5, are supported.
 
-Transitions use `router.push` and `router.replace`, preserving the current `path` and `hash`. A
-refused or redirected navigation is reported through `onNavigationFailure` rather than thrown.
-Change notification comes from a watcher on `route.fullPath`, attached on first subscription, so one
-transition still produces one notification.
+Transitions await `router.isReady()`, then use `router.push` and `router.replace`, preserving the
+current `path` and `hash`. `push` and `replace` resolve with a `QueryNavigationResult`: `refused`
+with the `NavigationFailure` as `reason` when a guard declines, `redirected` when the route ended
+elsewhere, and `committed` otherwise, including for a navigation the router reported as duplicated.
+An error thrown by a guard is propagated.
+
+Change notification comes from a watcher on `route.fullPath` that the adapter owns in a detached
+effect scope. It is created on the first subscription and stopped when the last subscriber leaves,
+so it outlives the component that subscribed first.
 
 Repeated keys round-trip through Vue Router's array query form; a `null` query value — the router's
-representation of a valueless key — becomes an empty string entry.
+representation of a valueless key — becomes an empty string entry, and a non-string value the router
+produced for a key such as `constructor` is skipped. The router writes the URL text in its own
+encoding and key order; the adapter guarantees the entries, not the bytes.
 
 ## @queryweave/nuxt
 
@@ -88,7 +92,8 @@ export default defineNuxtModule<QueryWeaveModuleOptions>({ ... });
 ```
 
 `QueryWeaveModuleOptions` is `{ autoImports?: boolean; enabled?: boolean }`, both defaulting to
-`true`, configured under the `queryweave` key of `nuxt.config`. Compatible with Nuxt 4 and above.
+`true`, configured under the `queryweave` key of `nuxt.config`. Compatible with Nuxt 4.5 and
+newer, below 5; the module declares the same range as the package's peer dependency.
 
 With `autoImports`, `useQueryModel` and `provideQueryAdapter` are auto-imported from
 `@queryweave/vue`. With `enabled: false`, nothing is registered.
@@ -97,15 +102,24 @@ With `autoImports`, `useQueryModel` and `provideQueryAdapter` are auto-imported 
 
 ```ts
 // @queryweave/nuxt/runtime
-function createNuxtQueryAdapter(router: Router): VueRouterQueryAdapter;
+function createNuxtQueryAdapter(
+  router: Router,
+  options?: NuxtQueryAdapterOptions, // { server?: boolean }
+): VueRouterQueryAdapter;
 function installQueryAdapter(app: App, adapter: QueryAdapter): void;
 ```
 
-`installQueryAdapter` accepts any adapter, so an application can substitute its own. The registered
-plugin also exposes the adapter as `$queryWeaveAdapter` on the Nuxt app.
+With `server: true`, which the plugin passes from `import.meta.server`, `push` and `replace`
+resolve with `outcome: "refused"` and an `Error` as `reason` instead of moving the request's
+router; reading is unaffected. `installQueryAdapter` accepts any adapter, so an application can
+substitute its own. The registered plugin also exposes the adapter as `$queryWeaveAdapter` on the
+Nuxt app. `VueRouterQueryAdapter` is re-exported for convenience.
 
 The runtime plugin creates one adapter per Vue application instance — one per request on the
 server. Nothing is stored at module scope.
+
+`@queryweave/nuxt/runtime/plugin` is the plugin file the module registers. It is an entry point so
+Nuxt can load it from the published archive, not an API for applications to import.
 
 ## @queryweave/standard-schema
 
@@ -114,15 +128,23 @@ server. Nothing is stored at module scope.
 ```ts
 function fromStandardSchema<TSchema extends StandardSchemaV1>(
   schema: TSchema,
-  options?: StandardSchemaRefinementOptions,
+  options: StandardSchemaTransformOptions<TSchema>, // { name?, async?, encode }
+): StandardSchemaTransform<TSchema>;
+function fromStandardSchema<TSchema extends StandardSchemaV1>(
+  schema: TSchema,
+  options?: StandardSchemaRefinementOptions, // { name?, async? }
 ): StandardSchemaRefinement<TSchema>;
 ```
 
-`StandardSchemaRefinementOptions` is `{ name? }`, defaulting to the schema's own vendor string.
+`name` defaults to the schema's own vendor string. `async: true` marks the schema as asynchronous
+so the synchronous decode reports `async_required` without starting it.
 
-The returned refinement's input and output types are inferred from the schema, so a transforming
-schema changes the parameter's value type. Vendor issues are mapped onto QueryWeave's shape and
-reported as `validation_failed`; a vendor's own error type is never exposed. Asynchronous schemas
-resolve through `model.decodeAsync`.
+The returned refinement's input and output types are inferred from the schema. A schema that
+validates or narrows needs no options and is accepted by `refine()` as it is. A schema whose output
+type differs from its input must be given `encode`, the inverse used to write the value back to a
+URL; the returned `StandardSchemaTransform` is what `refine()` accepts for it. Vendor issues are
+mapped onto QueryWeave's shape and reported as `validation_failed`; a vendor's own error type is
+never exposed, and a validator that throws becomes an issue too. Asynchronous schemas resolve
+through `model.decodeAsync`, and through the runtime's pending state.
 
 This package depends on `@standard-schema/spec` — types only — and on no validator.

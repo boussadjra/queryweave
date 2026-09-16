@@ -123,6 +123,51 @@ describe("createBrowserAdapter", () => {
   it("requires an explicit target when no browser is available", () => {
     expect(() => createBrowserAdapter({ target: undefined })).not.toThrow();
   });
+
+  it("refuses new subscribers after disposal", () => {
+    const adapter = createBrowserAdapter();
+    adapter.dispose();
+    expect(() => adapter.subscribe(() => undefined)).toThrow("disposed");
+  });
+
+  it("keeps a pathname that starts with two slashes", () => {
+    const url = new URL(window.location.href);
+    url.pathname = "//products";
+    window.history.replaceState(null, "", url.href);
+    const adapter = track(createBrowserAdapter());
+
+    void adapter.push([["page", "2"]]);
+
+    expect(window.location.pathname).toBe("//products");
+    expect(currentSearch()).toBe("?page=2");
+  });
+
+  it("starts a pushed entry without another library's state", () => {
+    window.history.replaceState({ position: 5 }, "", "/base/page");
+    const adapter = track(createBrowserAdapter());
+
+    void adapter.replace([["page", "1"]]);
+    expect(window.history.state).toStrictEqual({ position: 5 });
+
+    void adapter.push([["page", "2"]]);
+    expect(window.history.state).toBeNull();
+  });
+
+  it("stays quiet on a popstate that changed only the hash", async () => {
+    window.history.replaceState(null, "", "/base/page?page=2#one");
+    const adapter = track(createBrowserAdapter());
+    const listener = vi.fn<(input: QueryInput) => void>();
+    adapter.subscribe(listener);
+
+    window.history.pushState(null, "", "/base/page?page=2#two");
+    window.history.back();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 50);
+    });
+
+    expect(window.location.hash).toBe("#one");
+    expect(listener).not.toHaveBeenCalled();
+  });
 });
 
 describe("runtime over the browser adapter", () => {

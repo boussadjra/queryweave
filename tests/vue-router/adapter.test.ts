@@ -7,10 +7,10 @@ import {
   type QueryInput,
 } from "@queryweave/core";
 import { useQueryModel } from "@queryweave/vue";
-import { createVueRouterAdapter, type VueRouterNavigationOutcome } from "@queryweave/vue-router";
+import { createVueRouterAdapter } from "@queryweave/vue-router";
 import { describe, expect, it, vi } from "vitest";
 import { defineComponent, effectScope, h, nextTick } from "vue";
-import { createMemoryHistory, createRouter, type Router } from "vue-router";
+import { createMemoryHistory, createRouter, isNavigationFailure, type Router } from "vue-router";
 
 const productFilters = defineQueryModel({
   search: param.text().optional(),
@@ -99,16 +99,117 @@ describe("createVueRouterAdapter", () => {
     adapter.dispose();
   });
 
-  it("reports navigation failures instead of throwing", async () => {
-    const router = await createTestRouter();
-    const onNavigationFailure = vi.fn<(outcome: VueRouterNavigationOutcome) => void>();
-    const adapter = createVueRouterAdapter(router, { onNavigationFailure });
+  it("keeps notifying after the component that subscribed first is gone", async () => {
+    const router = await createTestRouter("/products?page=1");
+    const adapter = createVueRouterAdapter(router);
+
+    // Page A subscribes inside its own effect scope, then unmounts.
+    const pageA = effectScope();
+    const seenByA: unknown[] = [];
+    pageA.run(() => {
+      adapter.subscribe((input) => {
+        seenByA.push(input);
+      });
+    });
+    pageA.stop();
+
+    // Page B subscribes afterwards and must still hear about navigation.
+    const seenByB = vi.fn<(input: QueryInput) => void>();
+    const pageB = effectScope();
+    pageB.run(() => {
+      adapter.subscribe(seenByB);
+    });
+
+    await router.push("/products?page=6");
+    await nextTick();
+
+    expect(seenByB).toHaveBeenCalledTimes(1);
+    expect(seenByB).toHaveBeenLastCalledWith([["page", "6"]]);
+    pageB.stop();
+    adapter.dispose();
+  });
+
+  it("reports a refused navigation instead of throwing", async () => {
+    const router = await createTestRouter("/products?page=1");
+    const adapter = createVueRouterAdapter(router);
 
     router.beforeEach(() => false);
-    await adapter.push([["page", "2"]]);
+    const result = await adapter.push([["page", "2"]]);
 
-    expect(onNavigationFailure).toHaveBeenCalledTimes(1);
-    expect(onNavigationFailure.mock.calls[0]?.[0]).toMatchObject({ ok: false });
+    expect(result).toMatchObject({ outcome: "refused" });
+    expect(isNavigationFailure(result?.reason)).toBe(true);
+    expect(router.currentRoute.value.query).toStrictEqual({ page: "1" });
+    adapter.dispose();
+  });
+
+  it("reports a redirected navigation", async () => {
+    const router = await createTestRouter("/products?page=1");
+    const adapter = createVueRouterAdapter(router);
+
+    router.beforeEach((to) => (to.query["page"] === "2" ? "/other" : true));
+    const result = await adapter.push([["page", "2"]]);
+
+    expect(result).toStrictEqual({ outcome: "redirected" });
+    expect(router.currentRoute.value.path).toBe("/other");
+    adapter.dispose();
+  });
+
+  it("propagates an error thrown by a guard", async () => {
+    const router = await createTestRouter();
+    const adapter = createVueRouterAdapter(router);
+
+    router.beforeEach(() => {
+      throw new Error("guard exploded");
+    });
+    await expect(adapter.replace([["page", "2"]])).rejects.toThrow("guard exploded");
+    adapter.dispose();
+  });
+
+  it("commits a navigation the router already sits on", async () => {
+    const router = await createTestRouter("/products?page=2");
+    const adapter = createVueRouterAdapter(router);
+    await expect(adapter.push([["page", "2"]])).resolves.toStrictEqual({ outcome: "committed" });
+    adapter.dispose();
+  });
+
+  it("waits for the router to be ready before writing", async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/products", component: Blank }],
+    });
+    const adapter = createVueRouterAdapter(router);
+    void router.push("/products?utm=keep&page=5");
+
+    await adapter.push([
+      ["search", "x"],
+      ["utm", "keep"],
+    ]);
+
+    expect(router.currentRoute.value.path).toBe("/products");
+    expect(router.currentRoute.value.query).toStrictEqual({ search: "x", utm: "keep" });
+    adapter.dispose();
+  });
+
+  it("survives query keys named after Object.prototype members", async () => {
+    const router = await createTestRouter("/products?constructor=1&toString=x");
+    const adapter = createVueRouterAdapter(router);
+
+    expect(adapter.read()).toStrictEqual([
+      ["constructor", "1"],
+      ["toString", "x"],
+    ]);
+    await expect(
+      adapter.push([
+        ["page", "2"],
+        ["constructor", "1"],
+        ["constructor", "2"],
+      ]),
+    ).resolves.toStrictEqual({ outcome: "committed" });
+    expect(adapter.read()).toStrictEqual([
+      ["page", "2"],
+      ["constructor", "1"],
+      ["constructor", "2"],
+    ]);
     adapter.dispose();
   });
 
@@ -130,37 +231,12 @@ describe("createVueRouterAdapter", () => {
     adapter.dispose();
   });
 
-  it("reports a thrown router error as a navigation failure", async () => {
-    const router = await createTestRouter();
-    const onNavigationFailure = vi.fn<(outcome: VueRouterNavigationOutcome) => void>();
-    const adapter = createVueRouterAdapter(router, { onNavigationFailure });
-
-    router.beforeEach(() => {
-      throw new Error("guard exploded");
-    });
-    await adapter.replace([["page", "2"]]);
-
-    expect(onNavigationFailure).toHaveBeenCalledTimes(1);
-    const outcome = onNavigationFailure.mock.calls[0]?.[0];
-    expect(outcome?.ok).toBe(false);
-    expect(outcome?.ok === false && outcome.failure).toBeInstanceOf(Error);
-    adapter.dispose();
-  });
-
-  it("stays silent when no failure handler is supplied", async () => {
-    const router = await createTestRouter();
-    const adapter = createVueRouterAdapter(router);
-
-    router.beforeEach(() => false);
-    await expect(adapter.push([["page", "2"]])).resolves.toBeUndefined();
-    adapter.dispose();
-  });
-
-  it("refuses to navigate after disposal", async () => {
+  it("refuses to navigate or subscribe after disposal", async () => {
     const router = await createTestRouter();
     const adapter = createVueRouterAdapter(router);
     adapter.dispose();
     await expect(adapter.push([["page", "2"]])).rejects.toThrow("disposed");
+    expect(() => adapter.subscribe(() => undefined)).toThrow("disposed");
   });
 });
 
@@ -178,6 +254,20 @@ describe("router-backed runtime", () => {
       utm_source: "news",
     });
 
+    runtime.dispose();
+    adapter.dispose();
+  });
+
+  it("carries a guard's refusal into the transition result", async () => {
+    const router = await createTestRouter("/products?page=2");
+    const adapter = createVueRouterAdapter(router);
+    const runtime = createQueryRuntime({ model: productFilters, adapter });
+    router.beforeEach(() => false);
+
+    const result = await runtime.update({ page: 3 });
+
+    expect(result.outcome).toBe("refused");
+    expect(result.snapshot.values.page).toBe(2);
     runtime.dispose();
     adapter.dispose();
   });
@@ -203,6 +293,32 @@ describe("Vue binding over the router adapter", () => {
     expect(filters.values.page).toBe(3);
 
     scope.stop();
+    adapter.dispose();
+  });
+
+  it("keeps a later page's binding live after an earlier page unmounted", async () => {
+    const router = await createTestRouter("/products?page=2");
+    const adapter = createVueRouterAdapter(router);
+
+    const pageA = effectScope();
+    pageA.run(() => useQueryModel(productFilters, { adapter }));
+    pageA.stop();
+
+    const pageB = effectScope();
+    const filters = pageB.run(() => useQueryModel(productFilters, { adapter }));
+    if (!filters) {
+      throw new Error("expected a binding");
+    }
+
+    await filters.update({ page: 9 });
+    await nextTick();
+    expect(filters.values.page).toBe(9);
+
+    await router.push("/products?page=4");
+    await nextTick();
+    expect(filters.values.page).toBe(4);
+
+    pageB.stop();
     adapter.dispose();
   });
 });

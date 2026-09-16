@@ -6,89 +6,89 @@ description: How QueryWeave versions, publishes, and tags packages. GitHub stays
 import { Aside, Steps } from "@astrojs/starlight/components";
 import { currentPackageVersion } from "../../../data/release";
 
-<Aside type="caution" title="Not on npm yet">
-  Source is {currentPackageVersion}. The first public version is that same number under the `alpha`
-  dist-tag. Do not treat an alpha as production ready.
+<Aside type="note" title="Where things stand">
+  `0.1.0-alpha.1` was published on 2026-09-10 with a one-shot token; the source tree is at{" "}
+  {currentPackageVersion}. That first publish attached no provenance, because npm only attests a
+  public repository, and trusted publishing over OIDC has not yet succeeded. The checklist below
+  covers what is left before the next release.
 </Aside>
 
 GitHub is [`boussadjra/queryweave`](https://github.com/boussadjra/queryweave). npm is the
 `queryweave` org, which owns the `@queryweave/*` scope. Those are independent names: do not move
 the git repository to `queryweave/queryweave`.
 
-The Release workflow only runs when `github.repository` is `boussadjra/queryweave`. If GitHub still
-shows `boussadjra/query-weave`, rename the repository first or the workflow is a no-op.
+The Release workflow only runs when `github.repository` is `boussadjra/queryweave`.
 
 Every public package shares one version. `pnpm publish:packages` publishes in dependency order,
-skips versions already on the registry, and chooses the dist-tag from the semver prerelease id
-(`0.1.0-alpha.1` → `alpha`, a stable `0.1.0` → `latest`). Do not use `changeset publish`; it tags
-prereleases as `latest` unless Changesets is in pre mode, and even then the lockstep publisher is
-the source of truth.
+skips versions already on the registry, and chooses the dist-tag from the policy below. Do not use
+`changeset publish`; the lockstep publisher is the source of truth.
 
 ## Dist-tags
 
-| Version             | Dist-tag | Install                           |
-| ------------------- | -------- | --------------------------------- |
-| `0.1.0-alpha.N`     | `alpha`  | `pnpm add @queryweave/core@alpha` |
-| `0.1.0-beta.N`      | `beta`   | `pnpm add @queryweave/core@beta`  |
-| `0.1.0-rc.N`        | `rc`     | `pnpm add @queryweave/core@rc`    |
-| `0.1.0` (and later) | `latest` | `pnpm add @queryweave/core`       |
+npm gave the first version ever published the `latest` tag, whatever its prerelease id. The policy
+follows that fact rather than fighting it:
 
-Changesets stay in **pre mode** (`alpha`) until you deliberately leave it. That stops
-`changeset version` from turning `0.1.0-alpha.1` into a stable `0.1.0` on `latest`.
+- **Until a stable version exists**, every publish goes to `latest`, so `pnpm add @queryweave/core`
+  resolves the newest prerelease. There are no channel tags to remember, and the docs use bare
+  package names. The `alpha` tag that the first publish created stays behind at `0.1.0-alpha.1` and
+  is not maintained.
+- **Once `0.1.0` is on the registry**, `latest` holds the stable line and a prerelease is published
+  under its own id: `0.2.0-beta.0` under `beta`, `0.2.0-rc.0` under `rc`.
 
-Bump without Changesets when you need an explicit jump:
+`pnpm publish:packages --tag <tag>` overrides the policy for one run.
+
+## Cutting a new prerelease line
+
+Changesets is in **pre mode**, which decides the prerelease id of every automated version bump.
+Moving from alpha to beta needs both the pre-mode tag and the version to change, in this order:
 
 ```sh
-pnpm version:alpha                          # 0.1.0-alpha.1 → 0.1.0-alpha.2
-pnpm version:set -- 0.1.0-beta.0            # start beta
-pnpm version:set -- 0.1.0                   # first latest
+pnpm changeset pre exit
+pnpm changeset pre enter beta
+pnpm version:set -- 0.1.0-beta.0
 ```
 
-Do not run `pnpm version:set` and `changeset version` for the same release.
+Commit the three results together. Later changesets then produce `0.1.0-beta.1`, `0.1.0-beta.2`,
+and so on through the Version PR.
 
-## First publish
+<Aside type="caution" title="Do not run version:set alone">
+  `pnpm version:set -- 0.1.0-beta.0` on its own leaves pre mode at `alpha`. The next `changeset
+  version` then computes `0.1.0-alpha.2` from the recorded alpha baseline and writes that back over
+  the beta version. Exit and re-enter pre mode first.
+</Aside>
 
-Trusted publishing is configured on an **existing** package. The nine names are new, so the first
-run uses a short-lived granular token. Provenance still comes from GitHub Actions.
+Do not run `pnpm version:set` and `changeset version` for the same release. Leaving pre mode for
+the first stable release is `pnpm changeset pre exit` followed by a normal Version PR.
 
-If the GitHub repository is still named `query-weave`, rename it to `queryweave` before this, so
-`repository.url` in each `package.json` matches what npm will attest.
+## Before the next release
 
 <Steps>
 
-1. Create a GitHub Actions environment named `release` on `boussadjra/queryweave`.
+1. Make the GitHub repository public. Provenance attestations, the `repository` links in every
+   package manifest, the ADR links in this site, and private vulnerability reporting all depend on
+   it.
 
-2. On npm, create a granular token for the `queryweave` org that can publish **new** public
-   packages. Expiration should be a day or two. Store it as the repository secret `NPM_TOKEN`.
-
-3. Run the **Release** workflow with `first_publish` checked. It runs `pnpm check:release`, then
-   `pnpm publish:packages`. The version is {currentPackageVersion}; the tag is `alpha`.
-
-4. Confirm the tag, not just the version:
-
-   ```sh
-   npm view @queryweave/core version
-   npm dist-tag ls @queryweave/core
-   ```
-
-   You want `alpha: 0.1.0-alpha.1`. `latest` must not point at the alpha.
-
-5. On each package page (`npmjs.com/package/@queryweave/core/access`, and the same for `testing`,
-   `browser`, `server`, `node`, `standard-schema`, `vue`, `vue-router`, `nuxt`), add a GitHub
-   Actions trusted publisher:
+2. On each package page (`npmjs.com/package/@queryweave/core/access`, and the same for `testing`,
+   `browser`, `server`, `node`, `standard-schema`, `vue`, `vue-router`, `nuxt`), confirm a GitHub
+   Actions trusted publisher is attached:
 
    - Organization or user: `boussadjra`
    - Repository: `queryweave`
    - Workflow filename: `release.yml`
    - Environment name: `release`
-   - Allowed action: `npm publish`
 
-6. Require 2FA and disallow tokens on those packages once an OIDC publish has succeeded.
+   The first-publish runs logged `Skipped OIDC` because the packages did not exist yet; a publish
+   that still logs it means this step is incomplete.
 
-7. Delete `NPM_TOKEN` from GitHub and revoke the npm token.
+3. Require 2FA and disallow tokens on those packages. Confirm no `NPM_TOKEN` secret remains on the
+   repository; the repository variable `NPM_TRUSTED_PUBLISHING` is already `true`.
 
-8. Set the repository variable `NPM_TRUSTED_PUBLISHING` to `true`. Later merges to `main` then
-   publish through OIDC, with no token.
+4. Add a changeset for the release, merge, then merge the Version PR. Confirm the tag afterwards:
+
+   ```sh
+   npm view @queryweave/core version
+   npm dist-tag ls @queryweave/core
+   ```
 
 </Steps>
 
@@ -101,8 +101,9 @@ that bumps the lockstep version and writes `CHANGELOG.md`. Merging that PR publi
 The Release workflow never runs from a fork or a pull request. The publish jobs request
 `id-token: write` only for themselves.
 
-## What this alpha does not include
+## What is still deferred
 
-Transition scheduling, date/JSON/object/tuple codecs, per-parameter omission policy, and server
-response contribution are [deferred](/project/roadmap/). Debounce search at the call site. Use
-`param.custom` for encodings that have no built-in family yet.
+Throttling, coalescing, and cancellation of transitions; date, JSON, object, and tuple codecs;
+per-parameter omission policy; and server response contribution are on the
+[roadmap](/project/roadmap/). Transitions are already serialized per runtime, so debouncing at the
+call site is about history entries, not correctness.

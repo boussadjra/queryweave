@@ -34,10 +34,12 @@ QueryWeave's own hook is `QueryRefinement`, which is deliberately tiny:
 ```ts
 interface QueryRefinement<TInput, TOutput = TInput> {
   readonly name?: string | undefined;
+  readonly async?: boolean | undefined;
   refine(
     value: TInput,
     context: QueryRefineContext,
   ): QueryRefinementResult<TOutput> | Promise<QueryRefinementResult<TOutput>>;
+  encode?(value: TOutput): TInput;
 }
 ```
 
@@ -107,21 +109,32 @@ key `$` (`modelIssueKey`).
 
 ## Transforming values
 
-A Standard Schema that transforms changes the parameter's value type, and QueryWeave follows it:
+A Standard Schema that transforms changes the parameter's value type, and QueryWeave follows it —
+provided you say how to write the value back:
 
-```ts {2-4}
+```ts {2-9}
 const model = defineQueryModel({
-  search: param.text().refine(fromStandardSchema(z.string().transform((value) => value.length))),
+  count: param.text().refine(
+    fromStandardSchema(
+      z
+        .string()
+        .regex(/^\d+$/)
+        .transform((value) => Number(value)),
+      { encode: (value) => String(value) },
+    ),
+  ),
 });
 
-// search is now number
+// count is now number, and encodes through `encode`
 ```
 
-<Aside type="caution" title="A transformed value still has to encode">
-  The parameter's codec encodes whatever the refinement produced. If a refinement turns a string
-  into a number, the codec that writes it back must be able to represent that number — otherwise the
-  round trip breaks and canonical output stops being canonical. Prefer transforms that stay
-  representable.
+`refine()` accepts a validating or narrowing schema as it is. A schema whose output type differs
+from its input does not type-check without `encode`: a value that cannot be written back to a URL
+is not URL state. That rules out lossy transforms such as `value.length` — which is the point.
+
+<Aside type="caution" title="Round trips are the contract">
+  The inverse must satisfy `decode(encode(value))` returns `value`. QueryWeave applies inverses
+  last-to-first through a refinement pipeline, then hands the result to the parameter's codec.
 </Aside>
 
 ## Asynchronous schemas
@@ -133,9 +146,17 @@ result.ok; // true after the asynchronous schema resolves
 result.issues; // any rejection is normalized to QueryWeave issues
 ```
 
-A refinement may return a promise. Synchronous `decode` cannot wait, so it reports
-`validation_failed` with a message naming `decodeAsync` and recovers by presence — it does not
-block and does not silently pass.
+A refinement may return a promise. Synchronous `decode` cannot wait, so it reports `async_required`
+and recovers by presence — it does not block and does not silently pass. Declare the schema as
+asynchronous so the synchronous path does not start it:
+
+```ts {1}
+const slug = fromStandardSchema(slugIsFreeSchema, { async: true });
+```
+
+A [runtime](/runtime/) treats such a snapshot as `pending`, decodes asynchronously, and notifies
+once it settles; `runtime.settled()` awaits that. A vendor that throws — from a transform, say —
+becomes a `validation_failed` issue, not an exception.
 
 ## Naming a refinement
 
@@ -157,14 +178,19 @@ shared contract: see [Zod, Valibot, ArkType](/validation/vendors/).
 ## Edge cases
 
 - **Refinements are a pipeline.** Each receives the previous one's output, in declaration order.
+- **A refinement never sees `null` or `undefined`.** Absence and explicit null are settled before
+  it runs, and they stay in the value type.
 - **A failed refinement recovers by presence**, exactly like a codec failure: a default, or
   `undefined`, or a failed result for a required parameter.
 - **Issue paths are preserved.** A validator's path is appended to the parameter's path, so a
   nested failure still points at the right place.
-- **A validator error is never thrown.** It becomes an issue.
+- **A validator error is never thrown.** It becomes an issue. Zod reports a throwing synchronous
+  transform as a rejected promise, so its synchronous decode reads `async_required` and its
+  asynchronous decode reads `validation_failed`.
 
 ## How it is tested
 
 `tests/standard-schema/compatibility.test.ts` runs one contract across Zod, Valibot, and ArkType,
-asserting normalized issues and inferred output types — never a vendor's own error shape. The
-`standard-schema` consumer fixture repeats it against the packed archive.
+asserting normalized issues, inverses, throwing transforms, and inferred output types — never a
+vendor's own error shape. The `standard-schema` consumer fixture repeats a Valibot slice of it
+against the packed archive.

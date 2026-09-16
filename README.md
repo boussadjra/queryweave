@@ -7,14 +7,18 @@
 
 > [!WARNING]
 > **Experimental, pre-1.0, and not production ready.** The public API is provisional and may change
-> between minor versions. Transition scheduling, throttling, coalescing, and cancellation are
-> deliberately absent. Every breaking change is recorded in an ADR and a changeset.
+> between minor versions. Transition throttling, coalescing, and cancellation are deliberately
+> absent. Every breaking change is recorded in an ADR and a changeset.
 
 The engine is implemented, tested, and validated as published archives — parameters, codecs,
 models, decode results, canonical encoding, runtime transitions, and integrations for the browser,
 server, Node.js, Standard Schema, Vue, Vue Router, and Nuxt.
 
-Nothing has been published to npm yet, and the API is not stable.
+An alpha is on npm. Until a stable version exists, `latest` follows the newest prerelease, so
+`pnpm add @queryweave/core` installs it. The [support matrix and stability
+policy](./apps/docs/src/content/docs/project/support.mdx) say what is tested and what a version
+number promises; [upgrading](./apps/docs/src/content/docs/project/upgrading.mdx) lists every
+breaking change with its migration.
 
 ## A first model
 
@@ -109,15 +113,15 @@ Run `pnpm bundle:size` to rebuild the packages and update these generated tables
 
 | Package                       |      ESM | ESM gzip | minified | min+gzip | min+Brotli |
 | ----------------------------- | -------: | -------: | -------: | -------: | ---------: |
-| `@queryweave/core`            | 25.18 kB |  6.01 kB | 11.76 kB |  3.99 kB |    3.61 kB |
-| `@queryweave/testing`         |  1.54 kB |    640 B |    670 B |    427 B |      374 B |
-| `@queryweave/browser`         |  2.14 kB |    898 B |    998 B |    551 B |      461 B |
-| `@queryweave/server`          |  2.36 kB |    926 B |    814 B |    409 B |      374 B |
-| `@queryweave/node`            |  1.69 kB |    668 B |    739 B |    415 B |      374 B |
-| `@queryweave/standard-schema` |  1.17 kB |    584 B |    433 B |    289 B |      244 B |
-| `@queryweave/vue`             |  3.04 kB |  1.13 kB |  1.35 kB |    679 B |      613 B |
-| `@queryweave/vue-router`      |  2.52 kB |  1.02 kB |  1.15 kB |    620 B |      556 B |
-| `@queryweave/nuxt`            |  2.72 kB |  1.51 kB |    992 B |    752 B |      648 B |
+| `@queryweave/core`            | 35.87 kB |  8.81 kB | 16.81 kB |  5.66 kB |    5.09 kB |
+| `@queryweave/testing`         |  1.76 kB |    742 B |    780 B |    491 B |      433 B |
+| `@queryweave/browser`         |  2.71 kB |  1.11 kB |  1.13 kB |    564 B |      472 B |
+| `@queryweave/server`          |  3.05 kB |  1.22 kB |    940 B |    469 B |      409 B |
+| `@queryweave/node`            |  3.77 kB |  1.45 kB |  1.32 kB |    691 B |      608 B |
+| `@queryweave/standard-schema` |  1.18 kB |    537 B |    558 B |    341 B |      299 B |
+| `@queryweave/vue`             |  3.59 kB |  1.35 kB |  1.59 kB |    796 B |      724 B |
+| `@queryweave/vue-router`      |  3.25 kB |  1.36 kB |  1.32 kB |    699 B |      616 B |
+| `@queryweave/nuxt`            |  2.87 kB |  1.60 kB |  1.25 kB |    911 B |      781 B |
 
 <!-- bundle-size-table:end -->
 
@@ -128,16 +132,16 @@ remain external so the figures show QueryWeave's contribution.
 
 | Consumer scenario           | minified |    gzip |  Brotli |
 | --------------------------- | -------: | ------: | ------: |
-| Query string parser         |    386 B |   281 B |   229 B |
-| Single text model (named)   |  6.46 kB | 2.30 kB | 2.08 kB |
-| Single text model (`param`) |  9.66 kB | 3.13 kB | 2.82 kB |
-| Typical core runtime        | 10.03 kB | 3.45 kB | 3.13 kB |
-| Browser runtime             |  9.54 kB | 3.47 kB | 3.12 kB |
-| Web server parsing          |  7.29 kB | 2.55 kB | 2.31 kB |
-| Node request parsing        |  7.71 kB | 2.71 kB | 2.44 kB |
-| Vue binding                 |  9.57 kB | 3.47 kB | 3.15 kB |
-| Vue + Vue Router            | 10.70 kB | 3.85 kB | 3.48 kB |
-| Nuxt runtime                | 10.94 kB | 3.96 kB | 3.58 kB |
+| Query string parser         |    724 B |   466 B |   390 B |
+| Single text model (named)   |  9.38 kB | 3.17 kB | 2.87 kB |
+| Single text model (`param`) | 13.47 kB | 4.30 kB | 3.86 kB |
+| Typical core runtime        | 14.69 kB | 4.96 kB | 4.49 kB |
+| Browser runtime             | 14.06 kB | 4.93 kB | 4.47 kB |
+| Web server parsing          | 10.28 kB | 3.43 kB | 3.10 kB |
+| Node request parsing        | 11.28 kB | 3.83 kB | 3.47 kB |
+| Vue binding                 | 14.11 kB | 4.97 kB | 4.51 kB |
+| Vue + Vue Router            | 15.41 kB | 5.43 kB | 4.90 kB |
+| Nuxt runtime                | 15.91 kB | 5.63 kB | 5.08 kB |
 
 <!-- consumer-size-table:end -->
 
@@ -159,12 +163,15 @@ Run it with `pnpm docs:dev`.
 - [Writing an adapter](./apps/docs/src/content/docs/adapters/writing-an-adapter.mdx)
 - [Testing query state](./apps/docs/src/content/docs/recipes/testing-query-state.mdx)
 - [Architecture](./ARCHITECTURE.md) and [architecture decisions](./docs/adr)
+- [Support and stability](./apps/docs/src/content/docs/project/support.mdx)
+- [Upgrading](./apps/docs/src/content/docs/project/upgrading.mdx)
 - [Releasing](./apps/docs/src/content/docs/project/releasing.mdx)
 - [Security](./SECURITY.md)
 
 ## Development
 
-Use Node.js 24.18.0 or newer on the Node 24 LTS line and pnpm 11.17.0.
+Use Node.js 22.13 or newer — 24 is what CI's full gate runs on — and pnpm 11.17.0. The published
+packages support Node 22.12 and newer.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -192,10 +199,10 @@ pnpm check:release    # the full gate plus consumer fixtures
 pnpm docs:dev
 ```
 
-Real-browser tests need Chromium once:
+Real-browser tests run in Chromium, Firefox, and WebKit; install them once:
 
 ```sh
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium firefox webkit
 ```
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for boundaries,

@@ -2,6 +2,8 @@ export type {
   QueryAdapter,
   QueryChangeListener,
   QueryNavigationMode,
+  QueryNavigationOutcome,
+  QueryNavigationResult,
   QuerySource,
 } from "./adapter";
 export type { QueryBinding } from "./binding";
@@ -57,6 +59,7 @@ export type {
   QueryRefinement,
   QueryRefinementIssue,
   QueryRefinementResult,
+  QueryTransform,
 } from "./refinement";
 export { failValue, okValue } from "./results";
 export type { DecodeResult, QueryValueResult } from "./results";
@@ -68,5 +71,6 @@ export type {
   QuerySnapshotListener,
   QueryStatus,
   QueryTransitionOptions,
+  QueryTransitionOutcome,
   QueryTransitionResult,
 } from "./runtime";

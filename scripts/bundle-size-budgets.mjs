@@ -1,24 +1,29 @@
+/**
+ * Minified-gzip budgets sit just above the current figures, so a real regression fails while
+ * ordinary refactoring does not. The 2026-09 step-up covers ADR 0009: serialized transitions,
+ * pending decodes, refinement inverses, default validation, and exception capture in core.
+ */
 export const packageMinifiedGzipBudgets = {
   "@queryweave/browser": 600,
-  "@queryweave/core": 4_100,
-  "@queryweave/node": 465,
-  "@queryweave/nuxt": 825,
-  "@queryweave/server": 460,
-  "@queryweave/standard-schema": 340,
-  "@queryweave/testing": 475,
-  "@queryweave/vue": 750,
-  "@queryweave/vue-router": 700,
+  "@queryweave/core": 5_800,
+  "@queryweave/node": 710,
+  "@queryweave/nuxt": 925,
+  "@queryweave/server": 480,
+  "@queryweave/standard-schema": 350,
+  "@queryweave/testing": 500,
+  "@queryweave/vue": 810,
+  "@queryweave/vue-router": 710,
 };
 
 export const consumerMinifiedGzipBudgets = {
-  browser: 3_600,
-  node: 2_825,
-  nuxt: 4_100,
-  "query-string": 320,
-  server: 2_650,
-  "text-model": 2_400,
-  "text-model-registry": 3_250,
-  "typical-core": 3_550,
-  vue: 3_600,
-  "vue-router": 3_975,
+  browser: 5_000,
+  node: 3_900,
+  nuxt: 5_700,
+  "query-string": 480,
+  server: 3_500,
+  "text-model": 3_250,
+  "text-model-registry": 4_350,
+  "typical-core": 5_050,
+  vue: 5_050,
+  "vue-router": 5_500,
 };

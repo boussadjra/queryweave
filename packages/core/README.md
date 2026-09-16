@@ -3,6 +3,10 @@
 The framework-independent engine: query input, parameters, codecs, models, decode results, issues,
 canonical encoding, adapters, and runtime transitions.
 
+```sh
+pnpm add @queryweave/core
+```
+
 ```ts
 import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
 
@@ -27,3 +31,5 @@ nothing about browser globals, Node.js built-ins, Vue, routing, Nuxt, React, or 
 vendor.
 
 Public contracts remain provisional; this package is not production ready.
+
+Documentation: https://queryweave-docs.vercel.app/reference/core/

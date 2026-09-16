@@ -22,8 +22,12 @@ Usage: pnpm publish:packages -- [options]
 Publishes each package in the fixed @queryweave/* group only when its exact
 version is not already present on npm.
 
+Until a stable version exists, every publish goes to "latest" so a bare
+install resolves the newest prerelease. Once a stable version is on the
+registry, a prerelease is published under its own id (alpha, beta, rc).
+
 Options:
-  --tag <tag>      Dist-tag to publish under (default: prerelease id or latest)
+  --tag <tag>      Dist-tag to publish under (overrides the policy above)
   --otp <code>     npm one-time password, when required by the npm account
   --dry-run        Print the registry-backed plan and publish nothing
   --help           Show this message
@@ -83,9 +87,20 @@ function readManifests() {
   return manifests;
 }
 
-function tagFor(version) {
+/**
+ * A prerelease keeps its own dist-tag only once a stable version exists to hold `latest`. Before
+ * that, `latest` must follow the newest prerelease, or a bare install resolves an older one.
+ */
+function tagFor(version, published) {
   const prerelease = parseVersion(version).prerelease;
-  return typeof prerelease?.[0] === "string" ? prerelease[0] : "latest";
+  if (typeof prerelease?.[0] !== "string") {
+    return "latest";
+  }
+  const stableExists = [...published].some((name) => {
+    const parsed = parseVersion(name);
+    return parsed !== undefined && parsed.prerelease === undefined;
+  });
+  return stableExists ? prerelease[0] : "latest";
 }
 
 async function publishedVersions(name) {
@@ -118,15 +133,17 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const manifests = readManifests();
   const [{ version }] = manifests;
-  const tag = options.tag ?? tagFor(version);
+
+  const plan = await Promise.all(
+    manifests.map(async (manifest) => {
+      const published = await publishedVersions(manifest.name);
+      return { ...manifest, published, alreadyPublished: published.has(version) };
+    }),
+  );
+  // The group shares one version, so the first package decides the tag for every package.
+  const tag = options.tag ?? tagFor(version, plan[0]?.published ?? new Set());
 
   console.log(`Publishing ${version} under the "${tag}" tag\n`);
-  const plan = await Promise.all(
-    manifests.map(async (manifest) => ({
-      ...manifest,
-      alreadyPublished: (await publishedVersions(manifest.name)).has(version),
-    })),
-  );
 
   const width = Math.max(...plan.map(({ name }) => name.length));
   for (const { alreadyPublished, name } of plan) {

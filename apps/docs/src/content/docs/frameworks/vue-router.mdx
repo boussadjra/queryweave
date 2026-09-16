@@ -21,8 +21,8 @@ This package produces an adapter and nothing else. It depends on `@queryweave/co
 
 - Reading `route.query` and converting it to entries, preserving repeated keys.
 - Navigating with `router.push` and `router.replace`, keeping the current path and hash.
-- Watching `route.fullPath` and reporting changes.
-- Reporting navigation failures instead of throwing.
+- Watching `route.fullPath` and reporting changes, in a scope the adapter owns.
+- Reporting a refused or redirected navigation as the transition's outcome instead of throwing.
 
 ## What it does not own
 
@@ -40,6 +40,8 @@ Decoding, validation, defaults, and the Vue binding. Those belong to the model a
 ```sh
 pnpm add @queryweave/core @queryweave/vue-router
 ```
+
+Vue Router 4.4 and newer, and Vue Router 5, are supported; both are run in the consumer fixtures.
 
 ## Example
 
@@ -76,25 +78,27 @@ const runtime = createQueryRuntime({
 
 ## Handling refused navigation
 
-Router navigation can be cancelled by a guard or redirected. That is an environment condition, not
-a programming error, so the adapter reports it rather than throwing into your transition:
+Router navigation can be declined by a guard or redirected. That is an environment condition, not
+a programming error, so the transition resolves with the outcome instead of rejecting:
 
-```ts {1-7}
-const adapter = createVueRouterAdapter(router, {
-  onNavigationFailure: (outcome) => {
-    if (!outcome.ok) {
-      console.warn("Query navigation was refused", outcome.failure);
-    }
-  },
-});
+```ts {1,3-8}
+const result = await filters.update({ page: 9 });
+
+if (result.outcome === "refused") {
+  console.warn("Query navigation was refused", result.reason); // Vue Router's NavigationFailure
+}
+if (result.outcome === "redirected") {
+  // the router ended on another route; result.snapshot reflects it
+}
 ```
 
-`outcome.failure` is Vue Router's own `NavigationFailure`, or an `Error` if the router threw.
+`result.snapshot` is the settled state after the transition whatever its outcome. A guard that
+_throws_ is an error rather than a refusal, and it rejects the transition.
 
 <Aside type="caution" title="A refused navigation still resolves the transition">
   `await runtime.update(...)` resolves normally when the router refuses, because the transition did
-  what it was asked to do — the environment declined. If a refusal must change your control flow,
-  observe it through `onNavigationFailure` and act there.
+  what it was asked to do — the environment declined. Read `result.outcome` when a refusal must
+  change your control flow.
 </Aside>
 
 ## Which adapter should you use?
@@ -113,16 +117,26 @@ History API — will fight, and the router will not know about writes it did not
 ## Edge cases
 
 - **Path and hash survive** every transition; only the query is rewritten.
+- **The router owns the URL's text.** Values are handed over as entries and the router writes them
+  in its own encoding and key order, so the bytes can differ from `formatQueryString`; the entries
+  do not.
 - **A `null` query value** — Vue Router's representation of `?flag` — becomes an empty string entry.
 - **Repeated keys** round-trip through the router's array form.
+- **A key named after an `Object.prototype` member** (`?constructor=1`) is read and written
+  correctly; the router's own parse of it is worked around.
+- **Writes wait for `router.isReady()`**, so a transition issued during the initial navigation lands
+  on the real route rather than on the placeholder.
 - **Notification comes from the route watcher**, not from `push`, because the router already
-  reports its own changes. This is why one transition still produces exactly one notification.
-- **After `dispose`**, the watcher stops and later navigation throws.
+  reports its own changes. This is why one transition still produces exactly one notification. The
+  watcher lives in a detached effect scope owned by the adapter, so it survives the unmounting of
+  the component that subscribed first and stops when the last subscriber leaves.
+- **After `dispose`**, the watcher stops and later navigation and subscription throw.
 
 ## How it is tested
 
-`tests/vue-router/adapter.test.ts` drives a real router through push, replace, guard-refused
-navigation, and repeated keys. The `vue-router` consumer fixture runs the packed archive against a
-router outside the workspace.
+`tests/vue-router/adapter.test.ts` drives a real router through push, replace, refused and
+redirected navigation, a subscriber that unmounts before another subscribes, prototype-named keys,
+and repeated keys. The `vue-router` and `vue-router-4` consumer fixtures run the packed archive
+against a router outside the workspace on both supported majors.
 
 <IntegrationNav />

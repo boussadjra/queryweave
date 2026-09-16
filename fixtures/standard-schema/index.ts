@@ -24,14 +24,17 @@ const model = defineQueryModel(
       .text()
       .refine(fromStandardSchema(v.pipe(v.string(), v.minLength(2, "too short"))))
       .optional(),
-    length: param
+    // A transforming schema changes the value's type, so it carries the inverse used for writing.
+    count: param
       .text()
       .refine(
         fromStandardSchema(
           v.pipe(
             v.string(),
-            v.transform((value) => value.length),
+            v.regex(/^\d+$/u, "digits only"),
+            v.transform((value) => Number(value)),
           ),
+          { encode: (value) => String(value) },
         ),
       )
       .default(0),
@@ -47,18 +50,22 @@ const model = defineQueryModel(
         v.pipe(
           v.object({
             search: v.union([v.string(), v.undefined_()]),
-            length: v.number(),
+            count: v.number(),
           }),
-          v.check((value) => value.length <= 20, "too long overall"),
+          v.check((value) => value.count <= 20, "too many overall"),
         ),
       ),
     ],
   },
 );
 
-const accepted = model.decode("?search=vue&length=hello");
+const accepted = model.decode("?search=vue&count=5");
 assert.equal(accepted.ok, true);
-assert.equal(accepted.ok ? accepted.value.length : undefined, 5);
+assert.equal(accepted.ok ? accepted.value.count : undefined, 5);
+assert.deepEqual(model.encode({ search: "vue", count: 5 }), [
+  ["search", "vue"],
+  ["count", "5"],
+]);
 
 const rejected = model.decode("?search=v");
 assert.equal(rejected.ok, true);
@@ -66,9 +73,13 @@ assert.equal(rejected.issues[0]?.code, "validation_failed");
 assert.equal(rejected.issues[0]?.message, "too short");
 assert.equal(rejected.ok ? rejected.value.search : "unset", undefined);
 
-const modelLevel = model.decode("?length=this-string-is-definitely-too-long");
+const notDigits = model.decode("?count=five");
+assert.equal(notDigits.ok ? notDigits.value.count : undefined, 0);
+assert.equal(notDigits.issues[0]?.message, "digits only");
+
+const modelLevel = model.decode("?count=25");
 assert.equal(modelLevel.ok, false);
-assert.equal(modelLevel.issues.at(-1)?.message, "too long overall");
+assert.equal(modelLevel.issues.at(-1)?.message, "too many overall");
 
 const asyncModel = defineQueryModel({
   slug: param
@@ -82,10 +93,13 @@ const asyncModel = defineQueryModel({
             return value !== "taken";
           }, "already taken"),
         ),
+        { async: true },
       ),
     )
     .optional(),
 });
+
+assert.equal(asyncModel.decode("?slug=free").issues[0]?.code, "async_required");
 
 const resolved = await asyncModel.decodeAsync("?slug=free");
 assert.equal(resolved.ok && resolved.value.slug, "free");

@@ -78,7 +78,9 @@ async function prepareFixture(fixtureName, workspace, tarballs) {
 
   /**
    * The fixture becomes its own workspace root. It lives outside the repository, so pnpm reads
-   * these settings instead of QueryWeave's, and nothing resolves through workspace linking.
+   * these settings instead of QueryWeave's, and nothing resolves through workspace linking. Peer
+   * dependencies are strict so a published range that excludes a fixture's framework version
+   * fails the install instead of being papered over.
    */
   const overrideLines = Object.entries(overrides)
     .map(([dependency, target_]) => `  "${dependency}": "${target_}"`)
@@ -91,7 +93,7 @@ async function prepareFixture(fixtureName, workspace, tarballs) {
       "overrides:",
       overrideLines,
       "",
-      "strictPeerDependencies: false",
+      "strictPeerDependencies: true",
       "",
       "allowBuilds:",
       "  esbuild: true",

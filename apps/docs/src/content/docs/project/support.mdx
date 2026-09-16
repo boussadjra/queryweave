@@ -1,0 +1,92 @@
+---
+title: Support and stability
+description: Which versions of Node.js, TypeScript, browsers, Vue, Vue Router, and Nuxt are supported, and what a version number promises.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+<Aside type="caution" title="Pre-1.0">
+  Every `@queryweave/*` package shares one version and is pre-1.0. The contracts below are what the
+  current release supports and tests; none of them is frozen yet.
+</Aside>
+
+## Supported versions
+
+"Supported" means a version the repository installs and runs the packages against on every change.
+Other versions may work, but a failure on them is not treated as a bug until they are added here.
+
+| Dependency         | Supported                       | How it is verified                                                    |
+| ------------------ | ------------------------------- | --------------------------------------------------------------------- |
+| Node.js            | 22.12 and newer, 24 recommended | Unit and integration suites on 22.12 and 24 in CI                     |
+| TypeScript         | 5.5 and newer                   | The `universal` fixture compiles the published declarations on 5.5.4  |
+| Browsers           | Chromium, Firefox, WebKit       | The browser adapter suite and the Playwright suite run in all three   |
+| Vue                | 3.5 and newer, below 4          | The `vue` fixture and every Vue test on 3.5                           |
+| Vue Router         | 4.4 and newer, below 6          | The `vue-router` fixture on 5.x and the `vue-router-4` fixture on 4.x |
+| Nuxt               | 4.5 and newer, below 5          | The `nuxt` fixture builds and server-renders `pages/` on 4.5          |
+| Deno, Bun, Workers | `@queryweave/server` only       | Not run in CI; the package uses `URL` and `Request` and nothing else  |
+
+The published `engines.node` field is `>=22.12.0` for every package, including browser-only ones.
+Repository development itself needs Node 22.13 or newer because of pnpm.
+
+### Peer dependencies
+
+| Package                  | Peers                                                        |
+| ------------------------ | ------------------------------------------------------------ |
+| `@queryweave/vue`        | `vue >=3.5.0 <4`                                             |
+| `@queryweave/vue-router` | `vue >=3.5.0 <4`, `vue-router >=4.4.0 <6`                    |
+| `@queryweave/nuxt`       | `nuxt >=4.5.0 <5`, `vue >=3.5.0 <4`, `vue-router >=5.2.0 <6` |
+
+The Nuxt package's Vue Router peer is narrower than the standalone adapter's because Nuxt 4.5 itself
+ships Vue Router 5. `@nuxt/kit` and `@nuxt/schema` are dependencies declared as `^4.5.0`, so an
+application on a newer 4.x does not receive a second copy.
+
+## Stability policy
+
+### What a version number means
+
+Until 1.0, a **minor** version may contain breaking changes. Every breaking change has an
+[architecture decision record](https://github.com/boussadjra/queryweave/tree/main/docs/adr) that
+explains the reasoning and a changeset that says what to write instead, both summarized in
+[Upgrading](/project/upgrading/). A **patch** version never breaks anything. Nothing breaks
+silently.
+
+All packages share one version through a fixed group, so a release moves every package at once and
+the matrix of compatible versions is always "the same version".
+
+### What counts as public
+
+The public API is what the [API reference](/reference/) documents. Beyond signatures, these
+behaviors are part of the contract and changing them is a breaking change:
+
+- The bytes `formatQueryString` and `model.encode` produce for a given state: key order, default
+  omission, the empty-list spelling, and the urlencoded escaping.
+- What each parameter family accepts and rejects, and which issue code it reports.
+- The recovery rule: an invalid value recovers to its default or to `undefined` and reports an
+  issue.
+- Transition semantics: one write per transition, serialized per runtime, one notification per
+  change, and the meaning of each `outcome`.
+
+These are **not** part of the contract:
+
+- Issue `message` text. Match on `code`, never on the message.
+- The order of issues within one decode.
+- The internal file layout of a package. Import from the package entry point only.
+- Anything exported from `@queryweave/nuxt/runtime/plugin`; that entry point exists for the module
+  to register, not for applications to import.
+
+### Additive changes
+
+`QueryIssueCode`, `QueryParamKind`, `QueryStatus`, and `QueryTransitionOutcome` are closed unions
+today. Adding a member to one is an additive change that ships in a minor version. An exhaustive
+`switch` over any of them should keep a `default` branch.
+
+### Deprecation
+
+Before 1.0 there is no deprecation period: a removed API is removed in the minor version that
+records it. After 1.0, a deprecated API is marked with `@deprecated`, keeps working for at least one
+minor version, and is removed in the next major.
+
+### Node.js support window
+
+A Node.js line is supported while it is in active or maintenance LTS. Dropping a line that reached
+end of life is a minor change, announced in the changelog one release ahead.

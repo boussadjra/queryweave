@@ -17,9 +17,9 @@ import { Aside } from "@astrojs/starlight/components";
 ## What it owns
 
 - Reading `location.search`.
-- Writing through `history.pushState` and `history.replaceState`, preserving the path, the hash,
-  and the existing history state object.
-- Listening for `popstate` and reporting the change.
+- Writing through `history.pushState` and `history.replaceState`, preserving the path and the
+  hash.
+- Listening for `popstate` and reporting a change to the query.
 
 ## What it does not own
 
@@ -111,17 +111,25 @@ creates its own adapter, tie it to teardown.
 
 ## Edge cases
 
-- **Path and hash are preserved.** The adapter rebuilds the URL from
-  `location.pathname`, the new query, and `location.hash`.
+- **Path and hash are preserved.** The adapter rebuilds the URL from `location.href` with only the
+  query replaced, so even a pathname that starts with `//` survives.
 - **An empty query drops the `?`.** Writing an empty output produces `/products`, not
   `/products?`.
-- **`history.state` is carried across.** The adapter passes the current state object back into
-  `pushState` and `replaceState`, so router state stored there is not destroyed.
-- **After `dispose`, `push` and `replace` throw.** Reading does not.
+- **`history.state` is kept on replace and cleared on push.** Replacing keeps the entry's state
+  object; a pushed entry starts with `null`, so a router's state is not copied onto an entry it did
+  not create.
+- **A hash-only or path-only `popstate` is ignored.** Subscribers hear only about the query.
+- **Writes by other code are not observed.** `pushState` fires no event, so a second adapter or a
+  router writing the same history is invisible to this one. Share one adapter per window, and use
+  `@queryweave/vue-router` when a router owns the history.
+- **Safari rate-limits history writes** — around a hundred in ten seconds — and throws a
+  `SecurityError` past that. The write then rejects the transition; debounce fast-changing inputs.
+- **After `dispose`, `push`, `replace`, and `subscribe` throw.** Reading does not.
 
 ## How it is tested
 
-The `browser` Vitest project runs in real Chromium through Vitest Browser Mode, and the Playwright
-suite drives the browser playground end to end — including back and forward.
+The `browser` Vitest project runs in Chromium, Firefox, and WebKit through Vitest Browser Mode, and
+the Playwright suite drives the browser playground end to end in the same three engines, including
+back navigation.
 
 <IntegrationNav />

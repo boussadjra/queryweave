@@ -11,6 +11,8 @@ import {
   type QueryCodec,
   type QueryModelValues,
   type QueryParamBuilder,
+  type QueryRefinement,
+  type QueryTransform,
   type QueryValueResult,
 } from "@queryweave/core";
 import { describe, expectTypeOf, it } from "vitest";
@@ -130,5 +132,41 @@ describe("modifier inference", () => {
   it("rejects a list item that is not a parameter", () => {
     // @ts-expect-error a list needs a parameter, not a codec.
     param.list({ decode: () => undefined, encode: () => [] });
+  });
+});
+
+describe("refinement inference", () => {
+  const lengthCheck: QueryRefinement<string> = {
+    refine: (value) => (value.length > 1 ? { ok: true, value } : { ok: false, issues: [] }),
+  };
+  const asNumber: QueryTransform<string, number> = {
+    refine: (value) => ({ ok: true, value: Number(value) }),
+    encode: (value) => String(value),
+  };
+
+  it("keeps undefined and null out of what a refinement receives, and in the result", () => {
+    const model = defineQueryModel({
+      optional: param.text().optional().refine(lengthCheck),
+      nullable: param.text().nullable().refine(lengthCheck),
+      both: param.text().nullable().optional().refine(asNumber),
+    });
+    type Values = QueryModelValues<(typeof model)["params"]>;
+    expectTypeOf<Values["optional"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<Values["nullable"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<Values["both"]>().toEqualTypeOf<number | null | undefined>();
+  });
+
+  it("narrows through a validating refinement without an inverse", () => {
+    const narrowed = param.text().refine<"a" | "b">({
+      refine: (value) =>
+        value === "a" || value === "b" ? { ok: true, value } : { ok: false, issues: [] },
+    });
+    expectTypeOf(narrowed.defaultValue).toEqualTypeOf<"a" | "b" | undefined>();
+  });
+
+  it("requires an inverse when the type changes", () => {
+    // @ts-expect-error a transform to another type must provide `encode`.
+    param.text().refine({ refine: (value: string) => ({ ok: true, value: value.length }) });
+    expectTypeOf(param.text().refine(asNumber).defaultValue).toEqualTypeOf<number | undefined>();
   });
 });

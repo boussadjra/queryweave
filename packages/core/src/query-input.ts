@@ -25,9 +25,12 @@ export type QueryInput = string | Iterable<QueryEntry> | QueryRecordInput;
 const unsafeUrlEncodedCharacters = /[!'()~]/gu;
 const encodedSpace = /%20/gu;
 const plusSign = /\+/gu;
+const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/gu;
+const percentRun = /(?:%[0-9A-Fa-f]{2})+/gu;
 
 function encodeComponent(value: string): string {
-  return encodeURIComponent(value)
+  // `encodeURIComponent` throws on a lone surrogate; `URLSearchParams` writes U+FFFD instead.
+  return encodeURIComponent(value.replace(loneSurrogate, "�"))
     .replace(
       unsafeUrlEncodedCharacters,
       (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
@@ -35,13 +38,21 @@ function encodeComponent(value: string): string {
     .replace(encodedSpace, "+");
 }
 
+/**
+ * Decode one urlencoded component.
+ *
+ * `+` always means a space. Each run of percent sequences is decoded on its own, so a malformed
+ * sequence, or a run that is not valid UTF-8, keeps only itself verbatim rather than the whole
+ * value.
+ */
 function decodeComponent(value: string): string {
-  const candidate = value.replace(plusSign, "%20");
-  try {
-    return decodeURIComponent(candidate);
-  } catch {
-    return value;
-  }
+  return value.replace(plusSign, " ").replace(percentRun, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
 }
 
 function isEntryIterable(input: QueryInput): input is Iterable<QueryEntry> {
@@ -52,7 +63,7 @@ function isEntryIterable(input: QueryInput): input is Iterable<QueryEntry> {
  * Parse an `application/x-www-form-urlencoded` query string.
  *
  * A single leading `?` is ignored, empty segments are skipped, keys without `=` decode to an empty
- * value, and malformed percent sequences are kept verbatim instead of throwing.
+ * value, and a malformed percent sequence is kept verbatim instead of throwing.
  */
 export function parseQueryString(source: string): QueryOutput {
   const body = source.startsWith("?") ? source.slice(1) : source;
@@ -73,7 +84,11 @@ export function parseQueryString(source: string): QueryOutput {
   return entries;
 }
 
-/** Serialize entries into a canonical query string without a leading `?`. */
+/**
+ * Serialize entries into a canonical query string without a leading `?`.
+ *
+ * The output is byte-identical to `URLSearchParams.prototype.toString` for the same entries.
+ */
 export function formatQueryString(entries: QueryOutput): string {
   const parts: string[] = [];
   for (const [key, value] of entries) {

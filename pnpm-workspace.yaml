@@ -34,8 +34,9 @@ catalogs:
     vue-router: 5.2.0
     vue-tsc: 3.3.8
   nuxt:
-    "@nuxt/kit": 4.5.0
-    "@nuxt/schema": 4.5.0
+    # Published as ranges so an application on a newer 4.x does not receive a second copy of kit.
+    "@nuxt/kit": ^4.5.0
+    "@nuxt/schema": ^4.5.0
     nuxt: 4.5.0
   validation:
     "@standard-schema/spec": 1.1.0

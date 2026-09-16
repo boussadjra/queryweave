@@ -40,8 +40,9 @@ const result = products.decode("?search=%20wireless%20headphones%20");
 if (result.ok) result.value.search; // "wireless headphones"
 ```
 
-Trimming happens before length checks, so `"  ab  "` with `trim` and `minLength: 2` is valid.
-A length violation reports `out_of_range`.
+Trimming happens before length checks, so `"  ab  "` with `trim` and `minLength: 2` is valid, and
+before the empty-value rule, so a whitespace-only value reports `empty`. A length violation reports
+`out_of_range`.
 
 ### integer and number
 
@@ -59,8 +60,9 @@ recovered.issues.map((issue) => issue.code); // ["invalid", "out_of_range"]
 ```
 
 `integer` accepts an optional sign and digits only, and rejects anything outside the safe integer
-range with `out_of_range`. `number` rejects any input that is not finite with `invalid`, which
-includes `NaN` and `Infinity`.
+range with `out_of_range`. `number` accepts plain decimal notation with an optional exponent —
+`4.5`, `.5`, `-2`, `1e3` — and reports `invalid` for everything else, including `0x10`, `NaN`, and
+`Infinity`, which JavaScript's own `Number()` would accept. Both decode `-0` as `0`.
 
 ### boolean
 
@@ -74,8 +76,9 @@ if (result.ok) result.value.inStock; // true
 products.encode({ inStock: true }); // [["inStock", "true"]]
 ```
 
-Comparison is case-insensitive. Encoding writes the first entry of the matching list, so a custom
-`truthy: ["yes"]` produces `?flag=yes` rather than `?flag=true`.
+Comparison is case-insensitive, for the built-in spellings and for custom ones. Encoding writes the
+first entry of the matching list as you spelled it, so `truthy: ["Yes"]` accepts `yes` and produces
+`?flag=Yes`. An empty list, or a spelling listed as both truthy and falsy, throws at construction.
 
 ### choice
 
@@ -104,9 +107,17 @@ if (result.ok) result.value.category; // ["books", "music"]
 products.encode({ category: ["books", "music"] }); // repeated category entries
 ```
 
-A list consumes every value stored under its key, so `?tag=a&tag=b` decodes to `["a", "b"]`. Empty
-entries are dropped and reported as `empty` rather than becoming empty strings in the array. Each
+A list consumes every value stored under its key, so `?tag=a&tag=b` decodes to `["a", "b"]`. Each
 item is decoded by the item parameter's codec, and item issues carry the index in their `path`.
+
+An empty list has one spelling: a single empty value. `products.encode({ category: [] })` writes
+`category=` when `[]` is not the declared default, and `?category=` decodes to `[]` with no issue.
+That is what lets a required list hold nothing, an optional list tell "absent" from "cleared", and
+a list whose default is non-empty be emptied. An empty entry beside real values — `?tag=a&tag=` —
+is dropped and reported as `empty`.
+
+Two shapes have no representation in a query string and throw at construction: a list of lists,
+and `.nullable()` on a list.
 
 ### custom
 
@@ -170,9 +181,12 @@ const products = defineQueryModel({ search });
   encodes `null` back to an empty value. This is how you distinguish "set to nothing" from "not
   set".
 - `.optional()` sets presence to `optional` and widens the type with `undefined`.
-- `.refine(refinement)` adds validation, and may transform the value's type.
+- `.refine(refinement)` adds validation, and may transform the value's type when the refinement
+  provides the inverse.
 - `.default(value)` sets presence to `default` and **closes the chain** — it returns a
-  `QueryParam`, not a builder.
+  `QueryParam`, not a builder. The value must be one the parameter's own codec accepts:
+  `param.integer({ min: 1 }).default(0)` throws, and so does `param.text().default("")` without
+  `allowEmpty`. The stored default is a frozen copy, shared safely by every decode.
 
 <Aside type="caution" title="Order matters at the end">
   `.default()` returns a parameter rather than a builder, so it must come last. Write
@@ -195,12 +209,31 @@ const slug = param.text().refine({
 ```
 
 Refinements form a pipeline: each one receives the previous one's output. A failure becomes a
-`validation_failed` issue and the parameter recovers according to its presence.
+`validation_failed` issue and the parameter recovers according to its presence. A refinement never
+receives `null` or `undefined`; those are settled before it runs.
+
+A refinement that changes the value's type is a transform, and must provide `encode`, the inverse
+QueryWeave applies when the value is written back:
+
+```ts {1-9}
+const count = param.text().refine({
+  refine: (value) =>
+    /^\d+$/.test(value)
+      ? { ok: true, value: Number(value) }
+      : { ok: false, issues: [{ message: "Digits only." }] },
+  encode: (value) => String(value),
+});
+
+// count is number; `encode` runs last-to-first through a pipeline when writing
+```
+
+Without `encode`, a type-changing refinement does not type-check against `.refine()`.
 
 A refinement may return a promise. Synchronous `decode` cannot wait for it, so it reports
-`validation_failed` with a message telling you to use `decodeAsync` — it does not block, and it
-does not silently succeed. This is how [Standard Schema](/validation/) validators with asynchronous
-schemas participate.
+`async_required` — it does not block, and it does not silently succeed. Declare it with
+`async: true` so the synchronous path does not start it. This is how [Standard Schema](/validation/)
+validators with asynchronous schemas participate, and a [runtime](/runtime/) turns it into a
+`pending` snapshot that settles on its own.
 
 ## Edge cases
 
@@ -210,10 +243,15 @@ schemas participate.
   `.nullable()` (decodes to `null`) or `text({ allowEmpty: true })` (decodes to `""`).
 - **`undefined` at encode time**: emits nothing, so the key is absent from the URL.
 - **`null` at encode time**: emits an empty value if the parameter is nullable, nothing otherwise.
+- **Inverted bounds** — `min` above `max`, `minLength` above `maxLength`, `minItems` above
+  `maxItems` — throw at construction.
+- **A codec or refinement that throws** becomes an `invalid` or `validation_failed` issue carrying
+  the error's message; decoding never throws.
 
 ## How it is tested
 
 `tests/core/semantics.test.ts` covers presence, recovery, and the issue codes each family emits;
+`tests/core/parameters.test.ts` covers grammar, defaults, empty lists, transforms, and exceptions;
 `tests/core/round-trip.test.ts` asserts that decoding an encoded value returns the original for
 every family.
 

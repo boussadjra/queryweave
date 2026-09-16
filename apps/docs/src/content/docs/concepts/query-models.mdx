@@ -46,7 +46,9 @@ and is therefore absent from that object, which is visible in the type as well a
 The value type follows from the definitions; nothing is written twice.
 
 ```ts
-type ProductValues = ReturnType<typeof products.decode> extends { value: infer T } ? T : never;
+import type { QueryModelValues } from "@queryweave/core";
+
+type ProductValues = QueryModelValues<typeof products.params>;
 // {
 //   search: string | undefined;
 //   page: number;
@@ -128,7 +130,13 @@ re-attaches unmanaged entries after the managed ones. This is what lets QueryWea
 ## Edge cases
 
 - **An empty key throws.** `defineQueryModel({ "": param.text() })` raises a `TypeError` at
-  definition time rather than producing a model that can never round-trip.
+  definition time rather than producing a model that can never round-trip. So does `$`, which is
+  reserved for model-level issues.
+- **A numeric key sorts first.** JavaScript enumerates a key such as `"2"` before every other key
+  whatever the definition order, so canonical output follows that rule too.
+- **Two models on one URL** work when their keys are disjoint; each runtime preserves the other's
+  keys as unmanaged entries. Two models that manage the same key will each re-encode it with their
+  own codec and defaults, so share one model instead.
 - **Duplicate external values** are handed to the parameter, which decides. A single-value
   parameter reports `unexpected_multiple_values` and uses the first; `param.list` consumes them all.
 - **Unknown keys in the input** are ignored by `decode`. They are not an error, because a model is

@@ -105,4 +105,19 @@ describe("request-scoped runtime wiring", () => {
 
     adapter.dispose();
   });
+
+  it("refuses transitions during a server render without moving the router", async () => {
+    const router = await createRequestRouter("/products?page=3");
+    const adapter = createNuxtQueryAdapter(router, { server: true });
+    const binding = useQueryModel(listFilters, { adapter });
+
+    const result = await binding.update({ page: 4 });
+
+    expect(result.outcome).toBe("refused");
+    expect(result.reason).toBeInstanceOf(Error);
+    expect(router.currentRoute.value.query).toStrictEqual({ page: "3" });
+    expect(binding.values.page).toBe(3);
+
+    adapter.dispose();
+  });
 });

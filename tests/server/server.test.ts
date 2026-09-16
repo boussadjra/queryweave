@@ -44,6 +44,16 @@ describe("readUrlQuery", () => {
     expect(result.ok && result.value.page).toBe(1);
     expect(result.issues[0]?.code).toBe("invalid");
   });
+
+  it("reads the query of a string that is not a well-formed URL", () => {
+    const result = readUrlQuery("http://exa mple.com/?page=2#top", productFilters);
+    expect(result.ok && result.value.page).toBe(2);
+    expect(readUrlQuery("no-query-at-all", productFilters).ok).toBe(true);
+    expect(
+      readUrlQuery("/p#frag?page=9", productFilters).ok &&
+        readUrlQuery("/p#frag?page=9", productFilters),
+    ).toMatchObject({ value: { page: 1 } });
+  });
 });
 
 describe("readRequestQuery", () => {

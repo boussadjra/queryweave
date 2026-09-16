@@ -95,9 +95,10 @@ await runtime.transaction((draft) => {
 // written URL: ?search=vue — one write and one history entry
 ```
 
-The draft is a copy of the current values. Mutating it is safe precisely because it is not the
-state — the runtime encodes the result once, writes once, and notifies once. The callback may be
-asynchronous.
+The draft is a shallow copy of the current values: replace a nested object rather than mutating it.
+Mutating the draft is safe precisely because it is not the state — the runtime encodes the result
+once, writes once, and notifies once. The callback may be asynchronous; while it runs it holds the
+runtime's transition queue, so it must not start another transition on the same runtime.
 
 This is the right tool for changes that must not be observable separately. Setting a filter and
 resetting pagination in two `update` calls produces two history entries and two renders; in one
@@ -132,48 +133,60 @@ The default is `push` when the runtime does not say otherwise.
 
 ## Ordering and concurrency
 
-Transitions are applied in the order you call them, and each starts from the state the previous one
-produced. Nothing is coalesced or cancelled, so two rapid calls produce two writes and two history
-entries in `push` mode.
+Transitions on one runtime run one at a time, in the order you call them, and each starts from the
+state the previous one produced. That holds even when the adapter is asynchronous — Vue Router's is
+— and even when you do not await:
 
-There is no queue. If an adapter's navigation is asynchronous — Vue Router's is — and you start a
-second transition before the first settles, the second reads whatever the environment currently
-reports. Await the first when the second depends on it:
-
-```ts {2-3,5-6}
-// Each transition reads the URL produced by the one before it.
-await runtime.update({ search: "vue" });
-// ?search=vue
-
-await runtime.update({ page: 2 });
+```ts {2-3}
+// Neither write is lost; the second is applied on top of the first.
+void runtime.update({ search: "vue" });
+void runtime.update({ page: 2 });
 // ?search=vue&page=2
 ```
 
-Scheduling, throttling, coalescing, and cancellation are [planned](/project/roadmap/), and their
+Nothing is coalesced or cancelled, so two rapid calls are still two writes and two history entries
+in `push` mode. Throttling, coalescing, and cancellation are [planned](/project/roadmap/), and their
 absence is deliberate rather than accidental.
+
+## Outcomes
+
+Every transition resolves with an `outcome`:
+
+| Outcome      | Meaning                                                                        |
+| ------------ | ------------------------------------------------------------------------------ |
+| `committed`  | The environment now holds the written query.                                   |
+| `unchanged`  | The output already matched the environment; nothing was written or notified.   |
+| `refused`    | The environment declined — a router guard returned `false` — and is unchanged. |
+| `redirected` | The environment accepted the write but ended somewhere else.                   |
+
+```ts {1,3-5}
+const result = await runtime.update({ page: 9 });
+
+if (result.outcome === "refused") {
+  report(result.reason); // Vue Router's NavigationFailure, for that adapter
+}
+```
+
+`result.snapshot` is the settled state after the transition whatever its outcome, so after a
+refusal it still reflects what the URL holds. Adapters that cannot refuse — the browser and memory
+adapters — always report `committed` or `unchanged`.
 
 ## Failure
 
-A transition does not throw when the environment refuses. Adapters that can fail — Vue Router's
-rejects a navigation guarded away — report through their own callback rather than by throwing into
-your call:
+A transition does not throw when the environment refuses; it resolves with the outcome above. It
+_does_ reject for two kinds of error:
 
-```ts {1-7}
-createVueRouterAdapter(router, {
-  onNavigationFailure: (outcome) => {
-    if (!outcome.ok) {
-      report(outcome.failure);
-    }
-  },
-});
-```
+- a programming error — a transition on a disposed runtime, or a `transaction` mutator that throws;
+- an environment error — the browser rejecting a `pushState`, or a router guard throwing.
 
-A transition on a disposed runtime _does_ throw, because that is a programming error rather than an
-environment condition.
+A listener that throws does not stop the other listeners; the error is rethrown after all of them
+ran, to the transition that triggered the notification.
 
 ## How it is tested
 
 `tests/runtime/runtime.test.ts` asserts one write and one notification per operation, patch
 merging, removal, reset, and transaction batching, all against the memory adapter.
+`tests/runtime/serialization.test.ts` asserts ordering under an asynchronous adapter, every outcome,
+and the memory adapter's `guard` option, which simulates a refusing environment.
 
 <IntegrationNav />

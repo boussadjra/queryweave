@@ -17,7 +17,8 @@ import { Aside } from "@astrojs/starlight/components";
 
 - A query string held in memory.
 - A history stack with `back`, `forward`, and the two predicates that guard them.
-- Notification on every change, exactly like a real adapter.
+- Notification on every change, and an optional `guard` that refuses or redirects a write the way
+  a router guard would.
 
 ## What it does not own
 
@@ -114,6 +115,27 @@ test("one transition notifies once", async () => {
   expect(seen).toStrictEqual([2]);
 });
 ```
+
+## Testing a refusing environment
+
+```ts {2-5,9-10}
+test("a refused page change leaves the state alone", async () => {
+  const adapter = createMemoryQueryAdapter({
+    initial: "?page=2",
+    guard: (next) =>
+      next.some(([k, v]) => k === "page" && v === "9") ? { outcome: "refused" } : undefined,
+  });
+  const runtime = createQueryRuntime({ model: products, adapter });
+
+  const result = await runtime.update({ page: 9 });
+  expect(result.outcome).toBe("refused");
+  expect(runtime.read().values.page).toBe(2);
+});
+```
+
+The memory adapter navigates synchronously, which real adapters do not. The runtime serializes
+transitions either way, so ordering assertions hold; timing assertions belong in the browser and
+router suites.
 
 <Aside type="tip" title="This is what the documentation runs on">
   The simulator on this site is built from `@queryweave/core` and this adapter. Its history counter,
