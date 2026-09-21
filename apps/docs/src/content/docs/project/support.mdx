@@ -15,15 +15,15 @@ import { Aside } from "@astrojs/starlight/components";
 "Supported" means a version the repository installs and runs the packages against on every change.
 Other versions may work, but a failure on them is not treated as a bug until they are added here.
 
-| Dependency         | Supported                       | How it is verified                                                    |
-| ------------------ | ------------------------------- | --------------------------------------------------------------------- |
-| Node.js            | 22.12 and newer, 24 recommended | Unit and integration suites on 22.12 and 24 in CI                     |
-| TypeScript         | 5.5 and newer                   | The `universal` fixture compiles the published declarations on 5.5.4  |
-| Browsers           | Chromium, Firefox, WebKit       | The browser adapter suite and the Playwright suite run in all three   |
-| Vue                | 3.5 and newer, below 4          | The `vue` fixture and every Vue test on 3.5                           |
-| Vue Router         | 4.4 and newer, below 6          | The `vue-router` fixture on 5.x and the `vue-router-4` fixture on 4.x |
-| Nuxt               | 4.5 and newer, below 5          | The `nuxt` fixture builds and server-renders `pages/` on 4.5          |
-| Deno, Bun, Workers | `@queryweave/server` only       | Not run in CI; the package uses `URL` and `Request` and nothing else  |
+| Dependency         | Supported                       | How it is verified                                                                                                |
+| ------------------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Node.js            | 22.12 and newer, 24 recommended | Unit and integration suites on 22.12 and 24 in CI                                                                 |
+| TypeScript         | 5.5 and newer                   | The `universal` fixture compiles the published declarations on 5.5.4                                              |
+| Browsers           | Chromium, Firefox, WebKit       | The browser adapter suite and the Playwright suite run in all three                                               |
+| Vue                | 3.5 and newer, below 4          | The `vue` fixture and every Vue test on 3.5                                                                       |
+| Vue Router         | 4.4 and newer, below 6          | The `vue-router` fixture on 5.x and the `vue-router-4` fixture on 4.x                                             |
+| Nuxt               | 4.0 and newer, below 5          | The `nuxt` fixture builds and server-renders `pages/` on 4.0; the module tests and the Nuxt playground run on 4.5 |
+| Deno, Bun, Workers | `@queryweave/server` only       | Not run in CI; the package uses `URL` and `Request` and nothing else                                              |
 
 The published `engines.node` field is `>=22.12.0` for every package, including browser-only ones.
 Repository development itself needs Node 22.13 or newer because of pnpm.
@@ -34,11 +34,10 @@ Repository development itself needs Node 22.13 or newer because of pnpm.
 | ------------------------ | ------------------------------------------------------------ |
 | `@queryweave/vue`        | `vue >=3.5.0 <4`                                             |
 | `@queryweave/vue-router` | `vue >=3.5.0 <4`, `vue-router >=4.4.0 <6`                    |
-| `@queryweave/nuxt`       | `nuxt >=4.5.0 <5`, `vue >=3.5.0 <4`, `vue-router >=5.2.0 <6` |
+| `@queryweave/nuxt`       | `nuxt >=4.0.0 <5`, `vue >=3.5.0 <4`, `vue-router >=4.4.0 <6` |
 
-The Nuxt package's Vue Router peer is narrower than the standalone adapter's because Nuxt 4.5 itself
-ships Vue Router 5. `@nuxt/kit` and `@nuxt/schema` are dependencies declared as `^4.5.0`, so an
-application on a newer 4.x does not receive a second copy.
+`@nuxt/kit` and `@nuxt/schema` are dependencies of `@queryweave/nuxt`, declared as `^4.0.0` to cover
+the same Nuxt line as its peer.
 
 ## Stability policy
 

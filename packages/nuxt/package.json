@@ -67,9 +67,9 @@
     "vue-router": "catalog:vue"
   },
   "peerDependencies": {
-    "nuxt": ">=4.5.0 <5",
+    "nuxt": ">=4.0.0 <5",
     "vue": ">=3.5.0 <4",
-    "vue-router": ">=5.2.0 <6"
+    "vue-router": ">=4.4.0 <6"
   },
   "engines": {
     "node": ">=22.12.0"

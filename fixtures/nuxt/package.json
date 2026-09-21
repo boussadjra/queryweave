@@ -11,6 +11,6 @@
     "@queryweave/nuxt": "file:./queryweave-nuxt.tgz",
     "@queryweave/vue": "file:./queryweave-vue.tgz",
     "@queryweave/vue-router": "file:./queryweave-vue-router.tgz",
-    "nuxt": "4.5.0"
+    "nuxt": "4.0.0"
   }
 }

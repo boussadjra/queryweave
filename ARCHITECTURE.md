@@ -135,7 +135,7 @@ see:
   and frozen snapshots, pending decodes with `settled()`, refinement inverses, validated and frozen
   defaults, and the empty-list spelling — ADR 0009.
 - Support matrix and stability policy: Node 22.12+, TypeScript 5.5+, Chromium, Firefox, and WebKit,
-  Vue 3.5+, Vue Router 4.4+ and 5, Nuxt 4.5+; what counts as public; closed unions grow in minor
+  Vue 3.5+, Vue Router 4.4+ and 5, Nuxt 4.0+; what counts as public; closed unions grow in minor
   versions. Documented in `apps/docs/src/content/docs/project/support.mdx`.
 - Dist-tags: every publish goes to `latest` until a stable version exists.
 
