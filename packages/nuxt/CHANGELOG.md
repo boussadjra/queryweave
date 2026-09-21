@@ -1,5 +1,16 @@
 # @queryweave/nuxt
 
+## 0.1.0-beta.2
+
+### Patch Changes
+
+- d0b045d: Accept Nuxt 4.0 and newer. The module uses no API introduced after Nuxt 4.0, so the `nuxt` peer is
+  now `>=4.0.0 <5`, the `vue-router` peer matches `@queryweave/vue-router` at `>=4.4.0 <6`, and
+  `@nuxt/kit` and `@nuxt/schema` are depended on as `^4.0.0`.
+  - @queryweave/core@0.1.0-beta.2
+  - @queryweave/vue@0.1.0-beta.2
+  - @queryweave/vue-router@0.1.0-beta.2
+
 ## 0.1.0-beta.1
 
 ### Minor Changes

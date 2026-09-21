@@ -19,5 +19,5 @@
     "@queryweave/typescript-config": "0.0.0",
     "@queryweave/vitest-config": "0.0.0"
   },
-  "changesets": ["transition-outcomes-and-pending-decodes"]
+  "changesets": ["nuxt-4-0-support", "transition-outcomes-and-pending-decodes"]
 }

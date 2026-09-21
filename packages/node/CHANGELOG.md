@@ -1,5 +1,12 @@
 # @queryweave/node
 
+## 0.1.0-beta.2
+
+### Patch Changes
+
+- @queryweave/core@0.1.0-beta.2
+- @queryweave/server@0.1.0-beta.2
+
 ## 0.1.0-beta.1
 
 ### Minor Changes
