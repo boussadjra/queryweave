@@ -1,5 +1,14 @@
 # @queryweave/nuxt
 
+## 0.1.0-beta.3
+
+### Patch Changes
+
+- Updated dependencies [5225cba]
+  - @queryweave/core@0.1.0-beta.3
+  - @queryweave/vue@0.1.0-beta.3
+  - @queryweave/vue-router@0.1.0-beta.3
+
 ## 0.1.0-beta.2
 
 ### Patch Changes
