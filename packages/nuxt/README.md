@@ -22,4 +22,4 @@ hydration matches.
 Module-time exports and `./runtime` exports stay separate, and no runtime state is held at module
 scope. The Nuxt-specific API is deliberately small and not final.
 
-Documentation: https://queryweave-docs.vercel.app/frameworks/nuxt/
+Documentation: https://queryweave.dev/frameworks/nuxt/

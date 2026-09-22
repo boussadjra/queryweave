@@ -17,4 +17,4 @@ Decoding lives in one place: this package only translates Node primitives. Forwa
 ignored unless you opt in. No Express, Fastify, NestJS, Hono, or frontend framework dependency is
 included.
 
-Documentation: https://queryweave-docs.vercel.app/adapters/node/
+Documentation: https://queryweave.dev/adapters/node/

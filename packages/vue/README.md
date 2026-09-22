@@ -29,4 +29,4 @@ with the surrounding effect scope.
 
 Vue is a peer dependency, and this package does not depend on Vue Router or Nuxt.
 
-Documentation: https://queryweave-docs.vercel.app/frameworks/vue/
+Documentation: https://queryweave.dev/frameworks/vue/

@@ -24,4 +24,4 @@ A schema that changes the value's type must be given `encode`, the inverse used 
 back to a URL. Asynchronous schemas resolve through `model.decodeAsync` and the runtime's pending
 state; declare them with `async: true` so the synchronous decode does not start them.
 
-Documentation: https://queryweave-docs.vercel.app/validation/
+Documentation: https://queryweave.dev/validation/

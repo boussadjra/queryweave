@@ -108,12 +108,13 @@ and takes about two minutes.
 
 ## Status
 
-`0.1.0-beta.2` is on npm under `latest`, published through trusted publishing; `alpha` still
+`0.1.0-beta.3` is on npm under `latest`, published through trusted publishing; `alpha` still
 points at `0.1.0-alpha.1`. Until a stable version exists every publish goes to `latest`. The engine
 runs, is tested, and is validated as published archives, but it is not production ready. The API is
 provisional; breaking changes ship in minor versions with an ADR and a changeset, summarized in
 `apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009 settled transition outcomes,
 serialized transitions, pending decodes, and refinement inverses ahead of a beta; ADR 0010 added
 throttled writes and cancellation on the transition queue. A debounce and supersede semantics are
-deliberately absent. Do not claim production readiness in documentation. The GitHub repository is
-still private, which is why the published packages carry no provenance.
+deliberately absent. Do not claim production readiness in documentation. The GitHub repository has
+been public since 2026-09-22; releases after `0.1.0-beta.3` carry provenance attestations, earlier
+ones do not.

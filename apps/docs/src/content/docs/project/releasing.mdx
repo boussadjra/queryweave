@@ -7,9 +7,10 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 <Aside type="note" title="Where things stand">
   `0.1.0-alpha.1` was published on 2026-09-10 with a one-shot token. `0.1.0-beta.1` followed on
-  2026-09-16 through trusted publishing over OIDC, with no token. Neither carries provenance,
-  because npm only attests a public repository. The checklist below covers what is left before the
-  next release.
+  2026-09-16 through trusted publishing over OIDC, with no token, and `0.1.0-beta.3` on 2026-09-22
+  the same way. None of them carries provenance: npm only attests a public repository, and the
+  repository went public on 2026-09-22, after that publish. The next release is the first with
+  attestations. The checklist below covers what to confirm before it.
 </Aside>
 
 GitHub is [`boussadjra/queryweave`](https://github.com/boussadjra/queryweave). npm is the
@@ -63,9 +64,10 @@ the first stable release is `pnpm changeset pre exit` followed by a normal Versi
 
 <Steps>
 
-1. Make the GitHub repository public. Provenance attestations, the `repository` links in every
-   package manifest, the ADR links in this site, and private vulnerability reporting all depend on
-   it.
+1. The GitHub repository has been public since 2026-09-22, which provenance attestations, the
+   `repository` links in every package manifest, and the ADR links in this site depend on. Confirm
+   that private vulnerability reporting is enabled in the repository's security settings, because
+   `SECURITY.md` sends reporters there.
 
 2. On each package page (`npmjs.com/package/@queryweave/core/access`, and the same for `testing`,
    `browser`, `server`, `node`, `standard-schema`, `vue`, `vue-router`, `nuxt`), confirm a GitHub

@@ -20,4 +20,4 @@ observed, so share one adapter per window.
 Parsing, validation, framework bindings, and Node.js behavior do not belong here. Throttling is the
 runtime's job, not the adapter's: give `createQueryRuntime` a `throttle` window.
 
-Documentation: https://queryweave-docs.vercel.app/adapters/browser/
+Documentation: https://queryweave.dev/adapters/browser/

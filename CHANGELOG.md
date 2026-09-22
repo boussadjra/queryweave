@@ -2,7 +2,10 @@
 
 This project uses Changesets to generate release entries. Every public package shares one version.
 
-## Unreleased
+## 0.1.0-beta.3
+
+Published on 2026-09-22 under `latest`. The repository went public the same day, after the
+publish, so this is the last release without provenance.
 
 - Transition scheduling (ADR 0010): `createQueryRuntime({ throttle })` and
   `useQueryModel(model, { throttle })` hold a burst of transitions and write it together when the

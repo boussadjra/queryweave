@@ -18,4 +18,4 @@ createQueryUrl("https://example.test/products", productFilters, values);
 Every helper is a pure function over `URL` and `Request`. There is no stored state, so request data
 cannot leak between calls, and no Node.js built-in, browser history, or frontend framework is used.
 
-Documentation: https://queryweave-docs.vercel.app/adapters/server/
+Documentation: https://queryweave.dev/adapters/server/
