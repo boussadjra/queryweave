@@ -41,6 +41,11 @@ export interface UseQueryModelOptions<TDefs extends QueryParamDefinitions> {
   readonly navigation?: QueryNavigationMode | undefined;
   /** Reuse an existing runtime instead of creating one. */
   readonly runtime?: QueryRuntime<TDefs> | undefined;
+  /**
+   * The least time in milliseconds between two writes of the runtime this binding creates; a
+   * burst of `field()` writes is then written together. Ignored when `runtime` is given.
+   */
+  readonly throttle?: number | undefined;
 }
 
 /**
@@ -136,6 +141,7 @@ export function useQueryModel<TDefs extends QueryParamDefinitions>(
       model,
       adapter: resolveAdapter(options),
       navigation: options.navigation,
+      throttle: options.throttle,
     });
 
   const initial = runtime.read();
@@ -170,8 +176,11 @@ export function useQueryModel<TDefs extends QueryParamDefinitions>(
   }
 
   const transitionOptions = (
-    override: QueryTransitionOptions | QueryFieldOptions | undefined,
-  ): QueryTransitionOptions => ({ navigation: override?.navigation ?? options.navigation });
+    override: QueryTransitionOptions | undefined,
+  ): QueryTransitionOptions => ({
+    navigation: override?.navigation ?? options.navigation,
+    signal: override?.signal,
+  });
 
   return {
     runtime,

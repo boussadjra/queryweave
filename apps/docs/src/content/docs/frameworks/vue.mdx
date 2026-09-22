@@ -134,7 +134,9 @@ Reading it reads the current value. Writing it runs `update` for that key with t
 you gave. This is the only place mutation-shaped syntax exists, and it is still one named operation
 underneath. Writing an empty string clears the parameter — an emptied input means "no value", so
 `search` becomes absent rather than `?search=`. Rapid writes are serialized by the runtime, so none
-is lost; a write is not awaited, and a rejected one surfaces as an unhandled rejection.
+is lost, and `useQueryModel(model, { throttle: 300 })` holds a burst of them and writes it together
+when the window closes. A write is not awaited, and a rejected one surfaces as an unhandled
+rejection.
 
 There is deliberately no per-key hook and no tuple setter. One model produces one binding; see
 [ADR 0006](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0006-vue-binding-shape.md).

@@ -65,6 +65,7 @@ export { failValue, okValue } from "./results";
 export type { DecodeResult, QueryValueResult } from "./results";
 export { createQueryRuntime } from "./runtime";
 export type {
+  QueryAbortSignal,
   QueryRuntime,
   QueryRuntimeOptions,
   QuerySnapshot,

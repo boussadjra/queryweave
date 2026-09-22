@@ -56,9 +56,9 @@ Hook-shaped APIs, per-key hooks, tuple setters, and `parseAs*`-style constructor
   For an application with one `?tab=` parameter, that is more ceremony than it is worth.
 - **No per-key ergonomics.** There is no `useTab()`. You read `binding.values.tab` and call an
   explicit operation to change it.
-- **Transitions are immediate.** Without scheduling, a fast-changing input such as a search field
-  writes on every keystroke unless you debounce it yourself. Scheduling is
-  [planned](/project/roadmap/) but not built yet.
+- **No debounce.** A runtime can [throttle](/runtime/transitions/#throttling) its writes so a
+  search field does not write on every keystroke, but a quiet-period delay, where nothing is
+  written until typing pauses, stays yours to write.
 
 ## Next
 

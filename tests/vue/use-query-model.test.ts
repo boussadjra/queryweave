@@ -309,3 +309,54 @@ describe("field", () => {
     stop();
   });
 });
+
+describe("scheduling", () => {
+  it("throttles the runtime it creates so a burst of field writes lands together", async () => {
+    vi.useFakeTimers();
+    try {
+      const adapter = createMemoryQueryAdapter();
+      const { result: filters, stop } = withScope(() =>
+        useQueryModel(productFilters, { adapter, throttle: 300 }),
+      );
+      const search = filters.field("search", { navigation: "replace" });
+
+      search.value = "v";
+      await vi.waitFor(
+        () => {
+          expect(adapter.current()).toBe("search=v");
+        },
+        { interval: 1 },
+      );
+      search.value = "vu";
+      search.value = "vue";
+      await vi.advanceTimersByTimeAsync(250);
+      expect(adapter.current()).toBe("search=v");
+
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.waitFor(
+        () => {
+          expect(adapter.current()).toBe("search=vue");
+        },
+        { interval: 1 },
+      );
+      expect(filters.values.search).toBe("vue");
+      stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forwards a signal and reports the cancelled outcome", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?page=2" });
+    const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));
+    const controller = new AbortController();
+    controller.abort("moved on");
+
+    const result = await filters.update({ page: 3 }, { signal: controller.signal });
+
+    expect(result).toMatchObject({ outcome: "cancelled", reason: "moved on", output: [] });
+    expect(adapter.current()).toBe("page=2");
+    expect(filters.values.page).toBe(2);
+    stop();
+  });
+});

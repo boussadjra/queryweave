@@ -9,6 +9,27 @@ Every breaking change is listed here with its migration. The reasoning lives in 
 architecture decision record; the [stability policy](/project/support/) explains why breaking
 changes can ship in minor versions before 1.0.
 
+## From 0.1.0-beta.2
+
+Recorded in
+[ADR 0010](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0010-transition-scheduling.md).
+Nothing changes unless you opt in, with one exception for exhaustive code.
+
+### `QueryTransitionOutcome` gains `cancelled`
+
+A transition abandoned before it applied its change — its `signal` aborted, or the runtime was
+disposed — resolves with `outcome: "cancelled"`, an empty `output`, and the signal's `reason`. A
+transition still queued when the runtime was disposed used to reject; it now resolves `cancelled`.
+An exhaustive `switch` over outcomes needs a `default` branch, as the
+[stability policy](/project/support/) already asks.
+
+### Throttling and cancellation are available
+
+`createQueryRuntime({ throttle })` and `useQueryModel(model, { throttle })` hold a burst of
+transitions and write it together when the window closes; every operation accepts `{ signal }`. A
+debounce written at the call site for a search field can go. See
+[Transitions](/runtime/transitions/#throttling).
+
 ## From 0.1.0-alpha.1
 
 Recorded in

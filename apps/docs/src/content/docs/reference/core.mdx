@@ -225,7 +225,9 @@ function createQueryRuntime<TDefs extends QueryParamDefinitions>(
 ): QueryRuntime<TDefs>;
 ```
 
-`options` is `{ model, adapter, navigation? }`. `navigation` defaults to `"push"`.
+`options` is `{ model, adapter, navigation?, throttle? }`. `navigation` defaults to `"push"`.
+`throttle` is the least number of milliseconds between two writes and defaults to `0`; a negative
+or non-finite value throws.
 
 ### `QueryRuntime`
 
@@ -242,9 +244,11 @@ function createQueryRuntime<TDefs extends QueryParamDefinitions>(
 | `subscribe(listener)`           | `() => void`                     |
 | `dispose()`                     | `void`                           |
 
-Every operation throws after `dispose()`. `QueryTransitionOptions` is `{ navigation? }`.
-Transitions run one at a time per runtime, in call order, each starting from the settled state.
-`read()` decodes only when the adapter's entries changed since the last read. `settled()` resolves
+Every operation rejects after `dispose()`. `QueryTransitionOptions` is `{ navigation?, signal? }`;
+`signal` is a `QueryAbortSignal`, `{ readonly aborted: boolean; readonly reason?: unknown }`, which
+any `AbortSignal` satisfies. Transitions run one at a time per runtime, in call order, each
+starting from the settled state; inside a `throttle` window they are held and written together
+when it closes. `read()` decodes only when the adapter's entries changed since the last read. `settled()` resolves
 once no asynchronous decode is pending. `subscribe` takes a `QuerySnapshotListener<Values>`,
 `(snapshot: QuerySnapshot<Values>) => void`; every listener runs on every notification, and a
 listener error is rethrown after the loop.
@@ -269,7 +273,7 @@ settled snapshot follows through the subscription.
 ### `QueryTransitionResult`
 
 ```ts
-type QueryTransitionOutcome = "committed" | "redirected" | "refused" | "unchanged";
+type QueryTransitionOutcome = "committed" | "redirected" | "refused" | "unchanged" | "cancelled";
 
 interface QueryTransitionResult<TValues> {
   readonly navigation: "push" | "replace";
@@ -280,8 +284,11 @@ interface QueryTransitionResult<TValues> {
 }
 ```
 
-`unchanged` is decided by the runtime: the output equalled the adapter's entries, so nothing was
-written and nobody was notified. The other outcomes come from the adapter, with its `reason`.
+Two outcomes are decided by the runtime. `unchanged`: the output equalled the adapter's entries, so
+nothing was written and nobody was notified. `cancelled`: the transition was abandoned before it
+applied its change, because its `signal` aborted or the runtime was disposed; `reason` is then the
+signal's reason and `output` is empty. The other outcomes come from the adapter, with its `reason`.
+Transitions written together in one throttle window share one result.
 
 ## Adapter contracts
 

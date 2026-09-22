@@ -24,7 +24,7 @@ pnpm add @queryweave/core @queryweave/browser
 
 ## Example
 
-```ts title="filters.ts" {10-13,33-35}
+```ts title="filters.ts" {10-14,34-36}
 import { createBrowserAdapter } from "@queryweave/browser";
 import { createQueryRuntime, defineQueryModel, param } from "@queryweave/core";
 
@@ -37,6 +37,7 @@ const products = defineQueryModel({
 const runtime = createQueryRuntime({
   model: products,
   adapter: createBrowserAdapter(),
+  throttle: 300,
 });
 
 const searchInput = document.querySelector<HTMLInputElement>("#search");
@@ -62,7 +63,7 @@ searchInput?.addEventListener("input", () => {
 });
 ```
 
-Three details are worth naming:
+Four details are worth naming:
 
 - **Render on subscribe _and_ once immediately.** Subscribing does not deliver the current state;
   it delivers changes. Read once to paint the first frame.
@@ -70,6 +71,9 @@ Three details are worth naming:
   caret. Compare first.
 - **`|| undefined` clears the key.** An empty string would produce `?search=` and an `empty` issue;
   `undefined` omits it. See [defaults and absence](/concepts/defaults-and-absence/).
+- **`throttle` replaces a debounce.** The first keystroke is written at once and the rest of a
+  burst together when the window closes, so the input handler stays a plain `update`. See
+  [Transitions](/runtime/transitions/#throttling).
 
 ## Reacting to the back button
 
@@ -82,24 +86,13 @@ snapshot it would after a programmatic transition.
   caption="No framework is involved here either — the simulator on this page is plain TypeScript over the same runtime."
 />
 
-## Debouncing
+## Throttling
 
-The runtime applies every transition immediately. For a search field, that is one history entry per
-keystroke unless you either use `navigation: "replace"` or debounce:
-
-```ts {6-8}
-let timer: ReturnType<typeof setTimeout> | undefined;
-
-searchInput?.addEventListener("input", () => {
-  clearTimeout(timer);
-  timer = setTimeout(() => {
-    void runtime.update({ search: searchInput.value || undefined });
-  }, 200);
-});
-```
-
-Scheduling inside the runtime is [planned](/project/roadmap/) and deliberately absent today, so this
-stays your decision.
+The example above gives the runtime a 300 ms window, so a search field produces two writes per
+burst rather than one per keystroke, and `navigation: "replace"` keeps those out of the history
+stack. Without a window the runtime applies every transition immediately. See
+[Transitions](/runtime/transitions/#throttling) for the rules, and for abandoning a transition
+through an `AbortSignal`.
 
 ## Cleanup
 

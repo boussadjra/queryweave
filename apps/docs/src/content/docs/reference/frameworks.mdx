@@ -14,7 +14,7 @@ function useQueryModel<TDefs>(
 ): QueryModelBinding<TDefs>;
 ```
 
-`UseQueryModelOptions` is `{ adapter?, navigation?, runtime? }`. The adapter is resolved in that
+`UseQueryModelOptions` is `{ adapter?, navigation?, runtime?, throttle? }`. The adapter is resolved in that
 order: an explicit `adapter`, then the injected one, and an existing `runtime` bypasses both. If
 none is available, it throws with a message naming all three. Injection works inside a component
 and anywhere else `hasInjectionContext()` is true, such as `app.runWithContext`.
