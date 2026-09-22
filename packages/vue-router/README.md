@@ -24,4 +24,4 @@ binding.
 
 Vue and Vue Router are peer dependencies.
 
-Documentation: https://queryweave-docs.vercel.app/frameworks/vue-router/
+Documentation: https://queryweave.dev/frameworks/vue-router/

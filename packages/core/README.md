@@ -32,4 +32,4 @@ vendor.
 
 Public contracts remain provisional; this package is not production ready.
 
-Documentation: https://queryweave-docs.vercel.app/reference/core/
+Documentation: https://queryweave.dev/reference/core/

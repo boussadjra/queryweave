@@ -39,8 +39,8 @@ proxy they are attacker-controlled.
   the package exists, so `0.1.0-alpha.1` was published with a short-lived granular token that was
   never committed, and it carries no provenance because npm only attests a public repository. No
   long-lived npm token remains in the repository, and `id-token: write` is granted only to the
-  publishing jobs. Provenance starts with the first release published after the repository is
-  public and the trusted publishers are attached.
+  publishing jobs. The repository became public on 2026-09-22, after `0.1.0-beta.3` was published,
+  so releases from the next one on carry provenance.
 - Third-party GitHub Actions are pinned to immutable commit SHAs.
 - `minimumReleaseAge` delays adoption of freshly published dependency versions.
 
