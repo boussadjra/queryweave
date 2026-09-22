@@ -144,20 +144,75 @@ void runtime.update({ page: 2 });
 // ?search=vue&page=2
 ```
 
-Nothing is coalesced or cancelled, so two rapid calls are still two writes and two history entries
-in `push` mode. Throttling, coalescing, and cancellation are [planned](/project/roadmap/), and their
-absence is deliberate rather than accidental.
+Without a throttle window, two rapid calls are still two writes and, in `push` mode, two history
+entries. Grouping changes that belong together is what `transaction` is for; collapsing a burst of
+independent calls is what the window below is for.
+
+## Throttling
+
+A runtime can bound how often it writes:
+
+```ts {4}
+const runtime = createQueryRuntime({
+  model,
+  adapter,
+  throttle: 300, // milliseconds between writes
+});
+```
+
+The first transition of a burst is written at once. Transitions that arrive while that write is in
+progress, or before the window that started with it closes, are held; when it closes they are
+written together — applied in call order on the settled state, encoded once, navigated once,
+notified once. A burst of keystrokes becomes two writes: the first character and the final term.
+
+Held transitions compose exactly as they would one by one, so a `remove` followed by an `update` of
+the same key writes the update. The write uses `push` if any held transition asked for it, because
+a transition that wanted a history entry does not lose it by sharing a write with ones that did not.
+
+Every held transition resolves with the result of the write it took part in: the same `outcome`,
+the same `reason`, and the same `output`. A held `transaction` whose mutator throws rejects alone;
+an environment error rejects every transition in the write. A write that turns out `unchanged`
+opens no window.
+
+The window belongs to the runtime rather than to a call, because the limit it protects is the
+environment's: WebKit refuses more than about a hundred history writes in ten seconds. There is
+no per-call override and no debounce. A quiet-period delay stays a call-site concern, and for a
+search field the throttle is usually what you wanted anyway; see [Search](/recipes/search/).
+
+## Cancellation
+
+Every operation accepts an `AbortSignal`:
+
+```ts {1,3-4,6}
+const controller = new AbortController();
+
+void runtime.update({ search: "vu" }, { signal: controller.signal });
+controller.abort(); // the transition has not applied its change yet
+
+const result = await runtime.update({ search: "vue" });
+// the earlier transition resolves with outcome "cancelled"; this one is written
+```
+
+A transition whose signal has aborted by the time it would apply its change resolves `cancelled`,
+with the signal's `reason` and an empty `output`, and touches nothing. A transition that has
+started applying — its `transaction` mutator is running — completes whatever the signal does
+afterwards, because a half-applied change has no honest outcome.
+
+Disposing a runtime cancels the transitions it still holds or has queued, each with the snapshot it
+would have started from; one that is already writing completes and reports its real outcome. A
+transition issued _after_ disposal rejects, as before.
 
 ## Outcomes
 
 Every transition resolves with an `outcome`:
 
-| Outcome      | Meaning                                                                        |
-| ------------ | ------------------------------------------------------------------------------ |
-| `committed`  | The environment now holds the written query.                                   |
-| `unchanged`  | The output already matched the environment; nothing was written or notified.   |
-| `refused`    | The environment declined — a router guard returned `false` — and is unchanged. |
-| `redirected` | The environment accepted the write but ended somewhere else.                   |
+| Outcome      | Meaning                                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| `committed`  | The environment now holds the written query.                                                                |
+| `unchanged`  | The output already matched the environment; nothing was written or notified.                                |
+| `refused`    | The environment declined — a router guard returned `false` — and is unchanged.                              |
+| `redirected` | The environment accepted the write but ended somewhere else.                                                |
+| `cancelled`  | The transition was abandoned before it applied its change: its signal aborted, or the runtime was disposed. |
 
 ```ts {1,3-5}
 const result = await runtime.update({ page: 9 });

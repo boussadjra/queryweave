@@ -116,7 +116,8 @@ creates its own adapter, tie it to teardown.
   router writing the same history is invisible to this one. Share one adapter per window, and use
   `@queryweave/vue-router` when a router owns the history.
 - **Safari rate-limits history writes** — around a hundred in ten seconds — and throws a
-  `SecurityError` past that. The write then rejects the transition; debounce fast-changing inputs.
+  `SecurityError` past that. The write then rejects the transition; give the runtime a `throttle`
+  window for fast-changing inputs.
 - **After `dispose`, `push`, `replace`, and `subscribe` throw.** Reading does not.
 
 <IntegrationNav />

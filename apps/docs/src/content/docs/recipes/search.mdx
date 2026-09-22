@@ -73,30 +73,24 @@ history entry, and one render.
   caption="Type, then clear the field. The key appears and disappears; the page resets with each new term."
 />
 
-## Debouncing
+## Throttling
 
-The runtime writes immediately, so debounce at the call site if you do not want one write per
-keystroke:
+Give the runtime a window and it writes at most once per window, so a burst of keystrokes becomes
+the first character and the final term rather than one write per key:
 
-```ts {6-14}
-let timer: ReturnType<typeof setTimeout> | undefined;
-
-function onInput(value: string): void {
-  clearTimeout(timer);
-  timer = setTimeout(() => {
-    void runtime.transaction(
-      (draft) => {
-        draft.search = value === "" ? undefined : value;
-        draft.page = 1;
-      },
-      { navigation: "replace" },
-    );
-  }, 200);
-}
+```ts {4}
+const runtime = createQueryRuntime({
+  model: products,
+  adapter,
+  throttle: 300,
+});
 ```
 
-Even debounced, keep `replace`: a debounce reduces the number of entries, it does not make them
-meaningful.
+Transitions that arrive inside the window are held and written together, in call order, and each
+resolves with the write it took part in. There is nothing to debounce at the call site any more;
+the handler above stays as it is. Keep `replace` all the same: a throttle reduces the number of
+entries, it does not make them meaningful. [Transitions](/runtime/transitions/#throttling) has the
+full rules.
 
 ## In Vue
 
@@ -104,7 +98,7 @@ meaningful.
 <script setup lang="ts">
 import { useQueryModel } from "@queryweave/vue";
 
-const filters = useQueryModel(products);
+const filters = useQueryModel(products, { throttle: 300 });
 const search = filters.field("search", { navigation: "replace" });
 </script>
 
@@ -114,7 +108,8 @@ const search = filters.field("search", { navigation: "replace" });
 ```
 
 `field` gives you the `v-model` target, and it already clears the parameter when the input is
-emptied. For the page reset, use an explicit handler instead:
+emptied; `throttle` on the binding holds a burst of its writes the same way. For the page reset,
+use an explicit handler instead:
 
 ```ts {2-8}
 async function onSearch(value: string): Promise<void> {
@@ -149,9 +144,8 @@ The same model, the same defaults, no second parser.
 
 ## What this does not solve
 
-Coalescing. Transitions on one runtime are serialized, so a burst of keystrokes never loses a
-character — but each keystroke is still its own write. Debounce for the history stack's sake, and
-because Safari refuses more than about a hundred history writes in ten seconds. If a user types
-faster than your data source responds, responses can also arrive out of order; QueryWeave does not
-cancel transitions, so ordering your own requests is your responsibility. That capability is
-[planned](/project/roadmap/).
+Request ordering. If a reader types faster than your data source responds, responses can arrive out
+of order, and the runtime knows nothing about the requests a transition triggers. Compare the term
+a response was fetched for with `filters.values.search` before rendering it, or hand the same
+`AbortController` to the fetch and to the transition's `signal` so that abandoning one abandons the
+other.

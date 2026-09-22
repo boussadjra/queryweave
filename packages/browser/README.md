@@ -17,7 +17,7 @@ It reads the current query, writes through `pushState` and `replaceState`, subsc
 `dispose()` releases every listener. Writes made by other code through the History API are not
 observed, so share one adapter per window.
 
-Parsing, validation, framework bindings, and Node.js behavior do not belong here. Transition
-throttling and coalescing are deliberately absent.
+Parsing, validation, framework bindings, and Node.js behavior do not belong here. Throttling is the
+runtime's job, not the adapter's: give `createQueryRuntime` a `throttle` window.
 
 Documentation: https://queryweave-docs.vercel.app/adapters/browser/

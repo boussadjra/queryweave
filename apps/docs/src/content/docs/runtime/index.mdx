@@ -9,13 +9,14 @@ import { Aside } from "@astrojs/starlight/components";
 
 A model says what a query means. A runtime connects that meaning to a place that stores it.
 
-```ts {3-7}
+```ts {3-8}
 import { createQueryRuntime } from "@queryweave/core";
 
 const runtime = createQueryRuntime({
   model: products,
   adapter,
   navigation: "push", // the default for every transition on this runtime
+  throttle: 0, // milliseconds between writes; 0 writes every transition on its own
 });
 ```
 
@@ -76,8 +77,8 @@ Each returns a `QueryTransitionResult`:
 const { navigation, outcome, reason, output, snapshot } = await runtime.update({ page: 2 });
 
 navigation; // "push" | "replace" — what was actually used
-outcome; // "committed" | "redirected" | "refused" | "unchanged"
-reason; // the adapter's account of a refusal or redirect, when it gave one
+outcome; // "committed" | "redirected" | "refused" | "unchanged" | "cancelled"
+reason; // the adapter's account of a refusal or redirect, or the signal's reason for a cancellation
 output; // the canonical entries the adapter was asked to write, including unmanaged keys
 snapshot; // the settled state after the transition, whatever its outcome
 ```
@@ -139,27 +140,17 @@ Disposal clears the subscribers, detaches the adapter subscription, and makes ev
 throw. It is idempotent. In a framework binding this is wired to the component scope for you; in
 plain TypeScript, call it when the runtime's owner goes away.
 
-## What the runtime does not do
+## Scheduling
 
 Transitions run one at a time, in call order, and each starts from the state the previous one
-produced — but nothing is throttled, coalesced, or cancelled. Ten rapid updates are ten writes and,
-in `push` mode, ten history entries.
+produced. By default each is its own write: ten rapid updates are ten writes and, in `push` mode,
+ten history entries. Two things change that, both covered in [Transitions](/runtime/transitions/):
 
-This absence is deliberate and recorded in
-[ADR 0004](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md)
-and
-[ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md).
-For a fast-changing input such as a search field, debounce at the call site:
+- `throttle` holds a burst and writes it together when the window closes, so a search field needs
+  no debounce of its own.
+- `signal` abandons a transition that has not applied its change yet, with a `cancelled` outcome.
 
-```ts {6-8}
-let timer: ReturnType<typeof setTimeout> | undefined;
-
-input.addEventListener("input", () => {
-  clearTimeout(timer);
-  timer = setTimeout(() => {
-    void runtime.update({ search: input.value }, { navigation: "replace" });
-  }, 200);
-});
-```
+There is no debounce and no automatic merging without a window. The reasoning is in
+[ADR 0010](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0010-transition-scheduling.md).
 
 <IntegrationNav />

@@ -28,11 +28,12 @@
 
 20. **Beta** — `0.1.0-beta.1` published to npm on 2026-09-16, the first release through trusted
     publishing. It carries no provenance while the repository is private.
+21. **Transition scheduling** — a per-runtime `throttle` window that holds a burst and writes it
+    together, cancellation through an abort signal, and the `cancelled` outcome (ADR 0010).
 
 ## Next
 
-21. **Public repository** — the repository goes public, so releases carry provenance attestations.
-22. **Transition scheduling** — throttling, coalescing, and cancellation on the per-runtime queue.
+22. **Public repository** — the repository goes public, so releases carry provenance attestations.
 23. **Codec composition** — date, JSON, object, tuple, and nested representations.
 24. **API stabilization** — freezing the public contracts for 1.0.
 25. **Additional framework adapters** — designed against the established core contracts.

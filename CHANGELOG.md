@@ -2,6 +2,17 @@
 
 This project uses Changesets to generate release entries. Every public package shares one version.
 
+## Unreleased
+
+- Transition scheduling (ADR 0010): `createQueryRuntime({ throttle })` and
+  `useQueryModel(model, { throttle })` hold a burst of transitions and write it together when the
+  window closes; every operation accepts `{ signal }`; `QueryTransitionOutcome` gains `"cancelled"`,
+  which a transition still queued at disposal now resolves with instead of rejecting.
+
+## 0.1.0-beta.2
+
+Published on 2026-09-21. `@queryweave/nuxt` accepts Nuxt 4.0 and newer.
+
 ## 0.1.0-beta.1
 
 First beta, published on 2026-09-16 under the `latest` dist-tag through npm trusted publishing.

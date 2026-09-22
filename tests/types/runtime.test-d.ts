@@ -116,10 +116,27 @@ describe("transition results", () => {
   it("carry an outcome and an optional reason", async () => {
     const result = await runtime.update({ page: 2 });
     expectTypeOf(result.outcome).toEqualTypeOf<
-      "committed" | "redirected" | "refused" | "unchanged"
+      "committed" | "redirected" | "refused" | "unchanged" | "cancelled"
     >();
     expectTypeOf(result.reason).toEqualTypeOf<unknown>();
     expectTypeOf(runtime.settled()).resolves.toEqualTypeOf(runtime.read());
+  });
+});
+
+describe("scheduling options", () => {
+  it("takes a throttle window in milliseconds", () => {
+    void createQueryRuntime({ model: productFilters, adapter, throttle: 250 });
+    void useQueryModel(productFilters, { adapter, throttle: 250 });
+    // @ts-expect-error the window is a number of milliseconds.
+    void createQueryRuntime({ model: productFilters, adapter, throttle: "250ms" });
+  });
+
+  it("accepts a real AbortSignal structurally", () => {
+    const { signal } = new AbortController();
+    void runtime.update({ page: 2 }, { signal });
+    void binding.transaction(() => undefined, { signal, navigation: "replace" });
+    // @ts-expect-error a signal must at least say whether it aborted.
+    void runtime.update({ page: 2 }, { signal: {} });
   });
 });
 

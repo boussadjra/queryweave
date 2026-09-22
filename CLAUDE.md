@@ -60,6 +60,12 @@ them fails the build rather than review.
   Notification flows through the adapter subscription, not from the transition itself. Transitions
   on one runtime run one at a time, in call order; an output equal to the adapter's entries is
   `unchanged` and writes nothing.
+- With `throttle`, the first transition of a burst is written at once and the rest are held and
+  written together when the window closes: applied in call order, encoded once, navigated once
+  (`push` if any asked for it), notified once, every held transition resolving with the shared
+  result. A transition whose `signal` aborted before it applied its change, or that disposal
+  abandoned, resolves `cancelled` and touches nothing; one already writing at disposal completes
+  with its real outcome. Nothing is merged without a window.
 - An adapter reports a refusal or redirect as a `QueryNavigationResult`; it throws only for
   environment errors. Returning nothing means committed.
 - A refinement that changes the value's type must provide `encode`. Refinements never receive
@@ -102,11 +108,12 @@ and takes about two minutes.
 
 ## Status
 
-`0.1.0-beta.1` is on npm under `latest`, published through trusted publishing; `alpha` still
-points at `0.1.0-alpha.1`. Until a stable version exists every publish goes to `latest`. The engine runs, is tested, and is validated as published archives, but
-it is not production ready. The API is provisional; breaking changes ship in minor versions with an
-ADR and a changeset, summarized in `apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009
-settled transition outcomes, serialized transitions, pending decodes, and refinement inverses ahead
-of a beta. Transition throttling, coalescing, and cancellation are deliberately absent. Do not
-claim production readiness in documentation. The GitHub repository is still private, which is why
-the published packages carry no provenance.
+`0.1.0-beta.2` is on npm under `latest`, published through trusted publishing; `alpha` still
+points at `0.1.0-alpha.1`. Until a stable version exists every publish goes to `latest`. The engine
+runs, is tested, and is validated as published archives, but it is not production ready. The API is
+provisional; breaking changes ship in minor versions with an ADR and a changeset, summarized in
+`apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009 settled transition outcomes,
+serialized transitions, pending decodes, and refinement inverses ahead of a beta; ADR 0010 added
+throttled writes and cancellation on the transition queue. A debounce and supersede semantics are
+deliberately absent. Do not claim production readiness in documentation. The GitHub repository is
+still private, which is why the published packages carry no provenance.

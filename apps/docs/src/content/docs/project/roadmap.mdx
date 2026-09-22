@@ -34,27 +34,12 @@ Everything documented on this site, and nothing else:
 | Package stabilization                                        | [Architecture](/project/architecture/)                  |
 | Transition outcomes, serialized transitions, pending decodes | [Transitions](/runtime/transitions/)                    |
 | Support matrix and stability policy                          | [Support and stability](/project/support/)              |
+| Throttled writes and cancellation                            | [Transitions](/runtime/transitions/#throttling)         |
 
 ## Deliberately absent
 
 These are not oversights. Each is an open decision recorded in an ADR, and shipping a guess would
 be worse than shipping nothing.
-
-### Transition scheduling <PackageBadge tone="planned">planned</PackageBadge>
-
-There is no throttling, coalescing, or cancellation. Transitions on one runtime already run one at
-a time, in order, each starting from the state the previous one left, and a write that changes
-nothing is skipped. What is missing is the ability to collapse a burst into one history entry or to
-abandon a transition that a newer one made pointless.
-
-**What to do today:** debounce at the call site, and use `navigation: "replace"` for fast-changing
-inputs. See [Search](/recipes/search/).
-
-**Why it waits:** a scheduling model that cannot express "supersede" and "cancel" honestly would
-have to be replaced later. The transition queue and `QueryTransitionResult.outcome` from
-[ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md)
-are the seam it will attach to: new outcomes such as `superseded` will be added, and none of the
-existing ones will change meaning.
 
 ### Codec composition <PackageBadge tone="planned">planned</PackageBadge>
 
@@ -90,11 +75,9 @@ In order:
 
 1. **Public repository** — releases published with provenance attestations, which npm only attaches
    for a public repository. See [Releasing](/project/releasing/).
-2. **Transition scheduling** — throttling, coalescing, and cancellation on top of the existing
-   queue.
-3. **Codec composition** — date, JSON, object, tuple, and nested representations.
-4. **API stabilization** — freezing the public contracts for 1.0.
-5. **Additional framework adapters** — designed against the established core contracts.
+2. **Codec composition** — date, JSON, object, tuple, and nested representations.
+3. **API stabilization** — freezing the public contracts for 1.0.
+4. **Additional framework adapters** — designed against the established core contracts.
 
 ## How breaking changes ship
 

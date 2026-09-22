@@ -211,7 +211,12 @@ describe("listeners", () => {
     });
     runtime.subscribe(later);
 
-    await expect(runtime.update({ page: 2 })).rejects.toThrow("disposed");
+    // The write had already reached the environment, so the transition reports it.
+    const result = await runtime.update({ page: 2 });
+
+    expect(result.outcome).toBe("committed");
+    expect(result.snapshot.values.page).toBe(2);
+    expect(adapter.current()).toBe("page=2");
     expect(later).not.toHaveBeenCalled();
   });
 

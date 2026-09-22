@@ -63,12 +63,10 @@ object decodes a request on the server, encodes a link, binds to a component, an
 
 ## Not included
 
-- **Throttling, coalescing, and cancellation.** Transitions run one at a time, in call order, and
-  each one is written as it arrives, so debounce fast inputs such as a search field yourself. The
-  reasoning is in
-  [ADR 0004](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0004-runtime-transitions-and-adapters.md)
-  and
-  [ADR 0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md).
+- **A debounce.** A runtime can [throttle](/runtime/transitions/#throttling) its writes, which
+  holds a burst and bounds how far a shared URL lags behind the reader; a quiet-period delay stays
+  a call-site concern. The reasoning is in
+  [ADR 0010](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0010-transition-scheduling.md).
 - **A validation library.** Bring your own validator through [Standard Schema](/validation/).
 
 <Aside type="caution" title="Pre-1.0">

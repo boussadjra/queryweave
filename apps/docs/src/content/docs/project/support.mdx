@@ -62,8 +62,8 @@ behaviors are part of the contract and changing them is a breaking change:
 - What each parameter family accepts and rejects, and which issue code it reports.
 - The recovery rule: an invalid value recovers to its default or to `undefined` and reports an
   issue.
-- Transition semantics: one write per transition, serialized per runtime, one notification per
-  change, and the meaning of each `outcome`.
+- Transition semantics: serialized per runtime, at most one write per transition and one per
+  throttle window, one notification per change, and the meaning of each `outcome`.
 
 These are **not** part of the contract:
 

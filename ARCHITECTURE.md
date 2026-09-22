@@ -139,11 +139,16 @@ see:
   versions. Documented in `apps/docs/src/content/docs/project/support.mdx`.
 - Dist-tags: every publish goes to `latest` until a stable version exists.
 
+## Decided after beta
+
+- Transition scheduling: a per-runtime `throttle` window that holds a burst and writes it together,
+  cancellation through an abort signal, and the `cancelled` outcome; no debounce and no merging
+  without a window — ADR 0010.
+
 ## Deferred decisions
 
 Still open:
 
-- Transition throttling, coalescing, and cancellation, on top of the per-runtime queue.
 - Codec composition for date, JSON, object, tuple, and nested representations.
 - Per-parameter configurability of default omission and recovery policy.
 - Model-level refinements that change the model's output type.
