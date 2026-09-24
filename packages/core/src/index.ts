@@ -26,6 +26,8 @@ export {
   booleanParam,
   choiceParam,
   customParam,
+  dateParam,
+  datetimeParam,
   integerParam,
   listParam,
   numberParam,
@@ -35,6 +37,8 @@ export {
 export type {
   BooleanParamOptions,
   CustomParamOptions,
+  DateParamOptions,
+  DatetimeParamOptions,
   IntegerParamOptions,
   ListParamOptions,
   NumberParamOptions,

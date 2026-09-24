@@ -24,6 +24,9 @@ const model = defineQueryModel({
   tags: param.list(param.text()).default([]),
   ids: param.list(param.integer()).default([1]),
   owner: param.text().nullable().optional(),
+  day: param.date().optional(),
+  at: param.datetime().optional(),
+  times: param.list(param.datetime()).default([]),
 });
 
 type Values = QueryModelValues<(typeof model)["params"]>;
@@ -38,6 +41,9 @@ const empty: Values = {
   tags: [],
   ids: [1],
   owner: undefined,
+  day: undefined,
+  at: undefined,
+  times: [],
 };
 
 function roundTrip(patch: Partial<Values>): Values {
@@ -71,6 +77,16 @@ describe("value round trips", () => {
     ["multi item list", { tags: ["a", "b", "a"] }],
     ["list with awkward items", { tags: ["a b", "c&d", "é"] }],
     ["explicit null", { owner: null }],
+    ["calendar date", { day: "2026-09-24" }],
+    ["leap day", { day: "2024-02-29" }],
+    ["first representable date", { day: "0001-01-01" }],
+    ["instant on the second", { at: new Date("2026-09-24T10:00:00Z") }],
+    ["instant with milliseconds", { at: new Date("2026-09-24T10:00:00.007Z") }],
+    ["instant in an early year", { at: new Date("0042-03-04T05:06:07Z") }],
+    [
+      "list of instants",
+      { times: [new Date("2026-01-01T00:00:00Z"), new Date("2026-01-01T00:00:00.500Z")] },
+    ],
     ["text with a lone surrogate replaced", { text: "a�b" }],
   ];
 
@@ -94,6 +110,10 @@ describe("canonical output is a fixed point", () => {
     "?ids=",
     "?tags=&tags=a",
     "?text=50%+off",
+    "?day=2026-09-24",
+    "?at=2026-09-24T12:00:00%2B02:00",
+    "?at=2026-09-24T10:00:00.000Z",
+    "?at=2026-09-24t10:00:00.1239z",
   ];
 
   it.each(inputs)("normalizes to a stable form: %s", (input) => {

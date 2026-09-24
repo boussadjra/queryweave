@@ -56,6 +56,8 @@ The `key` used for model-level issues.
 param.boolean(options?: BooleanParamOptions): QueryParamBuilder<boolean, "required">;
 param.choice<const T extends string>(choices: readonly T[]): QueryParamBuilder<T, "required">;
 param.custom<T>(codec: QueryCodec<T>, options?: CustomParamOptions): QueryParamBuilder<T, "required">;
+param.date(options?: DateParamOptions): QueryParamBuilder<string, "required">;
+param.datetime(options?: DatetimeParamOptions): QueryParamBuilder<Date, "required">;
 param.integer(options?: IntegerParamOptions): QueryParamBuilder<number, "required">;
 param.list<T>(item: QueryParam<T>, options?: ListParamOptions): QueryParamBuilder<readonly T[], "required">;
 param.number(options?: NumberParamOptions): QueryParamBuilder<number, "required">;
@@ -64,14 +66,16 @@ param.text(options?: TextParamOptions): QueryParamBuilder<string, "required">;
 
 Options by family:
 
-| Family    | Options                                        |
-| --------- | ---------------------------------------------- |
-| `text`    | `allowEmpty`, `maxLength`, `minLength`, `trim` |
-| `integer` | `max`, `min`                                   |
-| `number`  | `max`, `min`                                   |
-| `boolean` | `truthy`, `falsy`                              |
-| `list`    | `maxItems`, `minItems`                         |
-| `custom`  | `consumesMultipleValues`, `kind`               |
+| Family     | Options                                        |
+| ---------- | ---------------------------------------------- |
+| `text`     | `allowEmpty`, `maxLength`, `minLength`, `trim` |
+| `integer`  | `max`, `min`                                   |
+| `number`   | `max`, `min`                                   |
+| `boolean`  | `truthy`, `falsy`                              |
+| `date`     | `max`, `min` as `YYYY-MM-DD` strings           |
+| `datetime` | `max`, `min` as `Date` values                  |
+| `list`     | `maxItems`, `minItems`                         |
+| `custom`   | `consumesMultipleValues`, `kind`               |
 
 ### Named parameter constructors
 
@@ -81,6 +85,8 @@ Each `param` method also has a named export with identical behavior and inferenc
 booleanParam(options?: BooleanParamOptions);
 choiceParam<const T extends string>(choices: readonly T[]);
 customParam<T>(codec: QueryCodec<T>, options?: CustomParamOptions);
+dateParam(options?: DateParamOptions);
+datetimeParam(options?: DatetimeParamOptions);
 integerParam(options?: IntegerParamOptions);
 listParam<T>(item: QueryParam<T>, options?: ListParamOptions);
 numberParam(options?: NumberParamOptions);
@@ -92,8 +98,14 @@ bundler can then remove unrelated codecs. The `param.*` registry remains support
 ergonomic form when that distinction is not important.
 
 Construction validates options: inverted bounds (`min > max`, `minLength > maxLength`,
-`minItems > maxItems`), an empty or overlapping boolean spelling set, a list whose item consumes
+`minItems > maxItems`), a `date` bound that is not a real `YYYY-MM-DD` date, a `datetime` bound
+that is an invalid `Date`, an empty or overlapping boolean spelling set, a list whose item consumes
 repeated values, and `nullable()` on a list all throw a `TypeError`.
+
+`date` keeps the `YYYY-MM-DD` string it decodes. `datetime` decodes RFC 3339 with `Z` or an
+offset into a `Date` and writes it in UTC, with milliseconds only when they are not zero; a time
+without an offset is `invalid`. Encoding an invalid `Date`, or one outside the years 0001 to 9999,
+throws.
 
 ### `QueryParamBuilder`
 
@@ -112,13 +124,15 @@ overload validates or narrows; the second changes the type and therefore needs `
 
 `default()` returns a `QueryParam`, not a builder, so it must be last in a chain. It throws a
 `TypeError` when the parameter's own codec rejects the value, and stores a deep-frozen copy of
-arrays and plain objects.
+arrays and plain objects. A `Date` default is copied too, and every read of it — a recovery,
+`model.defaults()`, `defaultValue` — returns a new `Date`.
 
 ### `QueryParam`
 
 `kind`, `presence`, `consumesMultipleValues`, `description`, `codec`, `defaultValue`.
 
-`QueryParamKind` is `"boolean" | "choice" | "custom" | "integer" | "list" | "number" | "text"`.
+`QueryParamKind` is
+`"boolean" | "choice" | "custom" | "date" | "datetime" | "integer" | "list" | "number" | "text"`.
 `QueryParamPresence` is `"default" | "optional" | "required"`. `QueryParamBase` is the
 non-generic part of a parameter (`kind`, `presence`, `consumesMultipleValues`, `description`), and
 `QueryParamFactory` is the type of `param`.

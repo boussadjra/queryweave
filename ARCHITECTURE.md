@@ -144,12 +144,15 @@ see:
 - Transition scheduling: a per-runtime `throttle` window that holds a burst and writes it together,
   cancellation through an abort signal, and the `cancelled` outcome; no debounce and no merging
   without a window — ADR 0010.
+- Codec composition: `param.date` keeps `YYYY-MM-DD` strings and `param.datetime` writes `Date`
+  values in UTC; tuples as repeated values, objects as dotted field keys, and sorted-key JSON are
+  fixed as URL spellings for later releases — ADR 0011.
 
 ## Deferred decisions
 
 Still open:
 
-- Codec composition for date, JSON, object, tuple, and nested representations.
+- Implementing the tuple, object, nested, and JSON families that ADR 0011 specifies.
 - Per-parameter configurability of default omission and recovery policy.
 - Model-level refinements that change the model's output type.
 - Server response contribution, such as canonical-URL redirects.

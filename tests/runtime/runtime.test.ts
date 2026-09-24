@@ -257,3 +257,61 @@ describe("history", () => {
     expect(formatQueryString(adapter.entries())).toBe("page=5");
   });
 });
+
+describe("dates in transitions", () => {
+  const schedule = defineQueryModel({
+    at: param.datetime().optional(),
+    times: param.list(param.datetime()).default([]),
+    page: param.integer({ min: 1 }).default(1),
+  });
+
+  it("gives a transaction its own Date, so mutating it cannot change the snapshot", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?at=2026-09-24T10:00:00Z" });
+    const runtime = createQueryRuntime({ model: schedule, adapter });
+    const snapshot = runtime.read();
+
+    await runtime.transaction((draft) => {
+      draft.at?.setUTCHours(12);
+      draft.times[0]?.setTime(0);
+    });
+
+    expect(snapshot.values.at?.toISOString()).toBe("2026-09-24T10:00:00.000Z");
+    expect(adapter.current()).toBe("at=2026-09-24T12%3A00%3A00Z");
+  });
+
+  it("treats an equal Date as unchanged", async () => {
+    const adapter = createMemoryQueryAdapter({
+      initial: "?at=2026-09-24T10:00:00Z&times=2026-01-01T00:00:00Z",
+    });
+    const runtime = createQueryRuntime({ model: schedule, adapter });
+
+    const result = await runtime.update({
+      at: new Date("2026-09-24T10:00:00Z"),
+      times: [new Date("2026-01-01T00:00:00Z")],
+    });
+
+    expect(result.outcome).toBe("unchanged");
+  });
+
+  it("keeps a removed Date out of the write when a transaction leaves it equal", async () => {
+    vi.useFakeTimers();
+    try {
+      const adapter = createMemoryQueryAdapter({ initial: "?at=2026-09-24T10:00:00Z&page=2" });
+      const runtime = createQueryRuntime({ model: schedule, adapter, throttle: 100 });
+
+      await runtime.update({ page: 3 });
+      const writes = Promise.all([
+        runtime.remove("at"),
+        runtime.transaction((draft) => {
+          draft.page = 4;
+        }),
+      ]);
+      await vi.advanceTimersByTimeAsync(100);
+      await writes;
+
+      expect(adapter.current()).toBe("page=4");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

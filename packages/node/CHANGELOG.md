@@ -1,5 +1,13 @@
 # @queryweave/node
 
+## 0.1.0-beta.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @queryweave/core@0.1.0-beta.4
+  - @queryweave/server@0.1.0-beta.4
+
 ## 0.1.0-beta.3
 
 ### Patch Changes

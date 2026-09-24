@@ -158,7 +158,7 @@ beside the Vue Router 5 one. The [support matrix](/project/support/) lists what 
 
 These are open, and their absence is deliberate:
 
-- Codec composition for date, JSON, object, tuple, and nested representations.
+- Tuple, object, nested, and JSON families, whose URL spellings ADR 0011 already fixes.
 - Per-parameter configurability of default omission and recovery policy.
 - Model-level refinements that change the model's output type.
 - Server response contribution, such as canonical-URL redirects.
@@ -182,3 +182,4 @@ Each major API decision has an ADR in the repository:
 | [0008](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0008-tree-shakable-parameter-constructors.md)    | Tree-shakable parameter constructors                                              |
 | [0009](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0009-transition-outcomes-and-pending-decodes.md) | Transition outcomes, serialized transitions, pending decodes, refinement inverses |
 | [0010](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0010-transition-scheduling.md)                   | Throttled writes, held transitions, cancellation                                  |
+| [0011](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0011-codec-composition.md)                       | Date and instant families; URL spellings for tuples, objects, and JSON            |

@@ -178,24 +178,39 @@ function toKeyList<TKey extends string>(keys: TKey | readonly TKey[]): readonly 
   return typeof keys === "string" ? [keys] : keys;
 }
 
+/** A draft gets its own lists and dates, so mutating one cannot change the snapshot it came from. */
+function cloneValue(value: unknown): unknown {
+  if (value instanceof Date) {
+    return new Date(value.getTime());
+  }
+  return Array.isArray(value) ? value.map((item: unknown) => cloneValue(item)) : value;
+}
+
 function cloneValues<TValues extends object>(values: TValues): TValues {
   const clone: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
-    clone[key] = Array.isArray(value) ? [...(value as readonly unknown[])] : value;
+    clone[key] = cloneValue(value);
   }
   return clone as TValues;
 }
 
-/** Whether a mutator left a value alone; a copied list counts as untouched while it is equal. */
+function sameItem(left: unknown, right: unknown): boolean {
+  return (
+    Object.is(left, right) ||
+    (left instanceof Date && right instanceof Date && Object.is(left.getTime(), right.getTime()))
+  );
+}
+
+/** Whether a mutator left a value alone; a copied list or date counts as untouched while equal. */
 function sameValue(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) {
+  if (sameItem(left, right)) {
     return true;
   }
   return (
     Array.isArray(left) &&
     Array.isArray(right) &&
     left.length === right.length &&
-    left.every((item: unknown, index) => Object.is(item, right[index]))
+    left.every((item: unknown, index) => sameItem(item, right[index]))
   );
 }
 

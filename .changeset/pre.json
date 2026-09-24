@@ -20,6 +20,7 @@
     "@queryweave/vitest-config": "0.0.0"
   },
   "changesets": [
+    "date-families",
     "nuxt-4-0-support",
     "transition-outcomes-and-pending-decodes",
     "transition-scheduling"

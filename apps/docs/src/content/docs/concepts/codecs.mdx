@@ -54,31 +54,33 @@ the ergonomics survive.
 
 ## Writing one
 
-```ts {3-21,23}
+```ts {3-20,22}
 import { createQueryIssue, failValue, okValue, param, type QueryCodec } from "@queryweave/core";
 
-const isoDateCodec: QueryCodec<Date> = {
+const bigintCodec: QueryCodec<bigint> = {
   decode: (input, context) => {
     const raw = input[0] ?? "";
-    const value = new Date(raw);
-    if (Number.isNaN(value.getTime())) {
+    if (!/^\d+$/u.test(raw)) {
       return failValue([
         createQueryIssue({
           key: context.key,
           code: "invalid",
           input,
-          message: `"${context.key}" must be an ISO date.`,
+          message: `"${context.key}" must be a whole number.`,
           path: context.path,
         }),
       ]);
     }
-    return okValue(value);
+    return okValue(BigInt(raw));
   },
-  encode: (value) => [value.toISOString().slice(0, 10)],
+  encode: (value) => [String(value)],
 };
 
-const createdAfter = param.custom(isoDateCodec).optional();
+const after = param.custom(bigintCodec).optional();
 ```
+
+This keeps order IDs such as `?after=12345678901234567890` exact, past the safe integer range where
+`param.integer` stops.
 
 `okValue` and `failValue` build the result; `createQueryIssue` builds an issue and freezes it,
 dropping optional members you did not supply.
@@ -128,9 +130,9 @@ products.encode({ price: [50, 200] }); // [["price", "50"], ["price", "200"]]
 `kind` is metadata used for introspection and diagnostics. It defaults to `"custom"`:
 
 ```ts {1-3}
-const createdAfter = param.custom(isoDateCodec, { kind: "text" }).optional();
-const products = defineQueryModel({ createdAfter });
-products.params.createdAfter.kind; // "text"
+const after = param.custom(bigintCodec, { kind: "integer" }).optional();
+const orders = defineQueryModel({ after });
+orders.params.after.kind; // "integer"
 ```
 
 ## Round-tripping
@@ -140,17 +142,16 @@ same value. If that does not hold, canonical URLs are not canonical and the runt
 query it cannot read back.
 
 ```ts {1,3}
-const decoded = isoDateCodec.decode(["2026-03-02"], {
-  key: "createdAfter",
-  path: ["createdAfter"],
-});
+const decoded = bigintCodec.decode(["12345678901234567890"], { key: "after", path: ["after"] });
 if (decoded.ok) {
-  isoDateCodec.encode(decoded.value, { key: "createdAfter", path: ["createdAfter"] });
-  // ["2026-03-02"]
+  bigintCodec.encode(decoded.value, { key: "after", path: ["after"] });
+  // ["12345678901234567890"]
 }
 ```
 
-The repository asserts this property for every built-in family in `tests/core/round-trip.test.ts`.
+A codec that accepts more than it writes breaks this. One that reads a full timestamp but writes
+only the day, for example, turns `2026-03-02T23:00:00-05:00` into a different day on the next
+write. Every built-in family satisfies the rule.
 
 ## Asynchronous decoding
 

@@ -1,6 +1,6 @@
 {
   "name": "@queryweave/vue-router",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "description": "Vue Router adapter contracts for QueryWeave.",
   "keywords": [
     "query",

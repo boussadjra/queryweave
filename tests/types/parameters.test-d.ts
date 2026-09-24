@@ -2,6 +2,8 @@ import {
   booleanParam,
   choiceParam,
   customParam,
+  dateParam,
+  datetimeParam,
   defineQueryModel,
   integerParam,
   listParam,
@@ -168,5 +170,46 @@ describe("refinement inference", () => {
     // @ts-expect-error a transform to another type must provide `encode`.
     param.text().refine({ refine: (value: string) => ({ ok: true, value: value.length }) });
     expectTypeOf(param.text().refine(asNumber).defaultValue).toEqualTypeOf<number | undefined>();
+  });
+});
+
+describe("date families", () => {
+  it("keeps a calendar date as a string and an instant as a Date", () => {
+    expectTypeOf(dateParam()).toExtend<QueryParamBuilder<string, "required">>();
+    expectTypeOf(datetimeParam()).toExtend<QueryParamBuilder<Date, "required">>();
+    expectTypeOf(param.date()).toExtend<QueryParamBuilder<string, "required">>();
+    expectTypeOf(param.datetime()).toExtend<QueryParamBuilder<Date, "required">>();
+
+    const model = defineQueryModel({
+      from: param.date().optional(),
+      at: param.datetime().default(new Date("2026-01-01T00:00:00Z")),
+    });
+    type Values = QueryModelValues<(typeof model)["params"]>;
+    expectTypeOf<Values["from"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<Values["at"]>().toEqualTypeOf<Date>();
+  });
+
+  it("takes bounds of the family's own type", () => {
+    param.date({ min: "2026-01-01", max: "2026-12-31" });
+    param.datetime({ min: new Date(0) });
+    // @ts-expect-error a calendar date's bounds are strings.
+    param.date({ min: new Date(0) });
+    // @ts-expect-error an instant's bounds are Dates.
+    param.datetime({ min: "2026-01-01T00:00:00Z" });
+    // @ts-expect-error an instant parameter's default is a Date.
+    param.datetime().default("2026-01-01T00:00:00Z");
+  });
+
+  it("converts a calendar date to a Date only through a transform with an inverse", () => {
+    const toDate: QueryTransform<string, Date> = {
+      refine: (value) => ({ ok: true, value: new Date(`${value}T00:00:00Z`) }),
+      encode: (value) => value.toISOString().slice(0, 10),
+    };
+    expectTypeOf(param.date().refine(toDate)).toExtend<QueryParamBuilder<Date, "required">>();
+    const withoutInverse: QueryRefinement<string, Date> = {
+      refine: (value) => ({ ok: true, value: new Date(value) }),
+    };
+    // @ts-expect-error a type-changing refinement needs its encode inverse.
+    param.date().refine(withoutInverse);
   });
 });

@@ -139,6 +139,28 @@ describe("useQueryModel", () => {
     stop();
   });
 
+  it("keeps an unchanged Date so its watchers stay quiet", async () => {
+    const scheduled = defineQueryModel({
+      at: param.datetime().optional(),
+      page: param.integer({ min: 1 }).default(1),
+    });
+    const adapter = createMemoryQueryAdapter({ initial: "?at=2026-09-24T10:00:00Z" });
+    const { result: filters, stop } = withScope(() => useQueryModel(scheduled, { adapter }));
+    const atWatcher = vi.fn<() => void>();
+    watch(() => filters.values.at, atWatcher);
+    const before = filters.values.at;
+
+    await filters.update({ page: 2 });
+    await nextTick();
+    expect(filters.values.at).toBe(before);
+    expect(atWatcher).not.toHaveBeenCalled();
+
+    await filters.update({ at: new Date("2026-09-25T10:00:00Z") });
+    await nextTick();
+    expect(atWatcher).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
   it("forwards every operation to the runtime", async () => {
     const adapter = createMemoryQueryAdapter({ initial: "?page=4&search=vue&utm=x" });
     const { result: filters, stop } = withScope(() => useQueryModel(productFilters, { adapter }));

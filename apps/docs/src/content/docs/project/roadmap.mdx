@@ -17,39 +17,43 @@ import { Aside } from "@astrojs/starlight/components";
 
 Everything documented on this site, and nothing else:
 
-| Capability                                                   | Where                                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------- |
-| Query input and duplicate keys                               | [Codecs](/concepts/codecs/)                             |
-| Codecs, both directions                                      | [Codecs](/concepts/codecs/)                             |
-| Seven parameter families                                     | [Parameters](/concepts/parameters/)                     |
-| Query models and composition                                 | [Query models](/concepts/query-models/)                 |
-| Decode results and issues                                    | [Issues](/concepts/issues/)                             |
-| Canonical encoding and omission                              | [Defaults and absence](/concepts/defaults-and-absence/) |
-| Runtime transitions                                          | [Transitions](/runtime/transitions/)                    |
-| Memory adapter                                               | [Testing](/adapters/testing/)                           |
-| Browser adapter                                              | [Browser](/adapters/browser/)                           |
-| Server and Node helpers                                      | [Server](/adapters/server/), [Node.js](/adapters/node/) |
-| Standard Schema validation                                   | [Validation](/validation/)                              |
-| Vue, Vue Router, Nuxt                                        | [Frameworks](/frameworks/)                              |
-| Package stabilization                                        | [Architecture](/project/architecture/)                  |
-| Transition outcomes, serialized transitions, pending decodes | [Transitions](/runtime/transitions/)                    |
-| Support matrix and stability policy                          | [Support and stability](/project/support/)              |
-| Throttled writes and cancellation                            | [Transitions](/runtime/transitions/#throttling)         |
+| Capability                                                    | Where                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
+| Query input and duplicate keys                                | [Codecs](/concepts/codecs/)                             |
+| Codecs, both directions                                       | [Codecs](/concepts/codecs/)                             |
+| Nine parameter families, calendar dates and instants included | [Parameters](/concepts/parameters/)                     |
+| Query models and composition                                  | [Query models](/concepts/query-models/)                 |
+| Decode results and issues                                     | [Issues](/concepts/issues/)                             |
+| Canonical encoding and omission                               | [Defaults and absence](/concepts/defaults-and-absence/) |
+| Runtime transitions                                           | [Transitions](/runtime/transitions/)                    |
+| Memory adapter                                                | [Testing](/adapters/testing/)                           |
+| Browser adapter                                               | [Browser](/adapters/browser/)                           |
+| Server and Node helpers                                       | [Server](/adapters/server/), [Node.js](/adapters/node/) |
+| Standard Schema validation                                    | [Validation](/validation/)                              |
+| Vue, Vue Router, Nuxt                                         | [Frameworks](/frameworks/)                              |
+| Package stabilization                                         | [Architecture](/project/architecture/)                  |
+| Transition outcomes, serialized transitions, pending decodes  | [Transitions](/runtime/transitions/)                    |
+| Support matrix and stability policy                           | [Support and stability](/project/support/)              |
+| Throttled writes and cancellation                             | [Transitions](/runtime/transitions/#throttling)         |
 
 ## Deliberately absent
 
 These are not oversights. Each is an open decision recorded in an ADR, and shipping a guess would
 be worse than shipping nothing.
 
-### Codec composition <PackageBadge tone="planned">planned</PackageBadge>
+### Tuples, objects, and JSON <PackageBadge tone="planned">planned</PackageBadge>
 
-There are no dedicated families for dates, JSON, objects, tuples, or nested structures.
+Calendar dates and instants have shipped as [`param.date` and `param.datetime`](/concepts/parameters/#date).
+There are no dedicated families yet for tuples, objects, nested structures, or JSON.
 
 **What to do today:** `param.custom` with your own codec. See [Codecs](/concepts/codecs/).
 
-**Why it waits:** each of these has an encoding question with no obviously right answer — how a
-date carries a time zone, whether an object is JSON or bracketed keys, how a tuple escapes its
-separator. Choosing wrong is a breaking change to every URL already in the wild.
+**What is already settled:** how each will be written in a URL, so a codec you write today can use
+the same spelling and switch to the built-in family later.
+[ADR 0011](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0011-codec-composition.md)
+fixes them: a tuple as repeated values of its key (`?range=10&range=50`), an object as one key per
+field joined with a dot (`?price.min=10&price.max=50`), and JSON with sorted keys as an escape
+hatch for shapes the others cannot express.
 
 ### Per-parameter omission and recovery policy <PackageBadge tone="planned">planned</PackageBadge>
 
@@ -73,7 +77,8 @@ yourself. See [Server parsing](/recipes/server-parsing/).
 
 In order:
 
-1. **Codec composition** — date, JSON, object, tuple, and nested representations.
+1. **Codec composition** — tuples and JSON, then objects and nesting, as ADR 0011 lays out. Dates
+   have shipped.
 2. **API stabilization** — freezing the public contracts for 1.0.
 3. **Additional framework adapters** — designed against the established core contracts.
 
