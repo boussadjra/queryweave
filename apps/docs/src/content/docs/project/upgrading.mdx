@@ -9,6 +9,25 @@ Every breaking change is listed here with its migration. The reasoning lives in 
 architecture decision record; the [stability policy](/project/support/) explains why breaking
 changes can ship in minor versions before 1.0.
 
+## From 0.1.0-beta.3
+
+Recorded in
+[ADR 0011](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0011-codec-composition.md).
+Nothing changes unless you use the new families, with one exception for exhaustive code.
+
+### `QueryParamKind` gains `date` and `datetime`
+
+`param.date()` and `param.datetime()` report their own kinds. An exhaustive `switch` over
+`param.kind` needs a `default` branch, as the [stability policy](/project/support/) already asks.
+
+### Dates no longer need a custom codec
+
+A `param.custom` codec for dates can move to [`param.date()`](/concepts/parameters/#date) for a
+calendar day or [`param.datetime()`](/concepts/parameters/#datetime) for a moment. Check the
+spelling first, because the URLs your users already share must keep decoding: `param.date()`
+accepts only `YYYY-MM-DD`, and `param.datetime()` requires a `Z` or an offset. A codec that wrote
+something else should stay custom, or accept the old form in its own decode while you migrate.
+
 ## From 0.1.0-beta.2
 
 Recorded in

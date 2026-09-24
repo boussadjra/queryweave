@@ -72,7 +72,12 @@ them fails the build rather than review.
   `null` or `undefined`. A promise-returning refinement makes the synchronous decode report
   `async_required`; the runtime then holds a `pending` snapshot and settles it asynchronously.
 - Defaults are validated against their own codec at construction and stored as frozen copies. An
-  empty list encodes as one empty value.
+  empty list encodes as one empty value. A `Date` default is copied, and every read of it returns
+  a new `Date`.
+- `param.date()` keeps a `YYYY-MM-DD` string, never a `Date`. `param.datetime()` is a `Date`
+  written in UTC with `Z`; input without an offset is `invalid`. ADR 0011 also fixes the URL
+  spellings of families not built yet: tuples as repeated values, objects as dotted field keys,
+  JSON with sorted keys. Do not ship another spelling for them.
 - Unmanaged query keys are preserved by the runtime, never by `model.encode`.
 - Vue `values`, `status`, and `issues` are plain properties, not refs, so templates read them
   directly. Watching them needs a getter: `watch(() => filters.status, ...)`.
@@ -108,13 +113,14 @@ and takes about two minutes.
 
 ## Status
 
-`0.1.0-beta.3` is on npm under `latest`, published through trusted publishing; `alpha` still
+`0.1.0-beta.4` is on npm under `latest`, published through trusted publishing; `alpha` still
 points at `0.1.0-alpha.1`. Until a stable version exists every publish goes to `latest`. The engine
 runs, is tested, and is validated as published archives, but it is not production ready. The API is
 provisional; breaking changes ship in minor versions with an ADR and a changeset, summarized in
 `apps/docs/src/content/docs/project/upgrading.mdx`. ADR 0009 settled transition outcomes,
 serialized transitions, pending decodes, and refinement inverses ahead of a beta; ADR 0010 added
 throttled writes and cancellation on the transition queue. A debounce and supersede semantics are
-deliberately absent. Do not claim production readiness in documentation. The GitHub repository has
-been public since 2026-09-22; releases after `0.1.0-beta.3` carry provenance attestations, earlier
-ones do not.
+deliberately absent. ADR 0011 settled codec composition; the date families are built, and tuples,
+JSON, and objects follow in that order. Do not claim production readiness in documentation. The
+GitHub repository has been public since 2026-09-22; `0.1.0-beta.4` is the first release with
+provenance attestations, and earlier ones have none.

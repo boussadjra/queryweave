@@ -1,6 +1,6 @@
 {
   "name": "queryweave",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "private": true,
   "description": "Framework-independent, type-safe URL state infrastructure.",
   "type": "module",

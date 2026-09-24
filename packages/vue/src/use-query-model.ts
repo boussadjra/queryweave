@@ -109,16 +109,23 @@ function resolveAdapter<TDefs extends QueryParamDefinitions>(
   );
 }
 
-/** Reassigning an equal array would wake every watcher of that key for nothing. */
+function sameItem(left: unknown, right: unknown): boolean {
+  return (
+    Object.is(left, right) ||
+    (left instanceof Date && right instanceof Date && Object.is(left.getTime(), right.getTime()))
+  );
+}
+
+/** Reassigning an equal array or date would wake every watcher of that key for nothing. */
 function sameValue(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) {
+  if (sameItem(left, right)) {
     return true;
   }
   return (
     Array.isArray(left) &&
     Array.isArray(right) &&
     left.length === right.length &&
-    left.every((item: unknown, index) => Object.is(item, right[index]))
+    left.every((item: unknown, index) => sameItem(item, right[index]))
   );
 }
 

@@ -186,3 +186,199 @@ describe("nullable", () => {
     expect(model.encode({ owner: null })).toStrictEqual([["owner", ""]]);
   });
 });
+
+describe("date", () => {
+  const model = defineQueryModel({ from: param.date().optional() });
+
+  it("keeps a calendar date as the string it is written as", () => {
+    const result = model.decode("?from=2026-09-24");
+    expect(result.ok && result.value.from).toBe("2026-09-24");
+    expect(model.encode({ from: "2026-09-24" })).toStrictEqual([["from", "2026-09-24"]]);
+  });
+
+  it.each([
+    ["2026-9-4", "a date without zero padding"],
+    ["20260924", "a date without separators"],
+    ["2026-09-24T00:00:00Z", "a date and time"],
+    ["2026-02-30", "a day the month does not have"],
+    ["2025-02-29", "February 29 outside a leap year"],
+    ["1900-02-29", "February 29 in a century not divisible by 400"],
+    ["0000-01-01", "year zero"],
+    ["2026-13-01", "a thirteenth month"],
+    ["٢٠٢٦-٠٩-٢٤", "non-ASCII digits"],
+  ])("rejects %s (%s)", (raw) => {
+    const result = model.decode(`?from=${encodeURIComponent(raw)}`);
+    expect(result.ok && result.value.from).toBeUndefined();
+    expect(codes(result.issues)).toStrictEqual(["invalid"]);
+  });
+
+  it.each(["2024-02-29", "2000-02-29", "0001-01-01", "9999-12-31"])("accepts %s", (raw) => {
+    const result = model.decode(`?from=${raw}`);
+    expect(result.ok && result.value.from).toBe(raw);
+    expect(result.issues).toStrictEqual([]);
+  });
+
+  it("enforces bounds and recovers to the default", () => {
+    const bounded = defineQueryModel({
+      from: param.date({ min: "2026-01-01", max: "2026-12-31" }).default("2026-06-01"),
+    });
+    expect(bounded.decode("?from=2026-12-31")).toMatchObject({
+      ok: true,
+      value: { from: "2026-12-31" },
+    });
+    const early = bounded.decode("?from=2025-12-31");
+    expect(early.ok && early.value.from).toBe("2026-06-01");
+    expect(codes(early.issues)).toStrictEqual(["out_of_range"]);
+    expect(codes(bounded.decode("?from=2027-01-01").issues)).toStrictEqual(["out_of_range"]);
+  });
+
+  it("fails a required date that is invalid", () => {
+    const required = defineQueryModel({ from: param.date() });
+    const result = required.decode("?from=yesterday");
+    expect(result.ok).toBe(false);
+    expect(codes(result.issues)).toStrictEqual(["invalid"]);
+  });
+
+  it("rejects bounds and defaults that are not calendar dates", () => {
+    expect(() => param.date({ min: "2026-1-1" })).toThrow("must be a calendar date");
+    expect(() => param.date({ min: "2026-02-01", max: "2026-01-01" })).toThrow("must not exceed");
+    expect(() => param.date().default("2026-02-30")).toThrow("not accepted by its own parameter");
+  });
+});
+
+describe("datetime", () => {
+  const model = defineQueryModel({ at: param.datetime().optional() });
+
+  function decodeAt(raw: string): Date | undefined {
+    const result = model.decode(`?at=${encodeURIComponent(raw)}`);
+    return result.ok ? result.value.at : undefined;
+  }
+
+  it("decodes UTC and writes it back with a Z", () => {
+    expect(decodeAt("2026-09-24T10:00:00Z")?.toISOString()).toBe("2026-09-24T10:00:00.000Z");
+    expect(model.encode({ at: new Date(Date.UTC(2026, 8, 24, 10)) })).toStrictEqual([
+      ["at", "2026-09-24T10:00:00Z"],
+    ]);
+  });
+
+  it("writes milliseconds only when they are not zero", () => {
+    expect(model.encode({ at: new Date(Date.UTC(2026, 8, 24, 10, 0, 0, 250)) })).toStrictEqual([
+      ["at", "2026-09-24T10:00:00.250Z"],
+    ]);
+  });
+
+  it("normalizes an offset to UTC", () => {
+    expect(decodeAt("2026-09-24T12:00:00+02:00")?.toISOString()).toBe("2026-09-24T10:00:00.000Z");
+    expect(decodeAt("2026-09-24T05:00:00-05:00")?.toISOString()).toBe("2026-09-24T10:00:00.000Z");
+  });
+
+  it("reads a plus sign that form decoding turned into a space", () => {
+    const result = model.decode("?at=2026-09-24T12:00:00+02:00");
+    expect(result.ok && result.value.at?.toISOString()).toBe("2026-09-24T10:00:00.000Z");
+  });
+
+  it("accepts lowercase separators and truncates digits beyond milliseconds", () => {
+    expect(decodeAt("2026-09-24t10:00:00.1239z")?.toISOString()).toBe("2026-09-24T10:00:00.123Z");
+  });
+
+  it.each([
+    ["2026-09-24T10:00:00", "no offset, so the reader's zone would decide"],
+    ["2026-09-24", "a calendar date"],
+    ["2026-09-24T24:00:00Z", "hour 24"],
+    ["2026-09-24T10:60:00Z", "minute 60"],
+    ["2026-09-24T10:00:60Z", "a leap second"],
+    ["2026-02-30T10:00:00Z", "a day the month does not have"],
+    ["2026-09-24T10:00:00+24:00", "an offset beyond 23 hours"],
+    ["1790244000000", "epoch milliseconds"],
+    ["0001-01-01T00:00:00+01:00", "an instant before year 1 in UTC"],
+  ])("rejects %s (%s)", (raw) => {
+    const result = model.decode(`?at=${encodeURIComponent(raw)}`);
+    expect(result.ok && result.value.at).toBeUndefined();
+    expect(codes(result.issues)).toStrictEqual(["invalid"]);
+  });
+
+  it("keeps early years instead of mapping them to the twentieth century", () => {
+    const early = decodeAt("0099-06-01T00:00:00Z");
+    expect(early?.getUTCFullYear()).toBe(99);
+    expect(model.encode({ at: early })).toStrictEqual([["at", "0099-06-01T00:00:00Z"]]);
+  });
+
+  it("enforces bounds", () => {
+    const bounded = defineQueryModel({
+      at: param
+        .datetime({
+          min: new Date("2026-01-01T00:00:00Z"),
+          max: new Date("2026-12-31T23:59:59Z"),
+        })
+        .optional(),
+    });
+    expect(codes(bounded.decode("?at=2025-12-31T23:59:59Z").issues)).toStrictEqual([
+      "out_of_range",
+    ]);
+    expect(codes(bounded.decode("?at=2027-01-01T00:00:00Z").issues)).toStrictEqual([
+      "out_of_range",
+    ]);
+    expect(bounded.decode("?at=2026-06-01T00:00:00Z").issues).toStrictEqual([]);
+  });
+
+  it("refuses to write an invalid Date or one outside four-digit years", () => {
+    expect(() => model.encode({ at: new Date(Number.NaN) })).toThrow("valid Date");
+    expect(() => model.encode({ at: new Date("+010000-01-01T00:00:00Z") })).toThrow(
+      "years 0001 to 9999",
+    );
+  });
+
+  it("rejects bounds that are invalid or out of order", () => {
+    expect(() => param.datetime({ min: new Date(Number.NaN) })).toThrow("valid Date");
+    expect(() =>
+      param.datetime({
+        min: new Date("2026-02-01T00:00:00Z"),
+        max: new Date("2026-01-01T00:00:00Z"),
+      }),
+    ).toThrow("must not exceed");
+  });
+
+  it("hands every caller its own copy of a default", () => {
+    const withDefault = defineQueryModel({
+      at: param.datetime().default(new Date("2026-01-01T00:00:00Z")),
+    });
+    const first = withDefault.decode("");
+    if (first.ok) {
+      first.value.at.setTime(0);
+    }
+
+    const second = withDefault.decode("?at=not-a-date");
+    expect(second.ok && second.value.at.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(withDefault.defaults().at.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(withDefault.defaults().at).not.toBe(withDefault.defaults().at);
+    expect(withDefault.params.at.defaultValue).not.toBe(withDefault.params.at.defaultValue);
+  });
+
+  it("does not keep a reference to the Date passed as a default", () => {
+    const original = new Date("2026-01-01T00:00:00Z");
+    const withDefault = defineQueryModel({ at: param.datetime().default(original) });
+    original.setTime(0);
+    expect(withDefault.defaults().at.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("omits a value equal to its default", () => {
+    const withDefault = defineQueryModel({
+      at: param.datetime().default(new Date("2026-01-01T00:00:00Z")),
+    });
+    expect(withDefault.encode({ at: new Date("2026-01-01T00:00:00Z") })).toStrictEqual([]);
+  });
+
+  it("lists instants as repeated values and copies a list default", () => {
+    const list = defineQueryModel({
+      times: param.list(param.datetime()).default([new Date("2026-01-01T00:00:00Z")]),
+    });
+    const result = list.decode("?times=2026-01-01T00:00:00Z&times=2026-01-02T00:00:00Z");
+    expect(result.ok && result.value.times.map((time) => time.toISOString())).toStrictEqual([
+      "2026-01-01T00:00:00.000Z",
+      "2026-01-02T00:00:00.000Z",
+    ]);
+    const [first] = list.defaults().times;
+    first?.setTime(0);
+    expect(list.defaults().times[0]?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+});

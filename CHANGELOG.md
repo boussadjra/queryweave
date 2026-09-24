@@ -2,6 +2,17 @@
 
 This project uses Changesets to generate release entries. Every public package shares one version.
 
+## 0.1.0-beta.4
+
+The first release published from the public repository, so the first with provenance attestations.
+
+- Date families (ADR 0011): `param.date()` keeps a validated `YYYY-MM-DD` string, and
+  `param.datetime()` decodes RFC 3339 with `Z` or an offset into a `Date` and writes it in UTC.
+  Both take `min` and `max`, and both have named constructors (`dateParam`, `datetimeParam`).
+  `QueryParamKind` gains `"date"` and `"datetime"`.
+- A `Date` default is copied on every read, a transaction's draft gets its own `Date` copies, and
+  the runtime and the Vue binding compare dates by time, so an equal `Date` counts as unchanged.
+
 ## 0.1.0-beta.3
 
 Published on 2026-09-22 under `latest`. The repository went public the same day, after the

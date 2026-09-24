@@ -35,6 +35,8 @@
 
 ## Next
 
-23. **Codec composition** — date, JSON, object, tuple, and nested representations.
+23. **Codec composition** — ADR 0011 fixes the URL spellings. Calendar dates and instants are
+    implemented (`param.date`, `param.datetime`); tuples and JSON come next, then objects and
+    nesting.
 24. **API stabilization** — freezing the public contracts for 1.0.
 25. **Additional framework adapters** — designed against the established core contracts.

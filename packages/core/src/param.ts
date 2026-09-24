@@ -13,6 +13,8 @@ export type QueryParamKind =
   | "boolean"
   | "choice"
   | "custom"
+  | "date"
+  | "datetime"
   | "integer"
   | "list"
   | "number"
@@ -99,6 +101,18 @@ export interface NumberParamOptions {
   readonly min?: number | undefined;
 }
 
+/** Options for `param.date()`. Bounds are calendar dates written `YYYY-MM-DD`. */
+export interface DateParamOptions {
+  readonly max?: string | undefined;
+  readonly min?: string | undefined;
+}
+
+/** Options for `param.datetime()`. Bounds are instants. */
+export interface DatetimeParamOptions {
+  readonly max?: Date | undefined;
+  readonly min?: Date | undefined;
+}
+
 /** Options for `param.boolean()`. Spellings are matched case-insensitively. */
 export interface BooleanParamOptions {
   readonly falsy?: readonly string[] | undefined;
@@ -127,6 +141,10 @@ export interface QueryParamFactory {
     codec: QueryCodec<TValue>,
     options?: CustomParamOptions,
   ): QueryParamBuilder<TValue, "required">;
+  /** A calendar date, kept as the `YYYY-MM-DD` string it is written as. */
+  date(options?: DateParamOptions): QueryParamBuilder<string, "required">;
+  /** An instant, written in UTC as `2026-09-24T10:00:00Z`. */
+  datetime(options?: DatetimeParamOptions): QueryParamBuilder<Date, "required">;
   integer(options?: IntegerParamOptions): QueryParamBuilder<number, "required">;
   list<TItem>(
     item: QueryParam<TItem>,
@@ -167,9 +185,23 @@ type Prepared =
 
 const ignore = (): void => undefined;
 
+/**
+ * A stored default leaves the parameter through this. A `Date` stays mutable even when frozen,
+ * so every caller gets its own copy and none can change the next caller's default.
+ */
+function handOut(value: unknown): unknown {
+  if (value instanceof Date) {
+    return new Date(value.getTime());
+  }
+  if (Array.isArray(value) && value.some((item: unknown) => item instanceof Date)) {
+    return Object.freeze(value.map((item: unknown) => handOut(item)));
+  }
+  return value;
+}
+
 function recover(state: ParamState, issues: readonly QueryIssue[]): QueryValueResult<unknown> {
   if (state.presence === "default") {
-    return okValue(state.defaultValue, issues);
+    return okValue(handOut(state.defaultValue), issues);
   }
   if (state.presence === "optional") {
     return okValue(undefined, issues);
@@ -267,7 +299,7 @@ function prepare(
 ): Prepared {
   if (input.length === 0) {
     if (state.presence === "default") {
-      return { settled: okValue(state.defaultValue, []) };
+      return { settled: okValue(handOut(state.defaultValue), []) };
     }
     if (state.presence === "optional") {
       return { settled: okValue(undefined, []) };
@@ -468,6 +500,9 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * and frozen. A transaction that tries to mutate one fails instead of corrupting the next request.
  */
 function frozenCopy<TValue>(value: TValue): TValue {
+  if (value instanceof Date) {
+    return new Date(value.getTime()) as TValue;
+  }
   if (Array.isArray(value)) {
     return Object.freeze(value.map((item: unknown) => frozenCopy(item))) as TValue;
   }
@@ -504,7 +539,9 @@ function createParam(state: ParamState): LooseParamBuilder {
     consumesMultipleValues: state.consumesMultipleValues,
     description: state.description,
     codec,
-    defaultValue: state.defaultValue,
+    get defaultValue() {
+      return handOut(state.defaultValue);
+    },
     default: (value) => {
       const next: ParamState = { ...state, presence: "default", defaultValue: frozenCopy(value) };
       assertDefaultDecodes(next);
@@ -752,6 +789,179 @@ function createChoiceCodec(choices: readonly string[]): RawParamCodec {
   };
 }
 
+const calendarDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/u;
+
+/** RFC 3339 with a `Z` or an offset; a space stands for a `+` that form decoding turned into one. */
+const instantPattern =
+  /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(?:[Zz]|([+\- ])(\d{2}):(\d{2}))$/u;
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function isValidDay(year: number, month: number, day: number): boolean {
+  if (year < 1 || month < 1 || month > 12 || day < 1) {
+    return false;
+  }
+  const lengths = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= (lengths[month - 1] ?? 0);
+}
+
+function isCalendarDate(value: string): boolean {
+  const match = calendarDatePattern.exec(value);
+  return match !== null && isValidDay(Number(match[1]), Number(match[2]), Number(match[3]));
+}
+
+function padded(value: number, width = 2): string {
+  return String(value).padStart(width, "0");
+}
+
+function isValidInstant(value: unknown): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+/** The years a four-digit canonical spelling can hold. */
+function isWritableYear(value: Date): boolean {
+  const year = value.getUTCFullYear();
+  return year >= 1 && year <= 9999;
+}
+
+/** Seconds always, milliseconds only when they are not zero, always in UTC. */
+function formatInstant(value: Date): string {
+  const date = `${padded(value.getUTCFullYear(), 4)}-${padded(value.getUTCMonth() + 1)}-${padded(value.getUTCDate())}`;
+  const time = `${padded(value.getUTCHours())}:${padded(value.getUTCMinutes())}:${padded(value.getUTCSeconds())}`;
+  const milliseconds = value.getUTCMilliseconds();
+  return `${date}T${time}${milliseconds === 0 ? "" : `.${padded(milliseconds, 3)}`}Z`;
+}
+
+function createDateCodec(options: DateParamOptions): RawParamCodec {
+  const { min, max } = options;
+  for (const [name, bound] of [
+    ["min", min],
+    ["max", max],
+  ] as const) {
+    if (bound !== undefined && !isCalendarDate(bound)) {
+      throw new TypeError(
+        `param.date(): ${name} ("${bound}") must be a calendar date written YYYY-MM-DD.`,
+      );
+    }
+  }
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new TypeError(`param.date(): min (${min}) must not exceed max (${max}).`);
+  }
+  return {
+    decode: (input, context) => {
+      const raw = input[0] ?? "";
+      if (!isCalendarDate(raw)) {
+        return invalid(
+          context,
+          input,
+          `"${context.key}" must be a calendar date written YYYY-MM-DD.`,
+        );
+      }
+      // Fixed-width dates sort as text, so the bounds compare as strings.
+      if (min !== undefined && raw < min) {
+        return outOfRange(context, input, `"${context.key}" must be on or after ${min}.`);
+      }
+      if (max !== undefined && raw > max) {
+        return outOfRange(context, input, `"${context.key}" must be on or before ${max}.`);
+      }
+      return okValue(raw);
+    },
+    encode: (value) => [String(value)],
+  };
+}
+
+/** Parse RFC 3339 into a Date, or `undefined` when a field is out of range. */
+function parseInstant(match: RegExpExecArray): Date | undefined {
+  const field = (index: number): number => Number(match[index] ?? "0");
+  const [year, month, day, hours, minutes, seconds] = [1, 2, 3, 4, 5, 6].map(field);
+  const hasOffset = match[8] !== undefined;
+  if (
+    !isValidDay(year ?? 0, month ?? 0, day ?? 0) ||
+    (hours ?? 0) > 23 ||
+    (minutes ?? 0) > 59 ||
+    (seconds ?? 0) > 59 ||
+    (hasOffset && (field(9) > 23 || field(10) > 59))
+  ) {
+    return undefined;
+  }
+  // Date.UTC maps the years 0 to 99 onto 1900 to 1999, so the year is set on its own.
+  const instant = new Date(0);
+  instant.setUTCFullYear(year ?? 0, (month ?? 1) - 1, day ?? 1);
+  const milliseconds = match[7] === undefined ? 0 : Number(`${match[7]}00`.slice(0, 3));
+  instant.setUTCHours(hours ?? 0, minutes ?? 0, seconds ?? 0, milliseconds);
+  const offsetMinutes = hasOffset ? (match[8] === "-" ? -1 : 1) * (field(9) * 60 + field(10)) : 0;
+  return new Date(instant.getTime() - offsetMinutes * 60_000);
+}
+
+function createDatetimeCodec(options: DatetimeParamOptions): RawParamCodec {
+  const { min, max } = options;
+  for (const [name, bound] of [
+    ["min", min],
+    ["max", max],
+  ] as const) {
+    if (bound !== undefined && !isValidInstant(bound)) {
+      throw new TypeError(`param.datetime(): ${name} must be a valid Date.`);
+    }
+  }
+  if (min !== undefined && max !== undefined && min.getTime() > max.getTime()) {
+    throw new TypeError(
+      `param.datetime(): min (${formatInstant(min)}) must not exceed max (${formatInstant(max)}).`,
+    );
+  }
+  return {
+    decode: (input, context) => {
+      const raw = input[0] ?? "";
+      const match = instantPattern.exec(raw);
+      if (match === null) {
+        return invalid(
+          context,
+          input,
+          `"${context.key}" must be a date and time with Z or an offset, such as 2026-09-24T10:00:00Z.`,
+        );
+      }
+      const value = parseInstant(match);
+      if (value === undefined) {
+        return invalid(context, input, `"${context.key}" is not a real date and time.`);
+      }
+      if (!isWritableYear(value)) {
+        return invalid(
+          context,
+          input,
+          `"${context.key}" falls outside the years 0001 to 9999 in UTC.`,
+        );
+      }
+      if (min !== undefined && value.getTime() < min.getTime()) {
+        return outOfRange(
+          context,
+          input,
+          `"${context.key}" must be at or after ${formatInstant(min)}.`,
+        );
+      }
+      if (max !== undefined && value.getTime() > max.getTime()) {
+        return outOfRange(
+          context,
+          input,
+          `"${context.key}" must be at or before ${formatInstant(max)}.`,
+        );
+      }
+      return okValue(value);
+    },
+    encode: (value, context) => {
+      if (!isValidInstant(value)) {
+        throw new TypeError(`"${context.key}" can only be written from a valid Date.`);
+      }
+      if (!isWritableYear(value)) {
+        throw new RangeError(
+          `"${context.key}" can only be written for the years 0001 to 9999 in UTC.`,
+        );
+      }
+      return [formatInstant(value)];
+    },
+  };
+}
+
 interface ListPreparation {
   readonly kept: readonly string[];
   readonly dropped: boolean;
@@ -930,6 +1140,24 @@ export function customParam<TValue>(
   ) as QueryParamBuilder<TValue, "required">;
 }
 
+/** Create a calendar-date query parameter without retaining unrelated built-in codecs. */
+export function dateParam(options: DateParamOptions = {}): QueryParamBuilder<string, "required"> {
+  return createParam(baseState("date", createDateCodec(options))) as QueryParamBuilder<
+    string,
+    "required"
+  >;
+}
+
+/** Create an instant query parameter without retaining unrelated built-in codecs. */
+export function datetimeParam(
+  options: DatetimeParamOptions = {},
+): QueryParamBuilder<Date, "required"> {
+  return createParam(baseState("datetime", createDatetimeCodec(options))) as QueryParamBuilder<
+    Date,
+    "required"
+  >;
+}
+
 /** Create an integer query parameter without retaining unrelated built-in codecs. */
 export function integerParam(
   options: IntegerParamOptions = {},
@@ -980,15 +1208,15 @@ export function textParam(options: TextParamOptions = {}): QueryParamBuilder<str
 }
 
 /**
- * The parameter constructors.
- *
- * Only the initial families are implemented: text, integer, number, boolean, choice, list, and
- * custom. Richer representations are expected to arrive as composed custom codecs.
+ * The parameter constructors. Each is also exported on its own (`textParam`, `dateParam`, and so
+ * on), so a bundler can drop the families an application does not use.
  */
 export const param: QueryParamFactory = {
   boolean: booleanParam,
   choice: choiceParam,
   custom: customParam,
+  date: dateParam,
+  datetime: datetimeParam,
   integer: integerParam,
   list: listParam,
   number: numberParam,

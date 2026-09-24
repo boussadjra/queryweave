@@ -1,6 +1,6 @@
 ---
 title: Parameters
-description: The seven parameter families, how presence works, and how a parameter is narrowed.
+description: The nine parameter families, how presence works, and how a parameter is narrowed.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -11,7 +11,7 @@ narrowed with a small builder.
 
 ## The families
 
-`@queryweave/core` implements seven, and no more:
+`@queryweave/core` implements nine:
 
 ```ts
 import { param } from "@queryweave/core";
@@ -21,13 +21,16 @@ param.integer({ max, min });
 param.number({ max, min });
 param.boolean({ falsy, truthy });
 param.choice(["name", "created_at"]);
+param.date({ max, min });
+param.datetime({ max, min });
 param.list(param.text(), { maxItems, minItems });
 param.custom(codec, { consumesMultipleValues, kind });
 ```
 
-Everything else — dates, JSON, objects, tuples — is expressed today as a `param.custom` codec.
-Dedicated families for those representations are a
-[deferred decision](/project/roadmap/), not a hidden feature.
+Tuples, objects, and JSON go through `param.custom` for now. Their URL spellings are already
+decided in
+[ADR 0011](https://github.com/boussadjra/queryweave/blob/main/docs/adr/0011-codec-composition.md),
+and the families are [planned](/project/roadmap/).
 
 ### text
 
@@ -94,6 +97,60 @@ The value type narrows to the union of the literals. An unrecognized value repor
 `unknown_choice`, which is distinct from `invalid` so a caller can tell "not one of these" from
 "not the right shape".
 
+### date
+
+A calendar date, such as a day to filter from. It stays the `YYYY-MM-DD` string it is written as:
+
+```ts {2-3,6-7,9}
+const trips = defineQueryModel({
+  from: param.date({ min: "2026-01-01" }).optional(),
+  to: param.date().optional(),
+});
+
+const result = trips.decode("?from=2026-09-01&to=2026-09-30");
+if (result.ok) result.value; // { from: "2026-09-01", to: "2026-09-30" }
+
+trips.decode("?from=2025-12-31").issues.map((issue) => issue.code); // ["out_of_range"]
+```
+
+A calendar date has no time and no zone, so it is not turned into a `Date`. A `Date` is a moment,
+and midnight UTC on the 24th is still the 23rd in New York, so a reader there would see the wrong
+day. The string is what `<input type="date">` reads and writes, what SQL date columns accept, and it
+sorts correctly as text, which is how `min` and `max` compare.
+
+Only the exact form is accepted: four-digit year from `0001` to `9999`, two-digit month and day,
+and a day the month really has, leap years included. `2026-9-4`, `20260924`, `2026-02-30`, and a
+date with a time are `invalid`. When you want a `Date` or a `Temporal.PlainDate`, convert with a
+[transform](#refinement) and its `encode`, so the time-zone choice is visible where you make it.
+
+### datetime
+
+A moment in time, such as when an event starts. It decodes to a `Date` and is always written in
+UTC:
+
+```ts {2,5-6,8}
+const events = defineQueryModel({
+  since: param.datetime().optional(),
+});
+
+const result = events.decode("?since=2026-09-24T12:00:00%2B02:00");
+if (result.ok) result.value.since?.toISOString(); // "2026-09-24T10:00:00.000Z"
+
+events.encode({ since: new Date("2026-09-24T10:00:00Z") }); // [["since", "2026-09-24T10:00:00Z"]]
+```
+
+The URL shows `since=2026-09-24T10%3A00%3A00Z`, because every `:` is percent-encoded. Seconds are
+always written, milliseconds only when they are not zero.
+
+Decoding accepts a `Z` or a numeric offset such as `+02:00` and converts it to UTC. A `+` typed by
+hand in a URL arrives as a space, so a space where the offset sign belongs is read as `+`. A time
+with no offset is `invalid`, because the server and the browser could each read it in a different
+time zone. `min` and `max` are `Date` values.
+
+A `Date` can be changed through `setTime` even when frozen, so treat a decoded value as read-only
+and assign a new `Date` to change it. A transaction's draft gets its own copies, and every caller
+that receives a default gets its own copy of it.
+
 ### list
 
 ```ts {2,5-8}
@@ -121,22 +178,27 @@ and `.nullable()` on a list.
 
 ### custom
 
-```ts {3-14}
+```ts {3-17}
 import { createQueryIssue, failValue, okValue, param } from "@queryweave/core";
 
-const isoDate = param.custom<Date>({
+const orderId = param.custom<bigint>({
   decode: (input, context) => {
     const raw = input[0] ?? "";
-    const value = new Date(raw);
-    return Number.isNaN(value.getTime())
-      ? failValue([
-          createQueryIssue({ key: context.key, code: "invalid", message: "Expected an ISO date." }),
-        ])
-      : okValue(value);
+    return /^\d+$/u.test(raw)
+      ? okValue(BigInt(raw))
+      : failValue([
+          createQueryIssue({
+            key: context.key,
+            code: "invalid",
+            message: "Expected a whole number.",
+          }),
+        ]);
   },
-  encode: (value) => [value.toISOString().slice(0, 10)],
+  encode: (value) => [String(value)],
 });
 ```
+
+`param.integer` stops at the safe integer range; this codec keeps IDs of any length exact.
 
 `param.custom` is the extension point. See [Codecs](/concepts/codecs/) for the full contract.
 
@@ -244,7 +306,10 @@ validators with asynchronous schemas participate, and a [runtime](/runtime/) tur
 - **`undefined` at encode time**: emits nothing, so the key is absent from the URL.
 - **`null` at encode time**: emits an empty value if the parameter is nullable, nothing otherwise.
 - **Inverted bounds** — `min` above `max`, `minLength` above `maxLength`, `minItems` above
-  `maxItems` — throw at construction.
+  `maxItems` — throw at construction. So does a date bound that is not a real `YYYY-MM-DD` date,
+  and a `datetime` bound that is an invalid `Date`.
+- **An invalid `Date` at encode time** — `new Date("nope")`, or a year past 9999 — throws, which
+  rejects the transition. Writing it would produce a URL nothing could read back.
 - **A codec or refinement that throws** becomes an `invalid` or `validation_failed` issue carrying
   the error's message; decoding never throws.
 
