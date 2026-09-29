@@ -1,0 +1,123 @@
+---
+import { Code } from "astro:components";
+import geistFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
+import geistMonoFont from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
+import { ArrowRight, ArrowUpRight, Braces, Check, Link, Route } from "@lucide/astro";
+import HomeFlowHero from "../components/HomeFlowHero.astro";
+import HomePackages from "../components/HomePackages.astro";
+import UrlLab from "../components/UrlLab.astro";
+import ThemeProvider from "../components/ThemeProvider.astro";
+import ThemeSelect from "../components/ThemeSelect.astro";
+import { currentPackageVersion } from "../data/release";
+import { inspectQuery } from "../simulator/url-lab";
+
+const modelExample = `import { defineQueryModel, param } from "@queryweave/core";
+
+const model = defineQueryModel({
+  search: param.text().optional(),
+  page: param.integer({ min: 1 }).default(1),
+});
+
+const result = model.decode("?search=vue&page=abc");`;
+const recovered = inspectQuery("?search=vue&page=abc");
+const updated = inspectQuery("?search=vue&page=2");
+const title = "QueryWeave — Give your URL a type system";
+const description = "Define your URL state once. Decode typed values, recover invalid input, and encode canonical links with QueryWeave. Explore the live URL lab.";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#F1F1E4" />
+    <ThemeProvider />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={new URL("/og.png", Astro.site)} />
+    <link rel="canonical" href={Astro.site} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preload" href={geistFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={geistMonoFont} as="font" type="font/woff2" crossorigin />
+    <title>{title}</title>
+    <style is:global>
+      @import "../styles/tokens.css";
+      @import "../styles/home.css";
+    </style>
+  </head>
+  <body class="qw-home">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="home-header">
+      <a class="home-brand" href="/" aria-label="QueryWeave home"><img src="/queryweavelogo.svg" alt="QueryWeave" width="1830" height="530" /></a>
+      <nav aria-label="Main navigation"><a href="#the-model">The model</a><a href="#url-lab">URL lab</a><a href="#ecosystem">Ecosystem</a></nav>
+      <ThemeSelect />
+      <a class="home-button button-forest" href="/start/">Docs <ArrowUpRight size={17} aria-hidden="true" /></a>
+    </header>
+    <main id="main-content">
+      <HomeFlowHero />
+      <ul class="principles" aria-label="QueryWeave principles">
+        <li><Braces size={19} aria-hidden="true" />One definition</li><li><Check size={19} aria-hidden="true" />Typed recovery</li><li><Link size={19} aria-hidden="true" />Canonical links</li><li><Route size={19} aria-hidden="true" />Adapter-driven navigation</li>
+      </ul>
+      <section id="the-model" class="home-model page-section" aria-labelledby="model-title">
+        <div class="model-intro" data-reveal><span class="section-note">The model</span><h2 id="model-title">One definition.<br /><span>No drift.</span></h2><p>Your URL is part of your application’s state. Give it the same care as the rest of your types.</p><a href="/concepts/query-models/" class="text-link">Meet the query model <ArrowUpRight size={17} aria-hidden="true" /></a></div>
+        <div class="model-detail" data-reveal>
+          <div class="model-code"><div class="code-title"><span><Braces size={16} aria-hidden="true" />model.ts</span><span>TypeScript</span></div><Code code={modelExample} lang="ts" theme="github-dark" tabindex="0" aria-label="Query model example" /><div class="code-result"><Check size={16} aria-hidden="true" /><code>result.ok === true</code><span>Recovered, with an issue.</span></div></div>
+          <dl class="model-explanation"><div><dt>Decode</dt><dd>Query strings become typed values. <code>"2"</code> becomes the number <code>2</code>.</dd></div><div><dt>Recover</dt><dd><code>page=abc</code> falls back to <code>1</code>. The result includes an issue explaining why.</dd></div><div><dt>Encode</dt><dd>Defaults stay out of the URL. The recovered state becomes <code>?{recovered.canonical}</code>.</dd></div></dl>
+        </div>
+      </section>
+      <UrlLab />
+      <section class="home-flow page-section" aria-labelledby="flow-title">
+        <div class="flow-heading" data-reveal><h2 id="flow-title">State moves.<br /><span>The model stays.</span></h2><p>Read a URL, change a value, write a link. The same definition keeps every step connected.</p></div>
+        <ol class="flow-stages" data-reveal>
+          <li><div class="flow-stage-heading"><span>01</span><h3>Decode</h3><ArrowRight size={22} aria-hidden="true" /></div><code class="flow-query">?search=vue&amp;page=abc</code><p>Recover the invalid page to its default.</p><pre tabindex="0" aria-label="Decoded example"><code>{recovered.state}</code></pre></li>
+          <li><div class="flow-stage-heading"><span>02</span><h3>Update</h3><ArrowRight size={22} aria-hidden="true" /></div><code class="flow-query">await runtime.update({`{ page: 2 }`})</code><p>Apply a typed change through the runtime.</p><pre tabindex="0" aria-label="Updated example"><code>{updated.state}</code></pre></li>
+          <li><div class="flow-stage-heading"><span>03</span><h3>Encode</h3><Check size={22} aria-hidden="true" /></div><code class="flow-query">?{updated.canonical}</code><p>The adapter handles navigation. The model handles the values.</p><a class="text-link" href="/runtime/">Explore the runtime <ArrowUpRight size={17} aria-hidden="true" /></a></li>
+        </ol>
+      </section>
+      <HomePackages />
+      <section class="home-closing" aria-labelledby="closing-title">
+        <div data-reveal><img src="/favicon.png" alt="" width="56" height="56" /><h2 id="closing-title">Make your next link<br /><span>a little smarter.</span></h2><p>Start with a model. Let the URL carry the state.</p><div class="closing-actions"><a class="home-button button-yellow" href="/start/quick-start/">Start weaving <ArrowRight size={18} aria-hidden="true" /></a><a class="text-link" href="https://github.com/boussadjra/queryweave">Explore the source <ArrowUpRight size={17} aria-hidden="true" /></a></div></div>
+        <div class="beta-note"><span class="release-dot" aria-hidden="true"></span><p><strong>Experimental beta · v{currentPackageVersion}</strong>QueryWeave is pre-1.0 and is not production ready. Its API may change between minor versions. <a href="/project/support/">Read the stability policy.</a></p></div>
+      </section>
+    </main>
+    <footer class="home-footer"><a href="/" class="home-brand" aria-label="QueryWeave home"><img src="/queryweavelogo.svg" alt="QueryWeave" width="1830" height="530" /></a><span>Type-safe URL state, woven together.</span><nav aria-label="Footer navigation"><a href="/start/">Docs</a><a href="https://github.com/boussadjra/queryweave">GitHub <ArrowUpRight size={14} aria-hidden="true" /></a><a href="https://www.npmjs.com/package/@queryweave/core">npm <ArrowUpRight size={14} aria-hidden="true" /></a></nav></footer>
+    <script>
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+      // Content is visible by default. Entry animations run only when a section is in view.
+      if ("IntersectionObserver" in globalThis) {
+        const observer = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              if (!reducedMotion.matches) entry.target.classList.add("has-entered");
+              observer.unobserve(entry.target);
+            }
+          }
+        }, { threshold: 0.12 });
+        document.querySelectorAll("[data-reveal]").forEach((section) => observer.observe(section));
+      }
+      const diagram = document.querySelector<HTMLElement>("[data-hero-diagram]");
+      if (diagram) {
+        const surface = diagram;
+        let frame = 0;
+        surface.addEventListener("pointermove", (event) => {
+          if (reducedMotion.matches || !matchMedia("(pointer: fine)").matches) return;
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(() => {
+            const bounds = surface.getBoundingClientRect();
+            surface.style.setProperty("--pointer-x", `${String(((event.clientX - bounds.left) / bounds.width - 0.5) * 6)}px`);
+            surface.style.setProperty("--pointer-y", `${String(((event.clientY - bounds.top) / bounds.height - 0.5) * 6)}px`);
+          });
+        });
+        const reset = (): void => {
+          cancelAnimationFrame(frame);
+          surface.style.setProperty("--pointer-x", "0px");
+          surface.style.setProperty("--pointer-y", "0px");
+        };
+        surface.addEventListener("pointerleave", reset);
+        reducedMotion.addEventListener("change", reset);
+      }
+    </script>
+  </body>
+</html>

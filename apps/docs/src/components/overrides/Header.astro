@@ -1,227 +1,58 @@
 ---
 import Search from "@astrojs/starlight/components/Search.astro";
-import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
-import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
-import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
-import MobileMenuToggle from "@astrojs/starlight/components/MobileMenuToggle.astro";
+import { ArrowUpRight } from "@lucide/astro";
+import { Icon } from "@astrojs/starlight/components";
+import ThemeSelect from "../ThemeSelect.astro";
 
-import DocsContextSwitcher from "../DocsContextSwitcher.astro";
-
-/**
- * The QueryWeave header — one row.
- *
- * Starlight's own header parts are reused unchanged (site title, search, social links, theme
- * select), so their keyboard handling, mobile behavior, and theme persistence all still come from
- * Starlight. Only the arrangement is ours: section navigation and the two context selects join the
- * same row rather than forming a second bar, which keeps `--sl-nav-height` at Starlight's own value
- * and leaves the sidebar offset and heading scroll margins untouched.
- */
-
-const sections = [
-  { label: "Core", href: "/concepts/" },
-  { label: "Runtime", href: "/runtime/" },
-  { label: "Adapters", href: "/adapters/" },
-  { label: "Frameworks", href: "/frameworks/" },
-  { label: "API", href: "/reference/" },
-];
-
-const pathname = Astro.url.pathname;
-const currentSection = sections
-  .filter((section) => pathname.startsWith(section.href))
-  .sort((left, right) => right.href.length - left.href.length)[0];
+const reference = Astro.url.pathname.startsWith("/reference/");
 ---
 
 <div class="qw-header">
-  <div class="title-wrapper sl-flex">
-    <SiteTitle />
-  </div>
-
+  <a class="qw-docs-brand" href="/" aria-label="QueryWeave home"><img src="/queryweavelogo.svg" alt="QueryWeave" width="1830" height="530" /></a>
   <nav class="qw-sections print:hidden" aria-label="Documentation sections">
-    {
-      sections.map((section) => (
-        <a
-          href={section.href}
-          aria-current={section.href === currentSection?.href ? "true" : undefined}
-        >
-          {section.label}
-        </a>
-      ))
-    }
+    <a href="/start/" aria-current={!reference ? "true" : undefined}>Docs</a>
+    <a href="/reference/" aria-current={reference ? "true" : undefined}>API</a>
+    <a href="/#url-lab">URL lab <ArrowUpRight size={13} aria-hidden="true" /></a>
   </nav>
-
-  <div class="qw-switcher print:hidden">
-    <DocsContextSwitcher compact />
-  </div>
-
-  <div class="qw-search print:hidden">
-    <Search />
-  </div>
-
-  <div class="qw-utilities sl-hidden md:sl-flex print:hidden">
-    <div class="social-icons sl-flex">
-      <SocialIcons />
-    </div>
+  <div class="qw-search print:hidden"><Search /></div>
+  <div class="qw-utilities print:hidden">
+    <a class="qw-github" href="https://github.com/boussadjra/queryweave" aria-label="QueryWeave on GitHub"><Icon name="github" size="1.2rem" /></a>
     <ThemeSelect />
-  </div>
-
-  <div class="qw-mobile-menu sl-flex md:sl-hidden print:hidden">
-    <MobileMenuToggle />
   </div>
 </div>
 
 <style>
-  .qw-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    height: 100%;
-    min-width: 0;
+  .qw-header { display: flex; align-items: center; gap: 1.5rem; height: 100%; min-width: 0; }
+  .qw-docs-brand { display: flex; align-items: center; min-height: 44px; flex-shrink: 0; }
+  .qw-docs-brand img { width: 154px; height: auto; }
+  :global([data-theme="dark"]) .qw-docs-brand img { filter: brightness(2.7) saturate(0.65); }
+  .qw-sections { display: flex; gap: 1.5rem; height: 100%; }
+  .qw-sections a { position: relative; display: flex; align-items: center; gap: 0.3rem; min-height: 44px; white-space: nowrap; font-size: 0.8125rem; font-weight: 500; text-decoration: none; color: var(--qw-muted); }
+  .qw-sections a:hover { color: var(--qw-heading); }
+  .qw-sections a[aria-current] { color: var(--qw-heading); }
+  .qw-sections a[aria-current]::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: var(--qw-accent); }
+  .qw-search { display: flex; justify-content: flex-end; flex: 1; min-width: 0; }
+  .qw-search :global(site-search) { width: min(100%, 22rem); }
+  .qw-search :global(button[data-open-modal]) { min-height: 44px; }
+  .qw-utilities { display: flex; align-items: center; gap: 0.75rem; }
+  .qw-github { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--qw-muted); }
+  .qw-github:hover { color: var(--qw-heading); }
+  @media (max-width: 64rem) { .qw-sections { display: none; } }
+  @media (max-width: 49.99rem) {
+    .qw-header { gap: 0.5rem; }
+    .qw-docs-brand img { width: 132px; }
+    .qw-search :global(site-search) { width: auto; }
+    .qw-github { display: none; }
+    .qw-utilities { gap: 0; }
   }
-
-  .title-wrapper {
-    overflow: visible;
-    align-items: center;
-    min-height: 2.75rem;
-    flex: 0 1 auto;
-    min-width: 0;
+  @media (max-width: 23rem) {
+    .qw-docs-brand img { width: 110px; }
+    .qw-header { gap: 0.15rem; }
   }
-
-  .title-wrapper :global(.site-title) {
-    align-items: center;
-    min-height: 2.75rem;
-  }
-
-  .title-wrapper :global(.site-title img) {
-    display: block;
-    width: 6.25rem;
-    height: auto;
-  }
-
-  /* Section links and the context selects sit together on the left; search and the utilities are
-     pushed to the end by the search column taking the free space. */
-  .qw-sections {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    flex: none;
-  }
-
-  .qw-sections a {
-    position: relative;
-    color: var(--qw-muted);
-    font-size: var(--qw-text-small);
-    font-weight: 500;
-    text-decoration: none;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding-block: 0.4rem;
-    transition: color var(--qw-duration-control) var(--qw-ease);
-  }
-
-  .qw-sections a:hover {
-    color: var(--qw-body);
-  }
-
-  /* The active section is marked by a path segment under the label as well as by weight and
-     aria-current, so the state survives without colour. */
-  .qw-sections a[aria-current="true"] {
-    color: var(--qw-heading);
-    font-weight: 600;
-  }
-
-  .qw-sections a[aria-current="true"]::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--qw-signal);
-  }
-
-  .qw-switcher {
-    display: flex;
-    align-items: center;
-    height: 2.75rem;
-    flex: none;
-  }
-
-  /* Search takes the free space so everything after it is pushed to the end of the row. */
-  .qw-search {
-    flex: 1 1 auto;
-    display: flex;
-    justify-content: flex-end;
-    min-width: 0;
-  }
-
-  .qw-search :global(site-search),
-  .qw-search :global(button[data-open-modal]) {
-    min-height: 2.75rem;
-  }
-
-  .qw-search :global(site-search) {
-    width: min(100%, 22rem);
-  }
-
-  .qw-utilities {
-    flex: none;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .social-icons {
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .social-icons :global(a) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-  }
-
-  .qw-utilities :global(starlight-theme-select label) {
-    min-height: 2.75rem;
-  }
-
-  .qw-mobile-menu {
-    align-items: center;
-    justify-content: center;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
-
-  .qw-mobile-menu :global(button) {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
-
-  .social-icons:not(:empty)::after {
-    content: "";
-    height: 2rem;
-    border-inline-end: 1px solid var(--sl-color-gray-5);
-  }
-
-  /* The section links duplicate the sidebar, which is always available, so they are the first
-     thing to go when the row runs out of room. The context selects follow at 60rem, where the
-     mobile menu takes over and carries them instead. */
-  @media (max-width: 80rem) {
-    .qw-sections {
-      display: none;
-    }
-  }
-
-  @media (max-width: 50rem) {
-    .qw-search {
-      justify-content: flex-end;
-    }
-
-    .qw-search :global(site-search) {
-      width: auto;
-    }
+  @media (max-width: 30rem) {
+    .qw-utilities :global(select) { width: 44px; padding: 0; font-size: 0; }
+    .qw-utilities :global(option) { font-size: 0.875rem; }
+    .qw-utilities :global(.theme-icon) { inset-inline-start: 13px; }
+    .qw-utilities :global(.theme-caret) { display: none; }
   }
 </style>

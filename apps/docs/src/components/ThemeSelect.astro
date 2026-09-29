@@ -1,0 +1,91 @@
+---
+import { ChevronDown, Monitor, Moon, Sun } from "@lucide/astro";
+---
+
+<qw-theme-select>
+  <label class="theme-control">
+    <span class="theme-icon" aria-hidden="true"><Sun class="light-icon" size={17} /><Moon class="dark-icon" size={17} /><Monitor class="auto-icon" size={17} /></span>
+    <select aria-label="Color theme" disabled>
+      <option value="auto">System</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+    <ChevronDown class="theme-caret" size={12} aria-hidden="true" />
+  </label>
+</qw-theme-select>
+
+<script>
+  type ThemePreference = "auto" | "light" | "dark";
+  const root = document.documentElement;
+  const system = matchMedia("(prefers-color-scheme: dark)");
+  const parse = (value: string | undefined | null): ThemePreference =>
+    value === "dark" || value === "light" ? value : "auto";
+  let preference = parse(root.dataset["themePreference"]);
+
+  function applyTheme(next: ThemePreference): void {
+    preference = next;
+    const theme = next === "auto" ? (system.matches ? "dark" : "light") : next;
+    root.dataset["theme"] = theme;
+    root.dataset["themePreference"] = next;
+    root.style.colorScheme = theme;
+    document.querySelectorAll<HTMLSelectElement>("qw-theme-select select").forEach((select) => {
+      select.value = next;
+    });
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+      meta.content = theme === "dark" ? "#131514" : "#f1f1e4";
+    });
+  }
+
+  class QueryWeaveThemeSelect extends HTMLElement {
+    private controller: AbortController | undefined;
+
+    connectedCallback(): void {
+      this.controller?.abort();
+      this.controller = new AbortController();
+      const select = this.querySelector("select");
+      if (!select) return;
+      select.value = preference;
+      select.disabled = false;
+      select.addEventListener("change", () => {
+        const next = parse(select.value);
+        applyTheme(next);
+        try {
+          if (next === "auto") localStorage.removeItem("starlight-theme");
+          else localStorage.setItem("starlight-theme", next);
+        } catch {
+          // Keep the selected theme for this page even without storage.
+        }
+      }, { signal: this.controller.signal });
+    }
+
+    disconnectedCallback(): void {
+      this.controller?.abort();
+    }
+  }
+
+  if (!customElements.get("qw-theme-select")) customElements.define("qw-theme-select", QueryWeaveThemeSelect);
+  system.addEventListener("change", () => {
+    if (preference === "auto") applyTheme("auto");
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key === "starlight-theme" || event.key === null) applyTheme(parse(event.newValue));
+  });
+  applyTheme(preference);
+</script>
+
+<style>
+  qw-theme-select { display: inline-flex; flex-shrink: 0; }
+  .theme-control { position: relative; display: flex; align-items: center; min-height: 44px; color: var(--qw-body, var(--qw-text-strong)); }
+  select { appearance: none; width: 7rem; min-height: 44px; margin: 0; padding: 0.5rem 1.25rem 0.5rem 1.85rem; border: 1px solid transparent; border-radius: 4px; color: inherit; background: transparent; font: 500 0.8rem var(--qw-font-sans); cursor: pointer; }
+  select:hover { background: var(--qw-panel, var(--qw-surface)); border-color: var(--qw-panel-border, var(--qw-border)); }
+  select:focus-visible { outline: 2px solid var(--qw-focus, var(--qw-deep-forest)); outline-offset: 2px; }
+  select:disabled { cursor: default; opacity: 0.6; }
+  option { color: var(--qw-body, var(--qw-text-strong)); background: var(--qw-panel, var(--qw-surface)); }
+  .theme-icon { position: absolute; inset-inline-start: 0.4rem; display: flex; pointer-events: none; }
+  .theme-caret { position: absolute; inset-inline-end: 0.35rem; pointer-events: none; }
+  .light-icon, .dark-icon { display: none; }
+  :global([data-theme-preference="light"]) .light-icon,
+  :global([data-theme-preference="dark"]) .dark-icon { display: block; }
+  :global([data-theme-preference="light"]) .auto-icon,
+  :global([data-theme-preference="dark"]) .auto-icon { display: none; }
+</style>

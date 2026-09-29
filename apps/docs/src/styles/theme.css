@@ -11,8 +11,10 @@
 :root {
   --sl-font: var(--qw-font-sans);
   --sl-font-mono: var(--qw-font-mono);
-  --sl-content-width: 46rem;
-  --sl-sidebar-width: 18.5rem;
+  --sl-content-width: 48rem;
+  --sl-sidebar-width: 18rem;
+  --sl-nav-height: 4.5rem;
+  --sl-menu-button-size: 2.75rem;
   --sl-line-height: 1.7;
   --sl-line-height-headings: 1.2;
   --sl-text-h1: var(--qw-text-h1);
@@ -159,8 +161,16 @@ body {
   background: var(--sl-color-bg-nav);
 }
 
-:root[data-theme="light"] .sidebar-pane {
+.sidebar-pane {
   border-inline-end: 1px solid var(--qw-panel-border);
+}
+
+starlight-menu-button button {
+  border: 1px solid var(--qw-panel-border);
+  border-radius: 4px;
+  box-shadow: none;
+  background: var(--qw-panel);
+  color: var(--qw-body);
 }
 
 /* ---------------------------------------------------------------- typography */
@@ -181,8 +191,9 @@ body {
 
 .content-panel h1#_top {
   color: var(--qw-heading);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
 }
 
 .sl-markdown-content :is(h2, h3, h4) {
@@ -227,28 +238,114 @@ body {
 
 .sidebar-content .large {
   color: var(--qw-heading);
-  font-size: var(--qw-text-label);
+  font-size: 0.8125rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .sidebar-content a[aria-current="page"],
 .sidebar-content a[aria-current="page"]:hover {
-  background-color: transparent;
+  background-color: var(--qw-accent-soft);
   color: var(--qw-accent);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--qw-accent);
-  border-radius: 0 var(--qw-radius-sm) var(--qw-radius-sm) 0;
+  box-shadow: none;
+  border-radius: 4px;
+}
+
+.sidebar-content .top-level > li + li {
+  margin-top: 1.1rem;
+}
+.sidebar-content summary {
+  min-height: 36px;
+}
+.sidebar-content ul ul li {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+}
+.sidebar-content a {
+  padding: 0.55rem 0.75rem;
+}
+.sidebar-content a:not([aria-current]):hover {
+  background: var(--qw-panel-raised);
+}
+.sidebar-content a[aria-current="page"]::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-inline-start: 0.6rem;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: currentColor;
+}
+.sidebar-content .qw-docs-release {
+  padding-inline: 0;
+}
+.sidebar-content .qw-docs-release:hover {
+  background: transparent;
+}
+
+.right-sidebar {
+  border-inline-start-color: var(--qw-panel-border);
+}
+.right-sidebar h2 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.right-sidebar a {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.right-sidebar a[aria-current="true"] {
+  color: var(--qw-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.pagination-links {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--qw-panel-border);
+}
+.pagination-links a {
+  box-shadow: none;
+  border-radius: 4px;
+  background: var(--qw-panel);
+  padding: 1.1rem 1.25rem;
+}
+.pagination-links .link-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+.pagination-links a:hover {
+  border-color: var(--qw-accent);
+}
+@media (min-width: 50rem) {
+  .content-panel:first-child {
+    padding-top: 3rem;
+    padding-bottom: 1.75rem;
+  }
+}
+@media (max-width: 49.99rem) {
+  :root {
+    --sl-nav-height: 4rem;
+  }
+  .sidebar-content a,
+  .sidebar-content summary {
+    min-height: 44px;
+  }
+  .sidebar-content .qw-docs-release {
+    min-height: 44px;
+  }
 }
 
 /* ---------------------------------------------------------------- search */
 
-/* The docs search must never be confused with the simulated product search inside the
-   BrowserQuerySimulator, so it keeps a distinct pill shape and a muted surface. */
+/* Search stays compact in the header and opens Starlight's keyboard-accessible dialog. */
 site-search button[data-open-modal] {
   border: 1px solid var(--qw-panel-border);
-  border-radius: 999px;
+  border-radius: 4px;
   background-color: var(--qw-panel);
   color: var(--qw-muted);
 }
@@ -297,8 +394,8 @@ site-search button[data-open-modal]:hover {
 /* ---------------------------------------------------------------- asides */
 
 .starlight-aside {
-  border-inline-start-width: 3px;
-  border-radius: 0 var(--qw-radius) var(--qw-radius) 0;
+  border: 1px solid var(--qw-panel-border);
+  border-radius: 4px;
   background-color: var(--qw-panel);
 }
 

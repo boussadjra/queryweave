@@ -16,6 +16,7 @@
     "test:unit": "vitest run --project core --project runtime --project testing --project standard-schema --project vue --project vue-router --project repository",
     "test:browser": "vitest run --project browser",
     "test:e2e": "playwright test",
+    "test:docs": "pnpm --filter @queryweave/docs docs:build && playwright test --config playwright.docs.config.ts",
     "test:integration": "vitest run --project server --project node --project nuxt",
     "test:types": "vitest run --project types",
     "test:coverage": "vitest run --coverage",

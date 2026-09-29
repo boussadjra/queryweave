@@ -1,0 +1,18 @@
+---
+import Default from "@astrojs/starlight/components/Sidebar.astro";
+import DocsContextSwitcher from "../DocsContextSwitcher.astro";
+import { currentPackageVersion } from "../../data/release";
+---
+
+<div class="qw-sidebar-intro">
+  <a href="/project/support/" class="qw-docs-release"><span>Documentation</span><span>v{currentPackageVersion}</span></a>
+  <DocsContextSwitcher stacked />
+</div>
+<Default />
+
+<style>
+  .qw-sidebar-intro { margin-bottom: 1.5rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--qw-panel-border); }
+  .qw-docs-release { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; min-height: 44px; color: var(--qw-heading); text-decoration: none; font-size: 0.8rem; font-weight: 600; }
+  .qw-docs-release > span:last-child { color: var(--qw-muted); font: 0.65rem var(--qw-font-mono); }
+  .qw-docs-release:hover { text-decoration: underline; text-underline-offset: 4px; }
+</style>
