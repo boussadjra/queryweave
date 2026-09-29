@@ -1,26 +1,15 @@
 ---
-import Default from "@astrojs/starlight/components/MobileMenuFooter.astro";
-
-import DocsContextSwitcher from "../DocsContextSwitcher.astro";
-
-/**
- * The mobile menu's footer.
- *
- * Below 60rem the header drops the context selects, so they are carried here instead — the two
- * axes stay reachable on every viewport, and Starlight's own social, theme, and language row is
- * rendered underneath untouched.
- */
+import { ArrowUpRight } from "@lucide/astro";
+import { Icon } from "@astrojs/starlight/components";
 ---
 
-<div class="qw-mobile-context">
-  <DocsContextSwitcher stacked />
-</div>
-
-<Default><slot /></Default>
+<nav class="qw-menu-links" aria-label="Project links">
+  <a href="/#url-lab">Try the URL lab <ArrowUpRight size={16} aria-hidden="true" /></a>
+  <a href="https://github.com/boussadjra/queryweave"><Icon name="github" size="1rem" />GitHub</a>
+</nav>
 
 <style>
-  .qw-mobile-context {
-    border-top: 1px solid var(--qw-panel-border);
-    padding-top: 0.25rem;
-  }
+  .qw-menu-links { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--qw-panel-border); }
+  a { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; font-size: 0.8125rem; color: var(--qw-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
 </style>

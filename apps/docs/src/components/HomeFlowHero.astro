@@ -1,0 +1,44 @@
+---
+import { ArrowDown, ArrowUpRight, CircleAlert, GitFork } from "@lucide/astro";
+import { currentPackageVersion } from "../data/release";
+import { inspectQuery } from "../simulator/url-lab";
+
+const example = inspectQuery("?search=vue&page=abc");
+---
+
+<section class="home-hero" aria-labelledby="hero-title">
+  <div class="hero-topline">
+    <span class="technical">A type-safe URL state engine</span>
+    <a href="/project/support/" class="release-label"><span class="release-dot" aria-hidden="true"></span>Experimental beta <span>v{currentPackageVersion}</span><ArrowUpRight size={14} /></a>
+  </div>
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <h1 id="hero-title">Give your URL<br />a <span>type system.</span></h1>
+      <p>Turn query strings into state you can trust. Define your model once. Decode, recover, and encode wherever your app runs.</p>
+      <div class="hero-actions">
+        <a class="home-button button-yellow" href="#url-lab">Enter the URL lab <ArrowDown size={18} /></a>
+        <a class="text-link" href="https://github.com/boussadjra/queryweave">View on GitHub <ArrowUpRight size={17} /></a>
+      </div>
+      <div class="hero-install"><span aria-hidden="true">$</span><code>pnpm add @queryweave/core</code></div>
+    </div>
+    <figure class="hero-diagram" aria-labelledby="hero-diagram-caption" data-hero-diagram>
+      <figcaption id="hero-diagram-caption"><span class="technical">From a messy URL to meaningful state</span><GitFork size={17} aria-hidden="true" /></figcaption>
+      <div class="diagram-surface">
+        <svg class="hero-strands" viewBox="0 0 560 480" preserveAspectRatio="none" aria-hidden="true">
+          <defs><pattern id="hero-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#F1F1E4" stroke-opacity=".07" stroke-width="1" /></pattern></defs>
+          <rect width="560" height="480" fill="url(#hero-grid)" />
+          <g fill="none" stroke-width="2">
+            <path class="strand strand-blue" d="M110 62 V122 C110 171 274 155 274 210 V260 C274 306 92 286 92 342 V400" pathLength="1" />
+            <path class="strand strand-green" d="M292 62 V124 C292 164 256 170 256 210 V262 C256 312 368 302 368 352 V400" pathLength="1" />
+            <path class="strand strand-yellow" d="M448 62 V110 C448 172 290 162 290 210 V268 C290 308 466 316 466 376 V425" pathLength="1" />
+          </g>
+        </svg>
+        <div class="diagram-input"><span class="diagram-label">Raw query</span><code>?search=<span class="ink-blue">vue</span>&amp;page=<span class="ink-yellow">abc</span></code></div>
+        <div class="diagram-model"><img src="/favicon.png" alt="" width="36" height="36" /><code>defineQueryModel()</code><span>decode · validate · recover</span></div>
+        <div class="diagram-output"><span class="diagram-label">Typed state</span><pre><code>{example.state}</code></pre><span class="output-type">string | undefined · number</span></div>
+        <div class="diagram-issue"><CircleAlert size={16} aria-hidden="true" /><div><strong>Recovered with 1 issue</strong><span><code>page=abc</code> is invalid. Using <code>1</code>.</span></div></div>
+      </div>
+    </figure>
+  </div>
+  <div class="hero-bottom"><span>Framework-independent by design.</span><a href="#the-model">Follow the thread <ArrowDown size={15} /></a></div>
+</section>

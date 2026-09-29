@@ -317,6 +317,8 @@ const axes = (["runtime", "framework"] as const).map((kind: DocsContextKind) => 
   }
 
   .stacked .control {
-    flex: 0 1 12rem;
+    flex: 0 1 9.5rem;
   }
+  .stacked .axis-label { font-family: var(--qw-font-sans); font-size: 0.75rem; text-transform: none; letter-spacing: 0; }
+  .stacked select { min-height: 44px; }
 </style>

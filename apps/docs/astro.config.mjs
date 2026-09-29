@@ -6,9 +6,8 @@ import { defineConfig } from "astro/config";
 /**
  * QueryWeave documentation site.
  *
- * Starlight supplies the structure — search, sidebar, table of contents, theme switching, and
- * keyboard navigation. Everything QueryWeave-specific arrives through `customCss`, two component
- * overrides, and components under `src/components`.
+ * Starlight supplies search, navigation, and the table of contents. Component overrides style the
+ * reading shell and share the theme preference with the standalone homepage.
  *
  * Vue is present for one reason: the diagrams are Vue Flow graphs. It is a documentation-only
  * dependency and says nothing about the library, which stays framework-independent.
@@ -51,6 +50,9 @@ export default defineConfig({
         Header: "./src/components/overrides/Header.astro",
         MobileMenuFooter: "./src/components/overrides/MobileMenuFooter.astro",
         PageTitle: "./src/components/overrides/PageTitle.astro",
+        Sidebar: "./src/components/overrides/Sidebar.astro",
+        ThemeProvider: "./src/components/ThemeProvider.astro",
+        ThemeSelect: "./src/components/ThemeSelect.astro",
       },
       head: [
         { tag: "meta", attrs: { property: "og:type", content: "website" } },

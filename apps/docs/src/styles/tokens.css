@@ -1,3 +1,20 @@
+@font-face {
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
+    format("woff2");
+}
+
 /**
  * QueryWeave brand tokens.
  *
@@ -52,14 +69,13 @@
   --qw-green-mid: #6aa832; /* 6.3:1 on Dark Canvas */
   --qw-green-fill: #1c2c1b; /* low-emphasis green ground, not a text colour */
 
-  /* Typography. Nothing is downloaded: Geist is used when the reader has it, and the stack
-     degrades to the platform UI font otherwise. */
+  /* Self-hosted variable fonts use font-display: swap and platform fallbacks. */
   --qw-font-sans:
-    "Geist Sans", Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto,
-    "Helvetica Neue", arial, sans-serif;
+    "Geist Variable", "Geist Sans", Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    roboto, "Helvetica Neue", arial, sans-serif;
   --qw-font-mono:
-    "Geist Mono", ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono",
-    monospace;
+    "Geist Mono Variable", "Geist Mono", ui-monospace, sfmono-regular, "SF Mono", menlo, consolas,
+    "Liberation Mono", monospace;
 
   /* Type scale. */
   --qw-text-hero: clamp(2.5rem, 1.6rem + 3.4vw, 3.75rem);

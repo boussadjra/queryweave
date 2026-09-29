@@ -1,0 +1,101 @@
+---
+import { ArrowRight, CircleCheck, FlaskConical, Link, CircleAlert } from "@lucide/astro";
+import { inspectQuery, labPresets } from "../simulator/url-lab";
+
+const initialQuery = "?search=vue&page=abc";
+const initial = inspectQuery(initialQuery);
+---
+
+<section id="url-lab" class="home-lab" aria-labelledby="lab-title">
+  <div class="lab-heading" data-reveal>
+    <div><span class="section-note"><FlaskConical size={18} aria-hidden="true" /> The URL lab</span><h2 id="lab-title">Go on. Break the query.</h2></div>
+    <p>Change a value. Try a broken link. See exactly what the model keeps, recovers, and writes back.</p>
+  </div>
+  <qw-url-lab class="url-lab" data-initial-query={initialQuery}>
+    <div class="lab-input-area">
+      <div class="lab-input-label"><label for="lab-query">Your query string</label><span>Live input <span class="live-dot" aria-hidden="true"></span></span></div>
+      <div class="query-input-wrap"><Link size={20} aria-hidden="true" /><input id="lab-query" type="text" value={initialQuery} autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="lab-help" data-lab-input disabled /><ArrowRight size={20} aria-hidden="true" /></div>
+      <div class="lab-presets" role="group" aria-label="Example queries"><span>Try a query</span>{labPresets.map((preset) => <button type="button" data-query={preset.query} aria-pressed={preset.query === initialQuery} disabled>{preset.label}</button>)}</div>
+      <p id="lab-help">This model accepts <code>search</code> and <code>page</code>. A page must be an integer of at least 1.</p>
+      <noscript><p class="lab-noscript">Enable JavaScript to edit the query. The results below show the initial example.</p></noscript>
+    </div>
+    <div class="lab-results">
+      <div class="lab-state"><div class="result-heading"><h3>Typed state</h3><span data-lab-status>{initial.status}</span></div><pre tabindex="0" aria-label="Decoded state"><code data-lab-state>{initial.state}</code></pre><p>Types from your model. Ready for your application.</p></div>
+      <div class="lab-diagnostics">
+        <div class="lab-issues"><h3><CircleAlert size={16} aria-hidden="true" /><span data-lab-issue-heading>1 issue reported</span></h3><ul data-lab-issues>{initial.issues.map((issue) => <li><code>{issue.key} · {issue.code}</code><span>{issue.message}</span></li>)}</ul><p data-lab-no-issues hidden><CircleCheck size={16} aria-hidden="true" />All values match the model.</p></div>
+        <div class="lab-canonical"><h3><Link size={16} aria-hidden="true" />Canonical query</h3><pre tabindex="0" aria-label="Canonical query"><code data-lab-canonical>?{initial.canonical}</code></pre><p>Defaults are omitted. Only this model’s keys are encoded.</p></div>
+      </div>
+    </div>
+    <p class="lab-engine"><span class="live-dot" aria-hidden="true"></span>Running on @queryweave/core <span>Same model. Actual results.</span></p>
+    <p class="sr-only" role="status" aria-live="polite" aria-atomic="true" data-lab-announcement></p>
+  </qw-url-lab>
+</section>
+
+<script>
+  import { inspectQuery } from "../simulator/url-lab";
+
+  class QueryWeaveUrlLab extends HTMLElement {
+    private cleanup: AbortController | undefined;
+    private announceTimer: ReturnType<typeof setTimeout> | undefined;
+
+    connectedCallback(): void {
+      this.cleanup?.abort();
+      this.cleanup = new AbortController();
+      const { signal } = this.cleanup;
+      const input = this.querySelector<HTMLInputElement>("[data-lab-input]");
+      if (input === null) return;
+      input.disabled = false;
+      const presets = [...this.querySelectorAll<HTMLButtonElement>("[data-query]")];
+      const render = (): void => {
+        const result = inspectQuery(input.value);
+        const state = this.querySelector("[data-lab-state]");
+        const status = this.querySelector<HTMLElement>("[data-lab-status]");
+        const canonical = this.querySelector("[data-lab-canonical]");
+        const heading = this.querySelector("[data-lab-issue-heading]");
+        const issues = this.querySelector("[data-lab-issues]");
+        const noIssues = this.querySelector<HTMLElement>("[data-lab-no-issues]");
+        const count = result.issues.length;
+        if (state) state.textContent = result.state;
+        if (status) {
+          status.textContent = result.status;
+          status.dataset["status"] = result.status;
+        }
+        if (canonical) canonical.textContent = result.canonical === undefined ? "No complete state to encode" : result.canonical === "" ? "(empty query)" : `?${result.canonical}`;
+        if (heading) heading.textContent = count === 0 ? "No issues" : `${String(count)} ${count === 1 ? "issue" : "issues"} reported`;
+        if (issues) {
+          issues.replaceChildren(...result.issues.map((issue) => {
+            const item = document.createElement("li");
+            const key = document.createElement("code");
+            const message = document.createElement("span");
+            key.textContent = `${issue.key} · ${issue.code}`;
+            message.textContent = issue.message;
+            item.append(key, message);
+            return item;
+          }));
+        }
+        if (noIssues) noIssues.hidden = count > 0;
+        for (const preset of presets) preset.setAttribute("aria-pressed", String(input.value === preset.dataset["query"]));
+        clearTimeout(this.announceTimer);
+        this.announceTimer = setTimeout(() => {
+          const announcement = this.querySelector("[data-lab-announcement]");
+          if (announcement) announcement.textContent = `${result.status}. ${String(count)} ${count === 1 ? "issue" : "issues"}. Typed state: ${result.state}. Canonical query: ${result.canonical || "empty"}.`;
+        }, 350);
+      };
+      input.addEventListener("input", render, { signal });
+      for (const preset of presets) {
+        preset.disabled = false;
+        preset.addEventListener("click", () => {
+          input.value = preset.dataset["query"] ?? "";
+          render();
+        }, { signal });
+      }
+      render();
+    }
+
+    disconnectedCallback(): void {
+      this.cleanup?.abort();
+      clearTimeout(this.announceTimer);
+    }
+  }
+  if (!customElements.get("qw-url-lab")) customElements.define("qw-url-lab", QueryWeaveUrlLab);
+</script>
