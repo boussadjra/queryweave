@@ -49,6 +49,9 @@ function injectQueryAdapter(): QueryAdapter | undefined;
 const queryAdapterKey: InjectionKey<QueryAdapter>;
 ```
 
+`provideQueryAdapter` makes the adapter visible to the calling component and everything below it,
+and `injectQueryAdapter` prefers the current component's own adapter over an ancestor's.
+
 `queryAdapterKey` is `Symbol.for("queryweave.adapter")`, exported so other packages — including
 `@queryweave/nuxt` — can install an adapter without importing the binding.
 

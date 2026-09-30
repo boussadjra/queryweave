@@ -45,6 +45,71 @@ describe("adapter injection", () => {
     adapter.dispose();
   });
 
+  it("reaches a binding created in the same component that provided it", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?page=5" });
+    const SameComponent = defineComponent({
+      name: "SameComponent",
+      setup() {
+        provideQueryAdapter(adapter);
+        const filters = useQueryModel(productFilters);
+        return () => h("output", String(filters.values.page));
+      },
+    });
+
+    await expect(renderToString(createSSRApp(SameComponent))).resolves.toBe("<output>5</output>");
+    adapter.dispose();
+  });
+
+  it("prefers the adapter a component provides over its ancestor's", async () => {
+    const outer = createMemoryQueryAdapter({ initial: "?page=2" });
+    const inner = createMemoryQueryAdapter({ initial: "?page=8" });
+    const Child = defineComponent({
+      name: "Child",
+      setup() {
+        provideQueryAdapter(inner);
+        const filters = useQueryModel(productFilters);
+        return () => h("output", String(filters.values.page));
+      },
+    });
+    const Parent = defineComponent({
+      name: "Parent",
+      setup() {
+        provideQueryAdapter(outer);
+        return () => h(Child);
+      },
+    });
+
+    await expect(renderToString(createSSRApp(Parent))).resolves.toBe("<output>8</output>");
+
+    outer.dispose();
+    inner.dispose();
+  });
+
+  it("keeps sibling providers apart", async () => {
+    const left = createMemoryQueryAdapter({ initial: "?page=3" });
+    const right = createMemoryQueryAdapter({ initial: "?page=6" });
+    const createSibling = (adapter: ReturnType<typeof createMemoryQueryAdapter>) =>
+      defineComponent({
+        name: "Sibling",
+        setup() {
+          provideQueryAdapter(adapter);
+          const filters = useQueryModel(productFilters);
+          return () => h("output", String(filters.values.page));
+        },
+      });
+    const Root = defineComponent({
+      name: "Root",
+      setup: () => () => h("div", [h(createSibling(left)), h(createSibling(right))]),
+    });
+
+    await expect(renderToString(createSSRApp(Root))).resolves.toBe(
+      "<div><output>3</output><output>6</output></div>",
+    );
+
+    left.dispose();
+    right.dispose();
+  });
+
   it("decodes before the first render, so markup matches the request", async () => {
     const first = createMemoryQueryAdapter({ initial: "?page=2" });
     const second = createMemoryQueryAdapter({ initial: "?page=7" });

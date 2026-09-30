@@ -61,7 +61,7 @@ const search = filters.field("search", { navigation: "replace" });
 Three ways, in order of preference:
 
 ```ts {2-3,6,9}
-// 1. Provide once, high in the tree. Every binding below finds it.
+// 1. Provide once, high in the tree. Every binding finds it.
 provideQueryAdapter(createBrowserAdapter());
 const provided = useQueryModel(products);
 
@@ -71,6 +71,19 @@ const explicit = useQueryModel(products, { adapter });
 // 3. Reuse a runtime you already own.
 const shared = useQueryModel(products, { runtime });
 ```
+
+`provideQueryAdapter()` reaches bindings in the same component and in every component below it, so
+the [example](#example) at the top of this page works as written, in one `setup()`. A component that provides its own adapter wins over one
+provided by an ancestor.
+
+An app without a root component that owns the adapter can provide it once for the whole app
+instead:
+
+```ts {1}
+app.provide(queryAdapterKey, createBrowserAdapter());
+```
+
+`queryAdapterKey` is exported from `@queryweave/vue`.
 
 If none of the three is available, `useQueryModel` throws with a message naming all three. It never
 silently falls back to a global. Injection works inside a component and anywhere else Vue has an

@@ -105,7 +105,7 @@ function resolveAdapter<TDefs extends QueryParamDefinitions>(
     return injected;
   }
   throw new Error(
-    "useQueryModel needs an adapter. Pass `adapter`, call provideQueryAdapter() in an ancestor, or pass an existing `runtime`.",
+    "useQueryModel needs an adapter. Pass `adapter`, call provideQueryAdapter() in this component or an ancestor, or pass an existing `runtime`.",
   );
 }
 

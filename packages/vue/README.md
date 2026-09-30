@@ -9,6 +9,7 @@ pnpm add @queryweave/vue
 ```ts
 import { provideQueryAdapter, useQueryModel } from "@queryweave/vue";
 
+provideQueryAdapter(adapter); // reaches this component and every component below it
 const filters = useQueryModel(productFilters);
 
 filters.values.page; // readonly reactive state
