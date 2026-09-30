@@ -118,7 +118,7 @@ Run `pnpm bundle:size` to rebuild the packages and update these generated tables
 | `@queryweave/server`          |  3.05 kB |  1.22 kB |    940 B |    469 B |      409 B |
 | `@queryweave/node`            |  3.77 kB |  1.45 kB |  1.32 kB |    691 B |      608 B |
 | `@queryweave/standard-schema` |  1.18 kB |    537 B |    558 B |    341 B |      299 B |
-| `@queryweave/vue`             |  3.82 kB |  1.42 kB |  1.72 kB |    850 B |      767 B |
+| `@queryweave/vue`             |  4.40 kB |  1.64 kB |  1.85 kB |    915 B |      829 B |
 | `@queryweave/vue-router`      |  3.25 kB |  1.36 kB |  1.32 kB |    699 B |      616 B |
 | `@queryweave/nuxt`            |  2.87 kB |  1.60 kB |  1.25 kB |    911 B |      781 B |
 
@@ -138,9 +138,9 @@ remain external so the figures show QueryWeave's contribution.
 | Browser runtime             | 16.19 kB | 5.67 kB | 5.11 kB |
 | Web server parsing          | 10.49 kB | 3.51 kB | 3.17 kB |
 | Node request parsing        | 11.50 kB | 3.91 kB | 3.54 kB |
-| Vue binding                 | 16.37 kB | 5.68 kB | 5.14 kB |
-| Vue + Vue Router            | 17.67 kB | 6.14 kB | 5.55 kB |
-| Nuxt runtime                | 18.17 kB | 6.34 kB | 5.72 kB |
+| Vue binding                 | 16.47 kB | 5.73 kB | 5.23 kB |
+| Vue + Vue Router            | 17.77 kB | 6.19 kB | 5.58 kB |
+| Nuxt runtime                | 18.27 kB | 6.39 kB | 5.76 kB |
 
 <!-- consumer-size-table:end -->
 
