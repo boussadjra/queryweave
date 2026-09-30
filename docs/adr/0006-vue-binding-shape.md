@@ -49,6 +49,16 @@ throws a message that names all three routes rather than silently guessing.
 Cleanup is tied to the effect scope: the subscription is always released, and the runtime is
 disposed only when the binding created it.
 
+#### Amendment (2026-09-30): a provided adapter is visible to the component that provided it
+
+Vue's `inject()` reads the parent's provides, so a component that called `provideQueryAdapter()`
+and then `useQueryModel()` in the same `setup()` found no adapter, although the documentation
+showed exactly that. `provideQueryAdapter()` now also remembers the adapter against the calling
+component in a `WeakMap`, and `injectQueryAdapter()` checks the current component before falling
+back to `inject()`. A component's own adapter therefore wins over an ancestor's. The map is not
+`instance.provides`, which is internal, and holds nothing past its component, so the
+one-adapter-per-app rule for Nuxt is unaffected. No export changes.
+
 ### `@queryweave/vue-router` produces an adapter and nothing else
 
 It depends on `@queryweave/core` alone — not on `@queryweave/vue` — because synchronization and
