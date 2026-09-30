@@ -5,7 +5,8 @@
  * ADR 0010's throttle window, held transitions, and cancellation, and ADR 0011's date families.
  * The date and datetime codecs cost about 1 kB gzip, paid in full only by the core package and by
  * the `param` registry, which references every family (ADR 0008); a named-constructor model pays
- * for them only when it imports them.
+ * for them only when it imports them. The Vue binding gained about 65 B for remembering a provided
+ * adapter against its own component (ADR 0006 amendment).
  */
 export const packageMinifiedGzipBudgets = {
   "@queryweave/browser": 600,
@@ -15,7 +16,7 @@ export const packageMinifiedGzipBudgets = {
   "@queryweave/server": 480,
   "@queryweave/standard-schema": 350,
   "@queryweave/testing": 500,
-  "@queryweave/vue": 870,
+  "@queryweave/vue": 935,
   "@queryweave/vue-router": 710,
 };
 
