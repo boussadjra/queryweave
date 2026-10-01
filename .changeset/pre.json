@@ -22,6 +22,7 @@
   "changesets": [
     "date-families",
     "nuxt-4-0-support",
+    "provide-adapter-same-component",
     "transition-outcomes-and-pending-decodes",
     "transition-scheduling"
   ]

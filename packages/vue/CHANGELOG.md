@@ -1,5 +1,12 @@
 # @queryweave/vue
 
+## 0.1.0-beta.5
+
+### Patch Changes
+
+- 7ead3ed: `provideQueryAdapter()` now also reaches `useQueryModel()` in the component that called it.
+  - @queryweave/core@0.1.0-beta.5
+
 ## 0.1.0-beta.4
 
 ### Patch Changes
