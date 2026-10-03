@@ -6,9 +6,11 @@
   "scripts": {
     "build": "astro build",
     "check:links": "node scripts/check-links.mjs",
+    "check:seo": "node scripts/check-seo.mjs",
     "clean": "node ../../scripts/clean-package.mjs",
     "dev": "astro dev",
-    "docs:build": "astro build && node scripts/check-links.mjs",
+    "docs:build": "astro build && node scripts/check-links.mjs && node scripts/check-seo.mjs",
+    "images:generate": "node scripts/generate-og-image.mjs",
     "preview": "astro preview",
     "typecheck": "astro check"
   },
