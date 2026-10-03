@@ -5,6 +5,7 @@ import geistMonoFont from "@fontsource-variable/geist-mono/files/geist-mono-lati
 import { ArrowRight, ArrowUpRight, Braces, Check, Link, Route } from "@lucide/astro";
 import HomeFlowHero from "../components/HomeFlowHero.astro";
 import HomePackages from "../components/HomePackages.astro";
+import HomeSeo from "../components/HomeSeo.astro";
 import UrlLab from "../components/UrlLab.astro";
 import ThemeProvider from "../components/ThemeProvider.astro";
 import ThemeSelect from "../components/ThemeSelect.astro";
@@ -30,18 +31,12 @@ const description = "Define your URL state once. Decode typed values, recover in
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description} />
+    <HomeSeo title={title} description={description} version={currentPackageVersion} />
     <meta name="theme-color" content="#F1F1E4" />
     <ThemeProvider />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content={new URL("/og.png", Astro.site)} />
-    <link rel="canonical" href={Astro.site} />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preload" href={geistFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={geistMonoFont} as="font" type="font/woff2" crossorigin />
-    <title>{title}</title>
     <style is:global>
       @import "../styles/tokens.css";
       @import "../styles/home.css";

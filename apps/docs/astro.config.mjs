@@ -1,7 +1,11 @@
 // @ts-check
+import { fileURLToPath } from "node:url";
+
 import starlight from "@astrojs/starlight";
 import vue from "@astrojs/vue";
 import { defineConfig } from "astro/config";
+
+import { repositoryUrl, siteDescription, siteUrl } from "./src/data/seo.mjs";
 
 /**
  * QueryWeave documentation site.
@@ -13,20 +17,20 @@ import { defineConfig } from "astro/config";
  * dependency and says nothing about the library, which stays framework-independent.
  */
 
-const site = "https://queryweave.dev";
-const repository = "https://github.com/boussadjra/queryweave";
-
-const description =
-  "QueryWeave is a framework-independent, type-safe URL state engine for browsers, servers, " +
-  "Node.js, and modern frontend frameworks.";
-
 export default defineConfig({
-  site,
+  site: siteUrl,
   trailingSlash: "always",
+  vite: {
+    define: {
+      QUERYWEAVE_SOCIAL_ASSET_ROOT: JSON.stringify(
+        fileURLToPath(new URL("./scripts/", import.meta.url)),
+      ),
+    },
+  },
   integrations: [
     starlight({
       title: "QueryWeave",
-      description,
+      description: siteDescription,
       tagline: "Type-safe URL state, woven together.",
       logo: {
         src: "./public/queryweavelogo.svg",
@@ -36,9 +40,9 @@ export default defineConfig({
       favicon: "/favicon.png",
       titleDelimiter: "·",
       credits: false,
-      social: [{ icon: "github", label: "GitHub", href: repository }],
+      social: [{ icon: "github", label: "GitHub", href: repositoryUrl }],
       editLink: {
-        baseUrl: `${repository}/edit/main/apps/docs/`,
+        baseUrl: `${repositoryUrl}/edit/main/apps/docs/`,
       },
       customCss: [
         "@vue-flow/core/dist/style.css",
@@ -47,6 +51,7 @@ export default defineConfig({
         "./src/styles/components.css",
       ],
       components: {
+        Head: "./src/components/overrides/Head.astro",
         Header: "./src/components/overrides/Header.astro",
         MobileMenuFooter: "./src/components/overrides/MobileMenuFooter.astro",
         PageTitle: "./src/components/overrides/PageTitle.astro",
@@ -55,31 +60,9 @@ export default defineConfig({
         ThemeSelect: "./src/components/ThemeSelect.astro",
       },
       head: [
-        { tag: "meta", attrs: { property: "og:type", content: "website" } },
         {
           tag: "meta",
-          attrs: { property: "og:site_name", content: "QueryWeave" },
-        },
-        {
-          tag: "meta",
-          attrs: { property: "og:image", content: `${site}/og.png` },
-        },
-        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
-        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
-        {
-          tag: "meta",
-          attrs: {
-            property: "og:image:alt",
-            content: "QueryWeave — type-safe URL state, woven together.",
-          },
-        },
-        {
-          tag: "meta",
-          attrs: { name: "twitter:card", content: "summary_large_image" },
-        },
-        {
-          tag: "meta",
-          attrs: { name: "twitter:image", content: `${site}/og.png` },
+          attrs: { name: "robots", content: "index, follow, max-image-preview:large" },
         },
         {
           tag: "meta",

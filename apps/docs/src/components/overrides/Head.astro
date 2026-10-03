@@ -1,0 +1,121 @@
+---
+import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+import { currentPackageVersion } from "../../data/release";
+import { getHomepageStructuredData, getOgImagePath, siteDescription, siteUrl } from "../../data/seo.mjs";
+
+const route = Astro.locals.starlightRoute;
+const isHomepage = route.id === "" || route.id === "index";
+const noindex = route.id === "404" || route.entry.data.draft;
+const canonical = route.head.find(
+  ({ tag, attrs }) => tag === "link" && attrs?.["rel"] === "canonical",
+)?.attrs?.["href"];
+const pageUrl = typeof canonical === "string" ? canonical : new URL(Astro.url.pathname, siteUrl).href;
+const title = route.head.find(({ tag }) => tag === "title")?.content ?? route.entry.data.title;
+const descriptionTag = route.head.find(
+  ({ tag, attrs }) => tag === "meta" && attrs?.["name"] === "description",
+)?.attrs?.["content"];
+const description = typeof descriptionTag === "string" ? descriptionTag : siteDescription;
+const image = new URL(getOgImagePath(route.id), Astro.site ?? siteUrl).href;
+const locale = new Intl.Locale(route.lang.replaceAll("_", "-"));
+// Open Graph accepts a language and territory; a language-only HTML locale stays implicit.
+const ogLocale = locale.region ? `${locale.language}_${locale.region}` : undefined;
+const imageAlt = isHomepage || route.id === "404"
+  ? "QueryWeave — type-safe URL state for TypeScript, Vue, and Nuxt."
+  : `${route.entry.data.title} — QueryWeave documentation.`;
+
+// Starlight retains canonical links, titles, descriptions, and its own required tags.
+// Replace social tags here so each property appears once with this page's image.
+const head = route.head.filter(({ tag, attrs }) => {
+  if (tag !== "meta") return true;
+  const property = attrs?.["property"];
+  const name = attrs?.["name"];
+  return (
+    !(
+      typeof property === "string" &&
+      (property === "og:title" ||
+        property === "og:description" ||
+        property === "og:type" ||
+        property === "og:locale" ||
+        property.startsWith("og:image"))
+    ) &&
+    !(
+      typeof name === "string" &&
+      ([
+        "twitter:card", "twitter:title", "twitter:description", "twitter:image", "twitter:image:alt",
+      ].includes(name) ||
+        (noindex && name === "robots"))
+    )
+  );
+});
+
+/** Collect real sidebar destinations so breadcrumbs never link to absent section pages. */
+function sidebarLinks(entries: StarlightRouteData["sidebar"]): { name: string; item: string }[] {
+  return entries.flatMap((entry) =>
+    entry.type === "group"
+      ? sidebarLinks(entry.entries)
+      : [{ name: entry.label, item: new URL(entry.href, siteUrl).href }],
+  );
+}
+
+const parentPaths = new URL(pageUrl).pathname
+  .split("/")
+  .filter(Boolean)
+  .slice(0, -1)
+  .map((_, index, parts) => new URL(`/${parts.slice(0, index + 1).join("/")}/`, siteUrl).href);
+const links = sidebarLinks(route.sidebar);
+const breadcrumbs = [
+  { name: "QueryWeave", item: `${siteUrl}/` },
+  ...parentPaths.flatMap((path) => {
+    const link = links.find(({ item }) => item === path);
+    return link ? [link] : [];
+  }),
+  { name: route.entry.data.title, item: pageUrl },
+];
+
+const structuredData = isHomepage
+  ? getHomepageStructuredData({ description, language: route.lang, version: currentPackageVersion })
+  : {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": `${pageUrl}#article`,
+          url: pageUrl,
+          headline: route.entry.data.title,
+          description,
+          image,
+          inLanguage: route.lang,
+          isPartOf: { "@id": `${siteUrl}/#website` },
+          about: { "@id": `${siteUrl}/#software` },
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": `${pageUrl}#breadcrumbs`,
+          itemListElement: breadcrumbs.map((breadcrumb, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            ...breadcrumb,
+          })),
+        },
+      ],
+    };
+const jsonLd = JSON.stringify(structuredData).replaceAll("<", "\\u003c");
+---
+
+{head.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content={isHomepage || route.id === "404" ? "website" : "article"} />
+{ogLocale && <meta property="og:locale" content={ogLocale} />}
+<meta property="og:image" content={image} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={imageAlt} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={image} />
+<meta name="twitter:image:alt" content={imageAlt} />
+{noindex && <meta name="robots" content="noindex, follow" />}
+{!noindex && <script is:inline type="application/ld+json" set:html={jsonLd} />}
