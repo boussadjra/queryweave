@@ -254,6 +254,57 @@ describe("listeners", () => {
 });
 
 describe("snapshots", () => {
+  it("isolates nested custom codec data without freezing the codec's own values", () => {
+    const source = { ["__proto__"]: { tags: ["one"] } };
+    const custom = defineQueryModel({
+      data: param.custom({
+        decode: () => ({ ok: true, value: source, issues: [] }),
+        encode: () => ["custom"],
+      }),
+    });
+    const runtime = createQueryRuntime({
+      model: custom,
+      adapter: createMemoryQueryAdapter({ initial: "?data=custom" }),
+    });
+    const snapshot = runtime.read();
+    expect(() => snapshot.values.data["__proto__"].tags.push("injected")).toThrow(TypeError);
+    source["__proto__"].tags.push("owned by codec");
+    expect(snapshot.values.data["__proto__"].tags).toStrictEqual(["one"]);
+    expect(snapshot.result.ok && snapshot.result.value).toBe(snapshot.values);
+    runtime.dispose();
+  });
+
+  it("protects decoded lists from mutation without changing the URL or later transitions", async () => {
+    const adapter = createMemoryQueryAdapter({ initial: "?page=2&tags=one" });
+    const runtime = createQueryRuntime({ model, adapter });
+    const snapshot = runtime.read();
+
+    expect(() => (snapshot.values.tags as string[]).push("injected")).toThrow(TypeError);
+    expect(runtime.read()).toBe(snapshot);
+    expect(runtime.read().values.tags).toStrictEqual(["one"]);
+    expect(adapter.current()).toBe("page=2&tags=one");
+    await runtime.transaction((draft) => {
+      (draft.tags as string[]).push("two");
+    });
+    expect(snapshot.values.tags).toStrictEqual(["one"]);
+    expect(runtime.read().values.tags).toStrictEqual(["one", "two"]);
+    expect(adapter.current()).toBe("page=2&tags=one&tags=two");
+    runtime.dispose();
+  });
+
+  it("protects an empty list in an invalid snapshot", () => {
+    const strict = defineQueryModel({ tags: param.list(param.text()), token: param.text() });
+    const runtime = createQueryRuntime({
+      model: strict,
+      adapter: createMemoryQueryAdapter({ initial: "?tags=" }),
+    });
+    const snapshot = runtime.read();
+    expect(snapshot.status).toBe("invalid");
+    expect(() => (snapshot.values.tags as string[]).push("injected")).toThrow(TypeError);
+    expect(runtime.read().values.tags).toStrictEqual([]);
+    runtime.dispose();
+  });
+
   it("are reused until the adapter's query changes and cannot be mutated", () => {
     const adapter = createMemoryQueryAdapter({ initial: "?page=2" });
     const runtime = createQueryRuntime({ model, adapter });

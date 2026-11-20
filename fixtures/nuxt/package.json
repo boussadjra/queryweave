@@ -12,5 +12,8 @@
     "@queryweave/vue": "file:./queryweave-vue.tgz",
     "@queryweave/vue-router": "file:./queryweave-vue-router.tgz",
     "nuxt": "4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0"
   }
 }

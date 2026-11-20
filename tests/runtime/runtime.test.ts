@@ -17,6 +17,45 @@ function setup(initial = "") {
 }
 
 describe("read", () => {
+  it.each(["__proto__", "constructor", "toString"])(
+    "resets a required %s field without materializing an inherited value",
+    async (key) => {
+      const model = defineQueryModel({ [key]: param.text() });
+      const adapter = createMemoryQueryAdapter({ initial: `?${key}=value` });
+      const runtime = createQueryRuntime({ model, adapter });
+      await runtime.reset();
+      expect(adapter.current()).toBe("");
+      expect(runtime.read().status).toBe("invalid");
+      expect(Object.hasOwn(runtime.read().values, key)).toBe(false);
+      await runtime.replace({ [key]: "again" });
+      expect(runtime.read().values).toStrictEqual({ [key]: "again" });
+      runtime.dispose();
+    },
+  );
+
+  it("preserves a __proto__ field across every transition", async () => {
+    const model = defineQueryModel({ ["__proto__"]: param.text().default("default") });
+    const adapter = createMemoryQueryAdapter({ initial: "?__proto__=initial&utm_source=news" });
+    const runtime = createQueryRuntime({ model, adapter });
+    expect(runtime.read().values).toStrictEqual({ ["__proto__"]: "initial" });
+
+    await runtime.replace({ ["__proto__"]: "replaced" });
+    expect(adapter.current()).toBe("__proto__=replaced&utm_source=news");
+    await runtime.transaction((draft) => {
+      expect(Object.hasOwn(draft, "__proto__")).toBe(true);
+      draft["__proto__"] = "transaction";
+    });
+    expect(adapter.current()).toBe("__proto__=transaction&utm_source=news");
+    await runtime.reset();
+    expect(runtime.read().values).toStrictEqual({ ["__proto__"]: "default" });
+    expect(adapter.current()).toBe("utm_source=news");
+    await runtime.update({ ["__proto__"]: "updated" });
+    expect(runtime.read().values).toStrictEqual({ ["__proto__"]: "updated" });
+    await runtime.remove("__proto__");
+    expect(adapter.current()).toBe("utm_source=news");
+    runtime.dispose();
+  });
+
   it("decodes the current external query", () => {
     const { runtime } = setup("?page=2&search=vue");
     const snapshot = runtime.read();

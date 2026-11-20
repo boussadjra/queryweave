@@ -168,7 +168,9 @@ A list consumes every value stored under its key, so `?tag=a&tag=b` decodes to `
 item is decoded by the item parameter's codec, and item issues carry the index in their `path`.
 
 An empty list has one spelling: a single empty value. `products.encode({ category: [] })` writes
-`category=` when `[]` is not the declared default, and `?category=` decodes to `[]` with no issue.
+`category=` when `[]` is not the declared default, and `?category=` decodes to `[]` with no issue
+when the list's length constraints allow it. With `minItems: 1`, it reports `out_of_range` and uses
+the normal recovery rule. An empty default with that constraint throws at construction.
 That is what lets a required list hold nothing, an optional list tell "absent" from "cleared", and
 a list whose default is non-empty be emptied. An empty entry beside real values — `?tag=a&tag=` —
 is dropped and reported as `empty`.

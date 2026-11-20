@@ -24,7 +24,13 @@ const pnpmCli = resolve(
 
 /** Run a pnpm command without a shell, returning its stdout. */
 export async function runPnpm(args, options = {}) {
-  return execFileAsync(process.execPath, [pnpmCli, ...args], options);
+  const { stream = false, ...executionOptions } = options;
+  const result = execFileAsync(process.execPath, [pnpmCli, ...args], executionOptions);
+  if (stream) {
+    result.child.stdout.pipe(process.stdout);
+    result.child.stderr.pipe(process.stderr);
+  }
+  return result;
 }
 
 /**

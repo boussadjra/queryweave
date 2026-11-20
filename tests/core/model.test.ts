@@ -7,6 +7,49 @@ describe("keys", () => {
   it("reports managed keys in definition order", () => {
     expect(productFilters.keys()).toStrictEqual(["search", "page", "archived", "sort", "tags"]);
   });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "preserves %s as an own field through defaults, decoding, and encoding",
+    async (key) => {
+      const model = defineQueryModel({ [key]: param.text().default("default") });
+      const expected = { [key]: "value" };
+      expect(model.defaults()).toStrictEqual({ [key]: "default" });
+      for (const result of [
+        model.decode([[key, "value"]]),
+        await model.decodeAsync([[key, "value"]]),
+      ]) {
+        expect(result).toStrictEqual({ ok: true, value: expected, issues: [] });
+        if (!result.ok) {
+          throw new Error("expected a decoded special field");
+        }
+        expect(Object.hasOwn(result.value, key)).toBe(true);
+        expect(Object.getPrototypeOf(result.value)).toBe(Object.prototype);
+        expect(model.encode(result.value)).toStrictEqual([[key, "value"]]);
+      }
+      expect(model.normalize([[key, "value"]])).toStrictEqual([[key, "value"]]);
+    },
+  );
+
+  it("keeps a special field in partial values when a sibling fails", async () => {
+    const model = defineQueryModel({ ["__proto__"]: param.text(), required: param.integer() });
+    const expected = { ["__proto__"]: "value" };
+    const result = model.decode("?__proto__=value");
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected a failed decode");
+    }
+    expect(result.partial).toStrictEqual(expected);
+    expect(Object.hasOwn(result.partial, "__proto__")).toBe(true);
+    expect(await model.decodeAsync("?__proto__=value")).toStrictEqual(result);
+  });
+
+  it.each(["__proto__", "constructor", "toString"])(
+    "omits a missing required %s field instead of encoding an inherited value",
+    (key) => {
+      const model = defineQueryModel({ [key]: param.text() });
+      expect(model.normalize("")).toStrictEqual([]);
+    },
+  );
 });
 
 describe("defaults", () => {

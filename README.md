@@ -112,7 +112,7 @@ Run `pnpm bundle:size` to rebuild the packages and update these generated tables
 
 | Package                       |      ESM | ESM gzip | minified | min+gzip | min+Brotli |
 | ----------------------------- | -------: | -------: | -------: | -------: | ---------: |
-| `@queryweave/core`            | 46.77 kB | 11.69 kB | 21.89 kB |  7.39 kB |    6.67 kB |
+| `@queryweave/core`            | 46.98 kB | 11.80 kB | 22.00 kB |  7.47 kB |    6.76 kB |
 | `@queryweave/testing`         |  1.76 kB |    742 B |    780 B |    491 B |      433 B |
 | `@queryweave/browser`         |  2.71 kB |  1.11 kB |  1.13 kB |    564 B |      472 B |
 | `@queryweave/server`          |  3.05 kB |  1.22 kB |    940 B |    469 B |      409 B |
@@ -132,15 +132,15 @@ remain external so the figures show QueryWeave's contribution.
 | Consumer scenario           | minified |    gzip |  Brotli |
 | --------------------------- | -------: | ------: | ------: |
 | Query string parser         |    724 B |   466 B |   390 B |
-| Single text model (named)   |  9.60 kB | 3.24 kB | 2.94 kB |
-| Single text model (`param`) | 16.61 kB | 5.37 kB | 4.83 kB |
-| Typical core runtime        | 16.81 kB | 5.69 kB | 5.15 kB |
-| Browser runtime             | 16.19 kB | 5.67 kB | 5.11 kB |
-| Web server parsing          | 10.49 kB | 3.51 kB | 3.17 kB |
-| Node request parsing        | 11.50 kB | 3.91 kB | 3.54 kB |
-| Vue binding                 | 16.47 kB | 5.73 kB | 5.23 kB |
-| Vue + Vue Router            | 17.77 kB | 6.19 kB | 5.58 kB |
-| Nuxt runtime                | 18.27 kB | 6.39 kB | 5.76 kB |
+| Single text model (named)   |  9.74 kB | 3.28 kB | 2.98 kB |
+| Single text model (`param`) | 16.75 kB | 5.43 kB | 4.90 kB |
+| Typical core runtime        | 16.91 kB | 5.77 kB | 5.22 kB |
+| Browser runtime             | 16.30 kB | 5.73 kB | 5.16 kB |
+| Web server parsing          | 10.64 kB | 3.55 kB | 3.21 kB |
+| Node request parsing        | 11.65 kB | 3.96 kB | 3.58 kB |
+| Vue binding                 | 16.58 kB | 5.79 kB | 5.25 kB |
+| Vue + Vue Router            | 17.88 kB | 6.25 kB | 5.64 kB |
+| Nuxt runtime                | 18.38 kB | 6.45 kB | 5.82 kB |
 
 <!-- consumer-size-table:end -->
 

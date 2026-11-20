@@ -121,8 +121,9 @@ async function verifyFixture(fixtureName, directory) {
       "--no-lockfile",
       "--config.confirmModulesPurge=false",
       `--store-dir=${storeDirectory}`,
+      "--reporter=append-only",
     ],
-    { cwd: directory, maxBuffer: 64 * 1024 * 1024 },
+    { cwd: directory, maxBuffer: 64 * 1024 * 1024, stream: true },
   ).catch((error) => error);
 
   if (install instanceof Error) {
@@ -134,6 +135,7 @@ async function verifyFixture(fixtureName, directory) {
   const verification = await runPnpm(["run", "verify"], {
     cwd: directory,
     maxBuffer: 64 * 1024 * 1024,
+    stream: true,
   }).catch((error) => error);
 
   if (verification instanceof Error) {
@@ -174,7 +176,11 @@ try {
     }
   }
 } finally {
-  await rm(workspace, { force: true, recursive: true, maxRetries: 5 });
+  if (process.env.QUERYWEAVE_KEEP_CONSUMERS === "1") {
+    console.log(`Consumer workspace retained at ${workspace}`);
+  } else {
+    await rm(workspace, { force: true, recursive: true, maxRetries: 5 });
+  }
 }
 
 report("Consumer-fixture validation", failures);

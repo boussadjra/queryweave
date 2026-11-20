@@ -4,12 +4,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { verifyBrowsers } from "./verify-browser.mjs";
+
 /**
- * Start the production server Nuxt just built, then prove server rendering with real pages.
- *
- * The markup must already carry the decoded query for every route, and the client bundle must
- * carry the QueryWeave runtime. Hydration itself is not executed here: no browser runs in this
- * fixture, so the client-side behavior is covered by the Vitest and Playwright suites instead.
+ * Start the production server Nuxt just built, prove request isolation, then hydrate and navigate
+ * its real pages in Chromium, Firefox, and WebKit. All QueryWeave imports come from packed archives.
  */
 
 const port = 41_837;
@@ -96,6 +95,12 @@ try {
     bundles.some((bundle) => bundle.includes("must be an integer")),
     "the client bundle must carry the QueryWeave codecs used during hydration",
   );
+  try {
+    await verifyBrowsers(origin);
+  } catch (error) {
+    console.error(serverOutput);
+    throw error;
+  }
 } finally {
   await stopServer();
 }
