@@ -19,6 +19,7 @@ import {
   type QueryOutput,
 } from "./query-input";
 import type { DecodeResult } from "./results";
+import { frozenCopy, ownValue } from "./value";
 
 /*
  * `core` compiles against ES2023 alone and takes no environment's types, so the two timer
@@ -181,14 +182,14 @@ function toKeyList<TKey extends string>(keys: TKey | readonly TKey[]): readonly 
 /** A draft gets its own lists and dates, so mutating one cannot change the snapshot it came from. */
 function cloneValue(value: unknown): unknown {
   if (value instanceof Date) {
-    return new Date(value.getTime());
+    return frozenCopy(value);
   }
   return Array.isArray(value) ? value.map((item: unknown) => cloneValue(item)) : value;
 }
 
 function cloneValues<TValues extends object>(values: TValues): TValues {
-  const clone: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(values)) {
+  const clone = { ...values } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(clone)) {
     clone[key] = cloneValue(value);
   }
   return clone as TValues;
@@ -265,15 +266,12 @@ export function createQueryRuntime<TDefs extends QueryParamDefinitions>(
   };
 
   const toSnapshot = (result: DecodeResult<Values>, status?: QueryStatus): Snapshot => {
-    const values = result.ok
-      ? result.value
-      : ({ ...model.defaults(), ...result.partial } as Values);
-    return {
+    return frozenCopy({
       status: status ?? (result.ok ? "valid" : "invalid"),
-      values: Object.freeze(values),
+      values: result.ok ? result.value : ({ ...model.defaults(), ...result.partial } as Values),
       issues: result.issues,
       result,
-    };
+    });
   };
 
   const emit = (snapshot: Snapshot): void => {
@@ -582,14 +580,17 @@ export function createQueryRuntime<TDefs extends QueryParamDefinitions>(
       }, options_),
     reset: async (keys, options_) =>
       transition((current, omitted) => {
-        const target = keys === undefined ? model.keys() : toKeyList(keys);
+        const target = toKeyList(keys ?? model.keys());
         const defaults = model.defaults() as Record<string, unknown>;
-        const next = { ...current } as Record<string, unknown>;
-        for (const key of target) {
-          next[key] = defaults[key];
-          omitted.delete(key);
-        }
-        return next as Values;
+        return {
+          ...current,
+          ...Object.fromEntries(
+            target.map((key) => {
+              omitted.delete(key);
+              return [key, ownValue(defaults, key)];
+            }),
+          ),
+        };
       }, options_),
     transaction: async (mutate, options_) =>
       transition(async (current, omitted) => {

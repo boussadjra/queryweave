@@ -10,6 +10,7 @@ import {
 } from "./query-input";
 import { isPromiseLike, type QueryRefinement, type QueryRefinementResult } from "./refinement";
 import type { DecodeResult, QueryValueResult } from "./results";
+import { ownValue } from "./value";
 
 /** The shape accepted by {@link defineQueryModel}. */
 export type QueryParamDefinitions = Readonly<Record<string, QueryParamBase>>;
@@ -98,8 +99,7 @@ function mergeResults(
   keys: readonly string[],
   results: readonly QueryValueResult<unknown>[],
 ): MergedDecode {
-  const values: Record<string, unknown> = {};
-  const partial: Record<string, unknown> = {};
+  const entries: [string, unknown][] = [];
   const issues: QueryIssue[] = [];
   let ok = true;
 
@@ -110,14 +110,13 @@ function mergeResults(
     }
     issues.push(...result.issues);
     if (result.ok) {
-      values[key] = result.value;
-      partial[key] = result.value;
+      entries.push([key, result.value]);
     } else {
       ok = false;
     }
   }
 
-  return { ok, values, partial, issues };
+  return { ok, values: Object.fromEntries(entries), partial: Object.fromEntries(entries), issues };
 }
 
 const ignore = (): void => undefined;
@@ -210,19 +209,19 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
   };
 
   const defaults = (): QueryModelDefaults<TDefs> => {
-    const values: Record<string, unknown> = {};
+    const entries: [string, unknown][] = [];
     for (const key of keys) {
       const definition = params[key];
       if (definition === undefined) {
         continue;
       }
       if (definition.presence === "default") {
-        values[key] = definition.defaultValue;
+        entries.push([key, definition.defaultValue]);
       } else if (definition.presence === "optional") {
-        values[key] = undefined;
+        entries.push([key, undefined]);
       }
     }
-    return values as QueryModelDefaults<TDefs>;
+    return Object.fromEntries(entries) as QueryModelDefaults<TDefs>;
   };
 
   const encode = (value: QueryModelValues<TDefs>): QueryOutput => {
@@ -235,7 +234,7 @@ export function defineQueryModel<TDefs extends QueryParamDefinitions>(
         continue;
       }
       const context = encodeContext(key);
-      const encoded = definition.codec.encode(source[key], context);
+      const encoded = definition.codec.encode(ownValue(source, key), context);
 
       if (definition.presence === "default") {
         const encodedDefault = definition.codec.encode(definition.defaultValue, context);

@@ -135,6 +135,12 @@ including a Nuxt fixture that builds and server-renders real `pages/` routes, tw
 concurrently with different queries to prove they do not share state, and a Vue Router 4 fixture
 beside the Vue Router 5 one. The [support matrix](/project/support/) lists what each fixture pins.
 
+The Nuxt consumer also opens its production build in Chromium, Firefox, and WebKit. It checks
+server markup against hydrated state for valid, absent, and invalid query values; field writes;
+push/replace and back/forward; route changes and remounted bindings; and hydration or client errors.
+Its Nitro server embeds the built assets with `serveStatic: "inline"`, so asset loading is
+independent of the generated server chunks' relative paths.
+
 ### Where each area is tested
 
 | Area                                                  | Suites and fixtures                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -152,7 +158,7 @@ beside the Vue Router 5 one. The [support matrix](/project/support/) lists what 
 | [Standard Schema](/validation/)                       | `tests/standard-schema/compatibility.test.ts` runs one contract across Zod, Valibot, and ArkType, asserting normalized issues, inverses, throwing transforms, and inferred output types, and never a vendor's own error shape. The `standard-schema` fixture repeats a Valibot slice of it against the packed archive.                                                                                                                                                                         |
 | [Vue](/frameworks/vue/)                               | The `vue` project runs bindings inside effect scopes and server renders against the memory adapter, asserting reactivity, field bindings, issue propagation, pending decodes, and scope cleanup. The `vue` fixture type-checks the published archive against a Vue application.                                                                                                                                                                                                                |
 | [Vue Router](/frameworks/vue-router/)                 | `tests/vue-router/adapter.test.ts` drives a real router through push, replace, refused and redirected navigation, a subscriber that unmounts before another subscribes, prototype-named keys, and repeated keys. The `vue-router` and `vue-router-4` fixtures run the packed archive on both supported majors.                                                                                                                                                                                 |
-| [Nuxt](/frameworks/nuxt/)                             | `tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup, plugin registration, and the server-side refusal. The `nuxt` fixture also renders a second route with its own model. It runs no browser, so hydration and client-side navigation are covered by the Vue Router and browser suites.                                                                                                                                                                       |
+| [Nuxt](/frameworks/nuxt/)                             | `tests/nuxt/module.test.ts` and `tests/nuxt/registration.test.ts` cover module setup, plugin registration, and the server-side refusal. The `nuxt` fixture renders concurrent requests and a second route with its own model. `fixtures/nuxt/verify-browser.mjs` runs hydration, URL writes, back/forward, and route remounts against its production build in Chromium, Firefox, and WebKit.                                                                                                   |
 
 ## Deferred decisions
 

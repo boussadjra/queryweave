@@ -18,13 +18,20 @@ runner copies `queryweave-core-<version>.tgz` to that name before installing.
 Peer dependencies are strict inside a fixture, so a published range that excludes the fixture's
 framework version fails the install.
 
-| Fixture           | Proves                                                                       |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `universal`       | Core needs no DOM library, no Node typings, no framework, and TypeScript 5.5 |
-| `browser`         | The History adapter installs and runs with no framework present              |
-| `node`            | Node helpers work over a real HTTP request                                   |
-| `vue`             | Vue is a peer and Vue Router is not required                                 |
-| `vue-router`      | The router adapter resolves without deep imports on Vue Router 5             |
-| `vue-router-4`    | The same consumer on Vue Router 4, the other supported major                 |
-| `nuxt`            | The module and runtime plugin build and server-render real `pages/` routes   |
-| `standard-schema` | No validator is installed transitively; a chosen one works                   |
+Install Chromium, Firefox, and WebKit before running the Nuxt fixture:
+`pnpm exec playwright install chromium firefox webkit`. Its production build is hydrated and
+navigated in all three engines, including push/replace, back/forward, and remounting route bindings.
+
+Set `QUERYWEAVE_KEEP_CONSUMERS=1` to retain the temporary projects for debugging; the runner prints
+their path. Install and verification output is streamed while each fixture runs.
+
+| Fixture           | Proves                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `universal`       | Core needs no DOM library, no Node typings, no framework, and TypeScript 5.5                  |
+| `browser`         | The History adapter installs and runs with no framework present                               |
+| `node`            | Node helpers work over a real HTTP request                                                    |
+| `vue`             | Vue is a peer and Vue Router is not required                                                  |
+| `vue-router`      | The router adapter resolves without deep imports on Vue Router 5                              |
+| `vue-router-4`    | The same consumer on Vue Router 4, the other supported major                                  |
+| `nuxt`            | Server rendering, request isolation, hydration, and client navigation on real `pages/` routes |
+| `standard-schema` | No validator is installed transitively; a chosen one works                                    |

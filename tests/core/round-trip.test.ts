@@ -96,6 +96,18 @@ describe("value round trips", () => {
 });
 
 describe("canonical output is a fixed point", () => {
+  it("normalizes combinations of malformed percent escapes to a fixed point", () => {
+    const fragments = ["%", "%2", "%zz", "%FF", "%E0%A4%A", "%ED%A0%80"];
+    for (const left of fragments) {
+      for (const right of fragments) {
+        const input = `?emptyText=${left}a+b${right}&unknown=kept-outside-the-model`;
+        const once = model.normalize(input);
+        expect(model.normalize(formatQueryString(once))).toStrictEqual(once);
+        expect(model.decode(once).ok).toBe(true);
+      }
+    }
+  });
+
   const inputs: readonly string[] = [
     "",
     "?",
@@ -126,6 +138,29 @@ describe("canonical output is a fixed point", () => {
 });
 
 describe("raw string round trips", () => {
+  it("matches platform encoding and round-trips generated Unicode entries", () => {
+    let seed = 0x51_77_65;
+    const next = (): number => {
+      seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
+      return seed;
+    };
+    const text = defineQueryModel({ key: param.text({ allowEmpty: true }) });
+    for (let sample = 0; sample < 256; sample += 1) {
+      const value = String.fromCharCode(
+        ...Array.from({ length: next() % 32 }, () => next() % 65_536),
+      );
+      const entries: [string, string][] = [["key", value]];
+      const encoded = formatQueryString(entries);
+      expect(encoded).toBe(new URLSearchParams(entries).toString());
+      expect(text.decode(encoded)).toStrictEqual({
+        ok: true,
+        value: { key: new TextDecoder().decode(new TextEncoder().encode(value)) },
+        issues: [],
+      });
+      expect(text.normalize(encoded)).toStrictEqual(text.normalize(text.normalize(encoded)));
+    }
+  });
+
   const values: readonly string[] = [
     "plain",
     "with space",

@@ -182,5 +182,8 @@ jobs:
 
       # Installs each packed archive into a clean project outside the workspace, then builds,
       # server-renders, and hydrates the Nuxt consumer.
+      - name: Install browsers for the Nuxt consumer
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
       - name: Verify consumer fixtures
         run: pnpm consumers:check

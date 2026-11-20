@@ -7,6 +7,7 @@ import {
   type QueryTransform,
 } from "./refinement";
 import { failValue, okValue, type QueryValueResult } from "./results";
+import { frozenCopy } from "./value";
 
 /** Parameter families implemented by this release. */
 export type QueryParamKind =
@@ -191,7 +192,7 @@ const ignore = (): void => undefined;
  */
 function handOut(value: unknown): unknown {
   if (value instanceof Date) {
-    return new Date(value.getTime());
+    return frozenCopy(value);
   }
   if (Array.isArray(value) && value.some((item: unknown) => item instanceof Date)) {
     return Object.freeze(value.map((item: unknown) => handOut(item)));
@@ -485,35 +486,6 @@ function encodeWithState(
     }
   }
   return state.raw.encode(current, context);
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-/**
- * Defaults are shared by every decode of every runtime that uses the model, so they are copied
- * and frozen. A transaction that tries to mutate one fails instead of corrupting the next request.
- */
-function frozenCopy<TValue>(value: TValue): TValue {
-  if (value instanceof Date) {
-    return new Date(value.getTime()) as TValue;
-  }
-  if (Array.isArray(value)) {
-    return Object.freeze(value.map((item: unknown) => frozenCopy(item))) as TValue;
-  }
-  if (isPlainObject(value)) {
-    const copy: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      copy[key] = frozenCopy(item);
-    }
-    return Object.freeze(copy as object) as TValue;
-  }
-  return value;
 }
 
 function assertDefaultDecodes(state: ParamState): void {
@@ -973,6 +945,9 @@ function isExplicitlyEmptyList(input: readonly string[]): boolean {
 }
 
 function prepareListValues(input: readonly string[]): ListPreparation {
+  if (isExplicitlyEmptyList(input)) {
+    return { kept: [], dropped: false };
+  }
   const kept: string[] = [];
   let dropped = false;
   for (const value of input) {
@@ -1057,9 +1032,6 @@ function createListCodec(item: QueryParam<unknown>, options: ListParamOptions): 
 
   return {
     decode: (input, context) => {
-      if (isExplicitlyEmptyList(input)) {
-        return okValue([]);
-      }
       const preparation = prepareListValues(input);
       const results = preparation.kept.map((value, index) =>
         item.codec.decode([value], itemContext(context, index)),
@@ -1067,9 +1039,6 @@ function createListCodec(item: QueryParam<unknown>, options: ListParamOptions): 
       return collectListItems(input, preparation, results, context, options);
     },
     decodeAsync: async (input, context) => {
-      if (isExplicitlyEmptyList(input)) {
-        return okValue([]);
-      }
       const preparation = prepareListValues(input);
       const results = await Promise.all(
         preparation.kept.map(async (value, index) => {

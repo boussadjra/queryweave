@@ -78,6 +78,20 @@ describe("option validation", () => {
 });
 
 describe("defaults", () => {
+  it("keeps own __proto__ properties when copying a custom default", () => {
+    const source = { ["__proto__"]: "value" };
+    const definition = param
+      .custom({
+        decode: (input) => ({ ok: true, value: { ["__proto__"]: input[0] ?? "" }, issues: [] }),
+        encode: (value: typeof source) => [value["__proto__"]],
+      })
+      .default(source);
+    const model = defineQueryModel({ data: definition });
+    expect(model.defaults()).toStrictEqual({ data: source });
+    expect(model.decode("")).toStrictEqual({ ok: true, value: { data: source }, issues: [] });
+    expect(Object.getPrototypeOf(definition.defaultValue)).toBe(Object.prototype);
+  });
+
   it("must be accepted by the parameter's own codec", () => {
     expect(() => param.integer({ min: 1 }).default(0)).toThrow("not accepted");
     expect(() => param.choice(["a", "b"]).default("c" as "a")).toThrow("not accepted");
@@ -113,6 +127,32 @@ describe("defaults", () => {
 });
 
 describe("empty lists", () => {
+  it.each(["required", "optional", "defaulted"] as const)(
+    "enforces minItems for an explicitly empty %s list in both decoders",
+    async (presence) => {
+      const list = param.list(param.integer(), { minItems: 1 });
+      const definition =
+        presence === "optional"
+          ? list.optional()
+          : presence === "defaulted"
+            ? list.default([1])
+            : list;
+      const model = defineQueryModel({ ids: definition });
+      const result = model.decode("?ids=");
+
+      expect(result.ok).toBe(presence !== "required");
+      expect(result.issues).toMatchObject([{ key: "ids", code: "out_of_range", path: ["ids"] }]);
+      expect(result.ok ? result.value.ids : undefined).toStrictEqual(
+        presence === "defaulted" ? [1] : undefined,
+      );
+      expect(await model.decodeAsync("?ids=")).toStrictEqual(result);
+    },
+  );
+
+  it("rejects an empty default below minItems", () => {
+    expect(() => param.list(param.integer(), { minItems: 1 }).default([])).toThrow("not accepted");
+  });
+
   it("encodes an empty list as one empty value and reads it back without an issue", () => {
     const model = defineQueryModel({
       required: param.list(param.text()),

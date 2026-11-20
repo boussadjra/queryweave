@@ -7,12 +7,17 @@ const details = defineQueryModel({
 });
 
 const query = useQueryModel(details);
+const hydrated = ref(false);
+onMounted(() => {
+  hydrated.value = true;
+});
 </script>
 
 <template>
-  <main>
+  <main :data-hydrated="hydrated">
     <h1>Other page</h1>
     <p data-testid="tab">tab:{{ query.values.tab }}</p>
+    <button type="button" @click="query.update({ tab: 'summary' })">Summary</button>
     <NuxtLink to="/?page=2">Home</NuxtLink>
   </main>
 </template>
